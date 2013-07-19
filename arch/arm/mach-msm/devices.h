@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-msm/devices.h
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -63,6 +63,7 @@ extern struct platform_device msm8960_device_uart_gsbi8;
 extern struct platform_device msm8960_device_ssbi_pmic;
 extern struct platform_device msm8960_device_qup_i2c_gsbi3;
 extern struct platform_device msm8960_device_qup_i2c_gsbi4;
+extern struct platform_device msm8960_device_qup_i2c_gsbi8;
 extern struct platform_device msm8960_device_qup_i2c_gsbi9;
 extern struct platform_device msm8960_device_qup_i2c_gsbi10;
 extern struct platform_device msm8960_device_qup_i2c_gsbi12;
@@ -85,6 +86,8 @@ extern struct platform_device msm8960_device_ebi1_ch1_erp;
 
 extern struct platform_device apq8064_device_uart_gsbi1;
 extern struct platform_device apq8064_device_uart_gsbi3;
+extern struct platform_device apq8064_device_uart_gsbi4;
+extern struct platform_device apq8064_device_uartdm_gsbi4;
 extern struct platform_device apq8064_device_uart_gsbi7;
 #ifdef CONFIG_PANTECH_GSBI5_UART_CONSOLE
 extern struct platform_device apq8064_device_uart_gsbi5;
@@ -118,6 +121,10 @@ extern struct platform_device msm_device_sdc1;
 extern struct platform_device msm_device_sdc2;
 extern struct platform_device msm_device_sdc3;
 extern struct platform_device msm_device_sdc4;
+
+extern struct platform_device msm8960_pc_cntr;
+extern struct platform_device msm8064_pc_cntr;
+extern struct platform_device msm8930_pc_cntr;
 
 extern struct platform_device msm_device_gadget_peripheral;
 extern struct platform_device msm_device_hsusb_host;
@@ -303,6 +310,8 @@ extern struct platform_device *msm8660_footswitch[];
 extern unsigned msm8660_num_footswitch;
 extern struct platform_device *msm8960_footswitch[];
 extern unsigned msm8960_num_footswitch;
+extern struct platform_device *msm8960ab_footswitch[];
+extern unsigned msm8960ab_num_footswitch;
 extern struct platform_device *apq8064_footswitch[];
 extern unsigned apq8064_num_footswitch;
 extern struct platform_device *msm8930_footswitch[];
@@ -324,7 +333,6 @@ extern struct platform_device msm_kgsl_2d1;
 
 extern struct platform_device msm_mipi_dsi1_device;
 extern struct platform_device mipi_dsi_device;
-extern struct platform_device msm_lcdc_device;
 extern struct platform_device msm_lvds_device;
 extern struct platform_device msm_ebi2_lcdc_device;
 
@@ -405,12 +413,7 @@ extern struct platform_device msm_dsps_device_8064;
 extern struct platform_device *msm_8974_stub_regulator_devices[];
 extern int msm_8974_stub_regulator_devices_len;
 
-extern struct platform_device msm8960_cpu_idle_device;
-extern struct platform_device msm8930_cpu_idle_device;
-extern struct platform_device apq8064_cpu_idle_device;
-
-extern struct platform_device msm8960_msm_gov_device;
-extern struct platform_device msm8930_msm_gov_device;
+extern struct platform_device apq8064_dcvs_device;
 extern struct platform_device apq8064_msm_gov_device;
 
 extern struct platform_device msm_bus_8930_apps_fabric;
@@ -454,13 +457,17 @@ extern struct platform_device msm8x50_device_acpuclk;
 extern struct platform_device msm8x60_device_acpuclk;
 extern struct platform_device msm8930_device_acpuclk;
 extern struct platform_device msm8930aa_device_acpuclk;
+extern struct platform_device msm8930ab_device_acpuclk;
 extern struct platform_device msm8960_device_acpuclk;
 extern struct platform_device msm8960ab_device_acpuclk;
 extern struct platform_device msm9615_device_acpuclk;
 
+extern struct platform_device apq8064_msm_mpd_device;
+
 extern struct platform_device msm_gpio_device;
 
-extern struct platform_device apq_cpudai_mi2s;
-extern struct platform_device apq_cpudai_i2s_rx;
-extern struct platform_device apq_cpudai_i2s_tx;
+extern struct platform_device amdm_8064_device;
+extern struct platform_device bmdm_8064_device;
 
+extern struct platform_device sglte_mdm_8064_device;
+extern struct platform_device sglte2_qsc_8064_device;

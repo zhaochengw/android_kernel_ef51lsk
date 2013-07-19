@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -83,6 +83,10 @@
 #define VIDC_SM_ENC_EXT_CTRL_ADDR                    0x0028
 #define VIDC_SM_ENC_EXT_CTRL_VBV_BUFFER_SIZE_BMSK    0xffff0000
 #define VIDC_SM_ENC_EXT_CTRL_VBV_BUFFER_SIZE_SHFT    16
+#define VIDC_SM_ENC_EXT_CTRL_TIMING_INFO_EN_BMSK     0x00004000
+#define VIDC_SM_ENC_EXT_CTRL_TIMING_INFO_EN_SHFT     14
+#define VIDC_SM_ENC_EXT_CTRL_AU_DELIMITER_EN_BMSK    0x00000800
+#define VIDC_SM_ENC_EXT_CTRL_AU_DELIMITER_EN_SHFT    11
 #define VIDC_SM_ENC_EXT_CTRL_H263_CPCFC_ENABLE_BMSK  0x80
 #define VIDC_SM_ENC_EXT_CTRL_H263_CPCFC_ENABLE_SHFT  7
 #define VIDC_SM_ENC_EXT_CTRL_SPS_PPS_CONTROL_BMSK    0X100
@@ -174,6 +178,13 @@
 #define VIDC_SM_ENC_NUM_OF_SLICE_COMP_ADDR                        0x01d0
 #define VIDC_SM_ENC_NUM_OF_SLICE_COMP_VALUE_BMSK                  0xffffffff
 #define VIDC_SM_ENC_NUM_OF_SLICE_COMP_VALUE_SHFT                  0
+#define VIDC_SM_ENC_NUM_UNITS_IN_TICK_ADDR                        0x01dc
+#define VIDC_SM_ENC_NUM_UNITS_IN_TICK_VALUE_BMSK                  0xffffffff
+#define VIDC_SM_ENC_NUM_UNITS_IN_TICK_VALUE_SHFT                  0
+#define VIDC_SM_ENC_TIME_SCALE_ADDR                               0x01e0
+#define VIDC_SM_ENC_TIME_SCALE_VALUE_BMSK                         0xffffffff
+#define VIDC_SM_ENC_TIME_SCALE_VALUE_SHFT                         0
+
 
 #define VIDC_SM_ALLOCATED_LUMA_DPB_SIZE_ADDR               0x0064
 #define VIDC_SM_ALLOCATED_CHROMA_DPB_SIZE_ADDR             0x0068
@@ -296,7 +307,9 @@
 #define VIDC_SM_MP2_DATA_DUMP_BUFFER_ADDR                         0x01a4
 #define VIDC_SM_MP2_DATA_DUMP_BUFFER_SIZE_ADDR                    0x01a8
 
-
+#define VIDC_SM_MP2_COMMON_STATUS_DEC_ORDER_ADDR                  0x01b0
+#define VIDC_SM_MP2_SEQ_END_CODE_BMSK                             0x00000002
+#define VIDC_SM_MP2_SEQ_END_CODE_SHIFT                            1
 
 #define VIDC_SM_ENC_EXT_CTRL_CLOSED_GOP_ENABLE_BMSK	0x40
 #define VIDC_SM_ENC_EXT_CTRL_CLOSED_GOP_ENABLE_SHFT	6
@@ -446,10 +459,11 @@ void vidc_sm_set_extended_encoder_control(struct ddl_buf_addr
 	*shared_mem, u32 hec_enable,
 	enum VIDC_SM_frame_skip frame_skip_mode,
 	u32 seq_hdr_in_band, u32 vbv_buffer_size, u32 cpcfc_enable,
-	u32 sps_pps_control, u32 closed_gop_enable)
+	u32 sps_pps_control, u32 closed_gop_enable,
+	u32 au_delim_enable,
+	u32 vui_timing_info_enable)
 {
 	u32 enc_ctrl;
-
 	enc_ctrl = VIDC_SETFIELD((hec_enable) ? 1 : 0,
 			VIDC_SM_ENC_EXT_CTRL_HEC_ENABLE_SHFT,
 			VIDC_SM_ENC_EXT_CTRL_HEC_ENABLE_BMSK) |
@@ -470,7 +484,14 @@ void vidc_sm_set_extended_encoder_control(struct ddl_buf_addr
 			VIDC_SM_ENC_EXT_CTRL_SPS_PPS_CONTROL_BMSK) |
 			VIDC_SETFIELD(closed_gop_enable,
 			VIDC_SM_ENC_EXT_CTRL_CLOSED_GOP_ENABLE_SHFT,
-			VIDC_SM_ENC_EXT_CTRL_CLOSED_GOP_ENABLE_BMSK);
+			VIDC_SM_ENC_EXT_CTRL_CLOSED_GOP_ENABLE_BMSK) |
+			VIDC_SETFIELD((au_delim_enable) ? 1 : 0,
+			VIDC_SM_ENC_EXT_CTRL_AU_DELIMITER_EN_SHFT,
+			VIDC_SM_ENC_EXT_CTRL_AU_DELIMITER_EN_BMSK) |
+			VIDC_SETFIELD((vui_timing_info_enable) ? 1 : 0,
+			VIDC_SM_ENC_EXT_CTRL_TIMING_INFO_EN_SHFT,
+			VIDC_SM_ENC_EXT_CTRL_TIMING_INFO_EN_BMSK);
+
 	DDL_MEM_WRITE_32(shared_mem, VIDC_SM_ENC_EXT_CTRL_ADDR, enc_ctrl);
 }
 
@@ -956,20 +977,12 @@ void vidc_sm_get_aspect_ratio_info(struct ddl_buf_addr *shared_mem,
 		(codec == VCD_CODEC_DIVX_4) ||
 		(codec == VCD_CODEC_DIVX_5) ||
 		(codec == VCD_CODEC_DIVX_6) ||
-		(codec == VCD_CODEC_XVID) ||
-		(codec == VCD_CODEC_MPEG2)) {
+		(codec == VCD_CODEC_XVID)) {
 
-		if (codec == VCD_CODEC_MPEG2) {
-			aspect_ratio_info->aspect_ratio =
-				VIDC_GETFIELD(aspect_ratio,
-				VIDC_SM_MPEG2_ASPECT_RATIO_INFO_BMSK,
-				VIDC_SM_MPEG2_ASPECT_RATIO_INFO_SHFT);
-		} else {
-			aspect_ratio_info->aspect_ratio =
-				VIDC_GETFIELD(aspect_ratio,
-				VIDC_SM_MPEG4_ASPECT_RATIO_INFO_BMSK,
-				VIDC_SM_MPEG4_ASPECT_RATIO_INFO_SHFT);
-		}
+		aspect_ratio_info->aspect_ratio =
+			VIDC_GETFIELD(aspect_ratio,
+			VIDC_SM_MPEG4_ASPECT_RATIO_INFO_BMSK,
+			VIDC_SM_MPEG4_ASPECT_RATIO_INFO_SHFT);
 
 		switch (aspect_ratio_info->aspect_ratio) {
 		case 1:
@@ -1010,7 +1023,38 @@ void vidc_sm_get_aspect_ratio_info(struct ddl_buf_addr *shared_mem,
 			aspect_ratio_info->par_height   = 1;
 			break;
 		}
+	} else if (codec == VCD_CODEC_MPEG2) {
+
+		aspect_ratio_info->aspect_ratio =
+			VIDC_GETFIELD(aspect_ratio,
+			VIDC_SM_MPEG2_ASPECT_RATIO_INFO_BMSK,
+			VIDC_SM_MPEG2_ASPECT_RATIO_INFO_SHFT);
+
+		switch (aspect_ratio_info->aspect_ratio) {
+		case 1:
+			aspect_ratio_info->par_width    = 1;
+			aspect_ratio_info->par_height   = 1;
+			break;
+		case 2:
+			aspect_ratio_info->par_width    = 4;
+			aspect_ratio_info->par_height   = 3;
+			break;
+		case 3:
+			aspect_ratio_info->par_width    = 16;
+			aspect_ratio_info->par_height   = 9;
+			break;
+		case 4:
+			aspect_ratio_info->par_width    = 221;
+			aspect_ratio_info->par_height   = 100;
+			break;
+		default:
+			DDL_MSG_LOW("Incorrect Aspect Ratio.");
+			aspect_ratio_info->par_width    = 1;
+			aspect_ratio_info->par_height   = 1;
+			break;
+		}
 	}
+
 }
 
 void vidc_sm_set_encoder_slice_batch_int_ctrl(struct ddl_buf_addr *shared_mem,
@@ -1132,4 +1176,27 @@ void vidc_sm_set_mp2datadumpbuffer(struct ddl_buf_addr *shared_mem,
 	DDL_MEM_WRITE_32(shared_mem,
 			VIDC_SM_MP2_DATA_DUMP_BUFFER_SIZE_ADDR,
 			mp2datadumpsize);
+}
+
+void vidc_sm_set_h264_encoder_timing_info(struct ddl_buf_addr *shared_mem,
+	u32 num_units_in_tick, u32 time_scale)
+{
+	DDL_MEM_WRITE_32(shared_mem,
+			VIDC_SM_ENC_NUM_UNITS_IN_TICK_ADDR,
+			num_units_in_tick);
+
+	DDL_MEM_WRITE_32(shared_mem,
+			VIDC_SM_ENC_TIME_SCALE_ADDR,
+			time_scale);
+}
+
+void vidc_sm_get_mp2common_status(struct ddl_buf_addr *shared_mem,
+	u32 *seq_end_code_present)
+{
+	u32 status;
+	status = DDL_MEM_READ_32(shared_mem,
+			VIDC_SM_MP2_COMMON_STATUS_DEC_ORDER_ADDR);
+	*seq_end_code_present = (u32) VIDC_GETFIELD(status,
+				VIDC_SM_MP2_SEQ_END_CODE_BMSK,
+				VIDC_SM_MP2_SEQ_END_CODE_SHIFT);
 }

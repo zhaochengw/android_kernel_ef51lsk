@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,8 +34,6 @@
 
 #define MODULE_NAME			"wcnss_8960"
 #define MAX_BUF_SIZE			0x51
-
-
 
 static struct delayed_work cancel_vote_work;
 static void *riva_ramdump_dev;
@@ -155,6 +153,8 @@ static int riva_powerup(const struct subsys_desc *subsys)
 	struct wcnss_wlan_config *pwlanconfig = wcnss_get_wlan_config();
 	int    ret = -1;
 
+	wcnss_ssr_boot_notify();
+
 	if (pdev && pwlanconfig)
 		ret = wcnss_wlan_power(&pdev->dev, pwlanconfig,
 					WCNSS_WLAN_SWITCH_ON);
@@ -194,9 +194,14 @@ static int riva_ramdump(int enable, const struct subsys_desc *subsys)
 static void riva_crash_shutdown(const struct subsys_desc *subsys)
 {
 	pr_err("%s: crash shutdown : %d\n", MODULE_NAME, riva_crash);
-	if (riva_crash != true)
+	if (riva_crash != true) {
 		smsm_riva_reset();
+		/* give sufficient time for wcnss to finish it's error
+		 * fatal routine */
+		mdelay(3000);
 	}
+
+}
 
 static struct subsys_desc riva_8960 = {
 	.name = "wcnss",
@@ -243,7 +248,7 @@ static int __init riva_ssr_module_init(void)
 		goto out;
 	}
 	ret = request_irq(RIVA_APSS_WDOG_BITE_RESET_RDY_IRQ,
-			riva_wdog_bite_irq_hdlr, IRQF_TRIGGER_HIGH,
+			riva_wdog_bite_irq_hdlr, IRQF_TRIGGER_RISING,
 				"riva_wdog", NULL);
 
 	if (ret < 0) {

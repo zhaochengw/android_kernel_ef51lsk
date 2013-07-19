@@ -20,4 +20,9 @@ config SWITCH_SKY
 	  Say Y here if you have a SKY_SWITCH o enable
 	  support for the built-in SKY_SWITCH.	  
 
+config SWITCH_FSA8008
+	bool "FSA8008 Headset detection driver"
+	help
+	 Say Y here to enable FSA8008 driver
+
 endif # SWITCH

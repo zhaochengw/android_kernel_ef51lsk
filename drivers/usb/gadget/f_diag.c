@@ -345,7 +345,6 @@ EXPORT_SYMBOL(usb_diag_close);
 static void free_reqs(struct diag_context *ctxt)
 {
 	struct list_head *act, *tmp;
-
 	struct usb_request *req;
 
 	list_for_each_safe(act, tmp, &ctxt->write_pool) {
@@ -371,14 +370,14 @@ static void free_reqs(struct diag_context *ctxt)
  */
 void usb_diag_free_req(struct usb_diag_ch *ch)
 {
-       struct diag_context *ctxt = ch->priv_usb;
-       unsigned long flags;
+	struct diag_context *ctxt = ch->priv_usb;
+	unsigned long flags;
 
-       if (ctxt) {
-               spin_lock_irqsave(&ctxt->lock, flags);
-               free_reqs(ctxt);
-               spin_unlock_irqrestore(&ctxt->lock, flags);
-       }
+	if (ctxt) {
+		spin_lock_irqsave(&ctxt->lock, flags);
+		free_reqs(ctxt);
+		spin_unlock_irqrestore(&ctxt->lock, flags);
+	}
 
 }
 EXPORT_SYMBOL(usb_diag_free_req);
@@ -407,7 +406,6 @@ int usb_diag_alloc_req(struct usb_diag_ch *ch, int n_write, int n_read)
 	spin_lock_irqsave(&ctxt->lock, flags);
 	/* Free previous session's stale requests */
 	free_reqs(ctxt);
-
 	for (i = 0; i < n_write; i++) {
 		req = usb_ep_alloc_request(ctxt->in, GFP_ATOMIC);
 		if (!req)
@@ -423,10 +421,8 @@ int usb_diag_alloc_req(struct usb_diag_ch *ch, int n_write, int n_read)
 		req->complete = diag_read_complete;
 		list_add_tail(&req->list, &ctxt->read_pool);
 	}
-
 	spin_unlock_irqrestore(&ctxt->lock, flags);
 	return 0;
-
 fail:
 	free_reqs(ctxt);
 	spin_unlock_irqrestore(&ctxt->lock, flags);

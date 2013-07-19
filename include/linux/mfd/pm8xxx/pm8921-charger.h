@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -89,6 +89,7 @@ enum pm8921_chg_led_src_config {
  *			area
  * @max_bat_chg_current:	Max charge current of the battery in mA
  *				Usually 70% of full charge capacity
+ * @usb_max_current:		Maximum USB current in mA
  * @cool_bat_chg_current:	chg current (mA) when the battery is cool
  * @warm_bat_chg_current:	chg current (mA)  when the battery is warm
  * @cool_bat_voltage:		chg voltage (mV) when the battery is cool
@@ -137,6 +138,10 @@ enum pm8921_chg_led_src_config {
  *				driver couldn't stop charging when battery
  *				temperature is out of bounds. Used only if
  *				btc_override = 1
+ * stop_chg_upon_expiry:	flag to indicate that the charger driver should
+ *				stop charging the battery when the safety timer
+ *				expires. If not set the charger driver will
+ *				restart charging upon expiry.
  */
 struct pm8921_charger_platform_data {
 	struct pm8xxx_charger_core_data	charger_cdata;
@@ -155,6 +160,7 @@ struct pm8921_charger_platform_data {
 	int				warm_temp;
 	unsigned int			temp_check_period;
 	unsigned int			max_bat_chg_current;
+	unsigned int			usb_max_current;
 	unsigned int			cool_bat_chg_current;
 	unsigned int			warm_bat_chg_current;
 	unsigned int			cool_bat_voltage;
@@ -181,6 +187,8 @@ struct pm8921_charger_platform_data {
 	int				btc_override_hot_degc;
 	int				btc_delay_ms;
 	int				btc_panic_if_cant_stop_chg;
+	int				stop_chg_upon_expiry;
+	bool				disable_chg_rmvl_wrkarnd;
 };
 
 enum pm8921_charger_source {

@@ -42,6 +42,9 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					goto new_segment;
 				if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bv))
 					goto new_segment;
+				if ((bvprv->bv_page != bv->bv_page) &&
+				    (bvprv->bv_page + 1) != bv->bv_page)
+					goto new_segment;
 
 // <20130201> sim,jungsun : V7 DMA Cache Error Patch
 #if 1
@@ -142,6 +145,9 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
 		if (bvprv && cluster) {
 			if (sg->length + nbytes > queue_max_segment_size(q))
+				goto new_segment;
+			if ((bvprv->bv_page != bvec->bv_page) &&
+			    ((bvprv->bv_page + 1) != bvec->bv_page))
 				goto new_segment;
 
 			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))

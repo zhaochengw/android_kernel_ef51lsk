@@ -354,8 +354,7 @@ struct hc_driver {
 	void	(*dump_qh_qtd)(struct usb_hcd *);
 #endif
 // P12125 kernel panic debug code-<
-	void	(*enable_ulpi_control)(struct usb_hcd *hcd, u32 linestate);
-	void	(*disable_ulpi_control)(struct usb_hcd *hcd);
+	void	(*reset_sof_bug_handler)(struct usb_hcd *hcd, u32 val);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

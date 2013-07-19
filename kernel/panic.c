@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/dmi.h>
+#include <linux/coresight.h>
 
 #if defined(CONFIG_PANTECH_DEBUG) && !defined(CONFIG_PANTECH_USER_BUILD)
 #ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_121102
@@ -86,6 +87,7 @@ void panic(const char *fmt, ...)
 	long i, i_next = 0;
 	int state = 0;
 
+	coresight_abort();
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
 	 * from deadlocking the first cpu that invokes the panic, since
@@ -118,12 +120,18 @@ void panic(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+#ifdef CONFIG_LGE_CRASH_HANDLER
+	set_kernel_crash_magic_number();
+	set_crash_store_enable();
+#endif
 #ifndef CONFIG_PANTECH_ERR_CRASH_LOGGING
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
 #else
 	printk(KERN_EMERG "Kernel panic(CPU:%d) - not syncing: %s\n", smp_processor_id(), buf);
 #endif
-
+#ifdef CONFIG_LGE_CRASH_HANDLER
+	set_crash_store_disable();
+#endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
