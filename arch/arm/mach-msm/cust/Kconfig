@@ -1,0 +1,624 @@
+if CUST_PANTECH_H
+
+#
+# CUST PANTECH CONFIG SECTION
+#
+menu "CUST PANTECH CONFIG SECTION"
+
+config PANTECH
+	bool "PANTECH Common Configuration"
+	default y
+	select PANTECH_ERR_CRASH_LOGGING
+	select PANTECH_PMIC_PWRKEY
+	select QC_ABNORMAL_DEBUG_CODE
+# (+) p15060, 2012-05-17
+	select INPUT_KEYCHORD
+# (-) p15060, 2012-05-17
+	help
+		Support PANTECH
+
+config PANTECH_DEBUG
+	bool "PANTECH Debug Configuration"
+	default y
+	select PANTECH_DEBUG_SCHED_LOG
+	select PANTECH_DEBUG_IRQ_LOG
+	select PANTECH_DEBUG_DCVS_LOG
+
+#config PANTECH_VERIZON
+#	depends on
+#	bool
+#	default y
+#	help
+#		Pantech Verizon Configuration
+#config PANTECH_ATNT
+#	depends on
+#	bool
+#	default y
+#	help
+#		Pantech ATNT Configuration
+#config PANTECH_JAPAN
+#	depends on
+#	bool
+#	default y
+#	help
+#		Pantech Japan Configuration
+
+config PANTECH_DOMESTIC
+	depends on (MACH_APQ8064_EF48S || MACH_APQ8064_EF49K || MACH_APQ8064_50L || MACH_APQ8064_EF51S || MACH_APQ8064_EF51K || MACH_APQ8064_51L)
+	bool
+	default y
+	help
+		Pantech Domestic Configuration
+
+config SKY
+	depends on PANTECH_DOMESTIC
+	bool "SKY Common Configuration"
+	default y
+	help
+		Support SKY
+
+config SKY_EF48S_BOARD
+	depends on MACH_APQ8064_EF48S
+	bool "SKY_EF48S_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select SKY_SND_QSOUND_OPEN_DSP
+	select NLS_UTF8
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF48S Board
+
+config SKY_EF49K_BOARD
+	depends on MACH_APQ8064_EF49K
+	bool "SKY_EF49K_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select SKY_SND_QSOUND_OPEN_DSP
+	select NLS_UTF8
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF49K Board
+
+config SKY_EF50L_BOARD
+	depends on MACH_APQ8064_EF50L
+	bool "SKY_EF50L_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select SKY_SND_QSOUND_OPEN_DSP
+	select NLS_UTF8
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF50L Board
+
+config SKY_EF51S_BOARD
+	depends on MACH_APQ8064_EF51S
+	bool "SKY_EF51S_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF51S Board
+
+config SKY_EF51K_BOARD
+	depends on MACH_APQ8064_EF51K
+	bool "SKY_EF51K_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF51K Board
+
+config SKY_EF51L_BOARD
+	depends on MACH_APQ8064_EF51L
+	bool "SKY_EF51L_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+ 	help
+		Support EF51L Board
+
+config SKY_EF52S_BOARD
+	depends on MACH_APQ8064_EF52S
+	bool "SKY_EF52S_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+	help
+		Support EF52S Board
+
+config SKY_EF52K_BOARD
+	depends on MACH_APQ8064_EF52K
+	bool "SKY_EF52K_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+	help
+		Support EF52K Board
+
+config SKY_EF52L_BOARD
+	depends on MACH_APQ8064_EF52L
+	bool "SKY_EF52L_BOARD Configuration"
+	default y
+	select SKY_SND_EXTERNAL_AMP
+	select SKY_SND_MICB2_2700
+	select SKY_SND_MBHC_GPIO
+	select SKY_SND_AUTOANSWER
+	select KSKY_RAWDATA
+	select SKY_SND_MODIFIER
+	select NLS_UTF8
+	select SKY_SND_QSOUND_OPEN_DSP
+	select SKY_SND_DOCKING_CRADLE
+	select SKY_SND_HEADSET_BUTTON_ADC
+	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+#	select SKY_SND_SPK_DEBUG_LOG
+	help
+		Support EF52L Board
+
+config EV10
+	int "Pantech Board Version EV10 Value"
+	default 0
+
+config PT10
+	int "Pantech Board Version PT10 Value"
+	default 10
+
+config PT20
+	int "Pantech Board Version PT20 Value"
+	default 12
+
+config WS10
+	int "Pantech Board Version WS10 Value"
+	default 20
+
+config WS15
+	int "Pantech Board Version WS15 Value"
+	default 21
+
+config WS20
+	int "Pantech Board Version WS20 Value"
+	default 22
+
+config ES10
+	int "Pantech Board Version ES10 Value"
+	default 30
+
+config ES20
+	int "Pantech Board Version ES20 Value"
+	default 32
+
+config TP10
+	int "Pantech Board Version TP10 Value"
+	default 40
+
+config TP20
+	int "Pantech Board Version TP20 Value"
+	default 42
+
+config TP25
+	int "Pantech Board Version TP25 Value"
+	default 43
+
+config TP30
+	int "Pantech Board Version TP30 Value"
+	default 44
+
+config BOARD_VER
+	int "Pantech Board Version Build Target"
+	default 0
+        help
+          The BOARD_VER is your build target's board version.
+
+config PANTECH_USER_BUILD
+	bool "Pantech User Build Target"
+	default n
+        help
+          The PANTECH_USER_BUILD is true if you configure build to user.
+
+config PANTECH_GSBI5_UART_CONSOLE
+	bool "Pantech GSBI5 Uart Configuration"
+	default y
+	help
+		Support GSBI5 UART Console
+
+config SKY_SND_EXTERNAL_AMP
+	bool
+
+config SKY_SND_MODIFIER
+	bool
+
+config SKY_SND_DOCKING_CRADLE
+	bool
+
+config SKY_SND_QSOUND_OPEN_DSP
+	bool
+
+#config SKY_SND_SPK_DEBUG_LOG
+#	bool
+
+config SKY_SND_HEADSET_BUTTON_ADC
+	bool
+
+config SKY_SND_MICB2_2700
+	bool
+
+config SKY_SND_MBHC_GPIO
+	bool
+
+config SKY_SND_AUTOANSWER
+	bool
+
+config PANTECH_SMB347_CHARGER
+        bool "Pantech SMB347 charger Configuration"
+        default y
+        depends on I2C
+        help
+          The smb347 charger chip from summit is a switching mode based
+          charging solution.
+
+config PANTECH_MAX17058_FG
+ 	bool "Maxim MAX17058 Fuel Gauge"
+	default y
+        depends on I2C
+        help
+          MAX17058 is fuel-gauge systems for lithium-ion (Li+) batteries
+          in handheld and portable equipment. The MAX17058 is configured
+          to operate with a single lithium cell
+
+config PANTECH_BMS_TEST
+	bool "Pantech BMS Test"
+	default y
+	depends on PANTECH_MAX17058_FG
+	help
+	  PANTECH BSM TEST
+
+config PANTECH_ANDROID_USB
+  tristate "pantech function drivers"
+  default y
+  help
+    Say "y" to link the driver statically, or "m" to build
+    as a part of "g_android"
+
+config PANTECH_ANDROID_OTG
+  tristate "support OTG Functionality"
+  default y
+  help
+    Say "y" to link the driver statically, or "m" to build
+    as a part of "g_android"
+    
+config PANTECH_ANDROID_MTP
+  tristate "support USB MTP Functionality"
+  default y
+  help
+    Say "y" to link the driver statically, or "m" to build
+    as a part of "g_android"
+
+config PANTECH_ANDROID_OBEX
+  tristate "support USB OBEX Functionality"
+  default y
+  help
+    Say "y" to link the driver statically, or "m" to build
+    as a part of "g_android"
+
+config PANTECH_ANDROID_FACTORY_MODE
+  bool
+  default y
+  help
+    Support Pantech factory mode.    
+
+config PANTECH_FACTORY_COMMAND
+  bool "Pantech Factory Command"
+  default y
+  help
+    Support Pantech factory test command. We use the "FEATURE_PANTECH_FACTORY_COMMAND" feature in System area. There is in "vendor/pantech/build/cust_pantech.h". 
+    
+config ANDROID_PANTECH_USB_CDFREE
+  depends on (SKY_EF52S_BOARD || SKY_EF52K_BOARD || SKY_EF52L_BOARD)
+  bool "support USB CD Free"
+  default y
+  help
+    Support Pantech CD Free.    
+   
+##################################################################################
+# SKYDISP_LCD START
+##################################################################################
+
+# Fix backlight related issue
+config F_SKYDISP_QBUG_FIX_BACKLIGHT
+	bool     
+	default y
+
+# Init backlight level to 10.
+config F_SKYDISP_INIT_BL_SET
+	bool     
+	default y
+
+# 2012.05.23, kkcho
+# Macro for  CABC_CTRL on Sharp-LCD
+# KERNEL : used     
+# USER   :   used
+config F_SKYDISP_CABC_CTRL
+	bool     
+	default y
+
+# 2012.05.23, kkcho
+# Macro for  CABC_Tunning on Sharp-LCD
+# KERNEL : used     
+# USER   :   used
+# This macro will enable the LCD_tuning only.
+# M1 : by LCDtestmenu in the #####
+# M2 : by adb shell command
+config F_SKYDISP_CE_TUNING_M1
+	bool     
+	default y		
+
+config F_SKYDISP_CE_TUNING_M2
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD || SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool     
+	default n
+
+# Boot without LCD ON when abnormal reset without LCD ON.
+# In Short, Boot secretly.
+# Also, In LK, silent boot is implemented. See define DISPLAY_SILENT_BOOT in LK.
+config F_SKYDISP_SILENT_BOOT
+	bool     
+	default y
+
+# Offline charging need a dark-brightness backlight for low power consumption.
+# When offline charging, change bl table and then, can set very low backlight brightness. 
+# Also, When offline charging, doesn't turn on CABC
+config F_SKYDISP_CHANGE_BL_TABLE_WHEN_OFFLINE_CHARGING
+	bool     
+	default y
+
+# 20120515, kkcho, HDMI clock_set diasble for FUSION3
+#   Bug :   or reset during boot (refer to clock_dss_8960.c  hdmi_pll_enable hang)
+#   hdmi block disable at power_up. But don't disable hdmi_donfing in defconfg for WFD fuction
+config F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
+	bool     
+	default y
+
+# 20120819, kkcho, LCD_DEVICE_SHUTDOWN
+#   Bug :Apply power_seq at the power-off animation.
+#   Relevant macro or source : mipi_rohm.c, board-8064-diaplay.c, kernel/kernel/sys.c
+config F_SKYDISP_LCD_SHUTDOWN
+	bool     
+	default n
+
+# 20120908, kkcho, apply reset escape code by double-call 'mipi_pannel_power_on' durnig bootup
+#   Bug : Dump_mode occured durnig power on/off repeat test
+#   Relevant macro or source : msm_fb.c mipi_rohm.c msm_fb.h
+config F_PREVENT_RESET_DURING_BOOTUP
+	bool     
+	default n	
+
+# 20120819, kkcho, for Sharp LCD-flicker.
+#   Bug :Apply power_seq at the power-off animation.
+#   Relevant macro or source : mipi_xxx.c, board-8064-diaplay.c, kernel/kernel/sys.c
+config F_SKYDISP_SHARP_LCD_FLICKER
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD || SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool     
+	default y	
+
+# 20121107, kobj switching DMB screen bug fix
+#   Bug :When switched screen, iommu page fault occur.
+#   Relevant macro or source : mdp4_overlay.c
+config F_SKYDISP_QCOM_DMB_MMU_BUG_FIXED
+	bool     
+	default y	
+
+# 20121022 p14198
+#   Set HDMI_MVS active pull-down disabled becuase of sleep current.
+#   This is dependant on a circuit diagram.
+config F_SKYDISP_CONFIGURE_HDMI_MVS_BECAUSE_OF_SLEEP_CURRENT
+	depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && ((BOARD_VER!=WS10) && (BOARD_VER!=WS20)) ) \
+	           || (SKY_EF52S_BOARD || SKY_EF52K_BOARD || SKY_EF52L_BOARD)
+	bool
+	default y
+
+# 20121101 p14198
+#   Change mdp_max_clk 200000000 to 266667000 for removing underrun.
+#   8064 supports up to 266667000.
+#   Refer to CASE #01006445 Underrun issue when playing movies.
+config F_SKYDISP_CHANGE_MDP_MAX_CLOCK
+	bool
+	default y
+
+# 20121114 p14198
+#   Fix the QC bug.
+#   bug : When using continuous splash screen, mdp related clock is turned off.
+#         Therefore, booting logo is turned off during boot up.
+#   Refer to QC CASE #1001536 LCD screen is turned off during booting.
+config F_SKYDISP_QCBUGFIX_CONTINUOUS_SPLASH_SCREEN
+	bool
+	default y
+
+# 2012.10.04, p14198
+# MODEL  : It's for ITEC WFD solution. That'why models are EF48S, EF49K, EF50L
+# DO     : Fix aperiodic data abort because of mutex when start screen link(phone to phone). refer to 50L PLM 3240.
+#          Data abort occur when access mutex eventhough mutex is not initialized.
+# NOTE   : It's just work-around. It is need to be improved.
+config F_SKYDISP_FIX_WFD_DATA_ABORT_BECAUSE_OF_MUTEX
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD)
+	bool
+	default y
+
+# 20121130 p14198
+#   Fix the QC bug.
+#   bug : When using continuous splash screen, memalloc for LK FB buffer copy.
+#         However, dma_alloc_coherent fails in case of 1080p buffer size
+#   Refer to QC CASE #00992718 mdp_probe failed becasue of dma_alloc_coherent. - 179967_1.patch
+config F_SKYDISP_QCBUGFIX_CONTINUOUS_SPLASH_SCREEN_BUFFER_ALLOC_FOR_1080P
+	depends on (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool
+	default y
+
+# 20121212 p14198 : Used in KERNEL and FRAMWORK
+# We can see some noise(for example, when rotate 1080p video). That's why blocked blt mode(writeback).
+# Tuned rotater ratio for blocking MDP underrun.
+# Refer to QC CASE #01034021 [EF51]IOMMU page fault occur when rotating the video repeatedly.
+#                  #01044917 [EF51]Underrun occur when rotating 1080p portrate video to 270 degree.
+config F_SKYDISP_QCBUGFIX_BLOCK_BLT_MODE_AND_TUNE_ROTATER_RATIO
+	bool
+	default y
+
+##################################################################################
+# SKYDISP_LCD END
+##################################################################################
+
+
+##################################################################################
+# PANTECH_SENSOR START
+##################################################################################
+#(-)P11799, 201211 
+#config INPUT_HALLSENSOR
+#	depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && ((BOARD_VER==WS20)||(BOARD_VER==TP10) ))
+#	bool "INPUT HALLSENSOR Configuration"
+#	default y
+#(-)
+##################################################################################
+# PANTECH_SENSOR END
+##################################################################################
+
+config PANTECH_ERR_CRASH_LOGGING
+	bool
+	default y
+
+config QC_ABNORMAL_DEBUG_CODE
+	bool
+	default y
+	
+config PANTECH_DEBUG_SCHED_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default y	
+
+config PANTECH_DEBUG_IRQ_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default y	
+
+config PANTECH_DEBUG_DCVS_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default y	
+
+config PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
+        bool
+	default y
+
+config PANTECH_PMIC_PWRKEY
+	bool
+	default y
+
+# (+) p15060, 2012-05-17
+comment "INPUT_KEYCHORD Configuration"
+config INPUT_KEYCHORD
+	default y
+	bool
+# (-) p15060, 2012-05-17
+
+config PANTECH_PDL_DLOAD
+       bool "pantech pdl dload"
+       default y
+       help 
+        We use the "FEATURE_PANTECH_PDL_DLOAD" feature in System area. There is in "vendor/pantech/build/cust_pantech.h" .
+	
+config UNUSED_GPIO_MPP_SETTING
+       bool "unused gpio and mpp setting"
+       default y
+       help 
+       We use the "CONFIG_UNUSED_GPIO_MPP_SETTING" feature in System area.
+	
+config KSKY_RAWDATA
+       bool "sky_rawdata facility for kernel space"
+       default y
+
+config ANDROID_PANTECH_USB_OTG_INTENT
+  depends on PANTECH_ANDROID_OTG
+  bool "PANTECH USB OTG Intent"
+  default y
+	 help
+     Support Pantech USB OTG Intent
+
+config PANTECH_EXTERNAL_SDCARD
+       bool
+       default y
+
+config PIEZO_ECO
+      bool "piezo_eco"
+      depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && (BOARD_VER=TP10 || BOARD_VER=TP20 || BOARD_VER=TP25) )
+      default y
+                  
+
+
+endmenu
+
+endif
