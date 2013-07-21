@@ -17,7 +17,7 @@ export CROSS_COMPILE=/home/zhaochengw/android/cm10.1/prebuilt/linux-x86/toolchai
 # make zImage
 ##############################################################################
 mkdir -p ./obj/KERNEL_OBJ/
-make O=./obj/KERNEL_OBJ/ cyanogen_ef51l_defconfig
+make O=./obj/KERNEL_OBJ/ cyanogen_ef51s_defconfig
 make -j4 O=./obj/KERNEL_OBJ/
 
 ##############################################################################

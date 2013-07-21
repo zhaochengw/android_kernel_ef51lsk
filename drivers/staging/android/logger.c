@@ -733,6 +733,10 @@ DEFINE_LOGGER_DEVICE(log_events, LOGGER_LOG_EVENTS, 256*1024)
 DEFINE_LOGGER_DEVICE(log_radio, LOGGER_LOG_RADIO, 256*1024)
 DEFINE_LOGGER_DEVICE(log_system, LOGGER_LOG_SYSTEM, 256*1024)
 
+#ifdef FEATURE_SKY_CP_ADB_LOG_FOR_VITAMIN
+DEFINE_LOGGER_DEVICE(log_vitamin, LOGGER_LOG_VITAMIN, 256*1024)
+#endif
+
 static struct logger_log *get_log_from_minor(int minor)
 {
 	if (log_main.misc.minor == minor)
@@ -743,6 +747,12 @@ static struct logger_log *get_log_from_minor(int minor)
 		return &log_radio;
 	if (log_system.misc.minor == minor)
 		return &log_system;
+
+#ifdef FEATURE_SKY_CP_ADB_LOG_FOR_VITAMIN
+	if (log_vitamin.misc.minor == minor)
+		return &log_vitamin;
+#endif
+	
 	return NULL;
 }
 
@@ -763,6 +773,13 @@ void logcat_set_log(int index)
 		case 4:
 			cur_log = &log_system;
 			break;
+
+#ifdef FEATURE_SKY_CP_ADB_LOG_FOR_VITAMIN
+		case 5:
+			cur_log = &log_vitamin;
+			break;
+#endif
+			
 		default:
 			cur_log = &log_system;
 			break;
@@ -829,6 +846,12 @@ static int __init logger_init(void)
 	ret = init_log(&log_system);
 	if (unlikely(ret))
 		goto out;
+
+#ifdef FEATURE_SKY_CP_ADB_LOG_FOR_VITAMIN
+  ret = init_log(&log_vitamin);
+	if (unlikely(ret))
+		goto out;  
+#endif
 
 out:
 	return ret;
