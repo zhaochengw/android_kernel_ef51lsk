@@ -1800,7 +1800,7 @@ int mask_request_validate(unsigned char mask_buf[])
 			if ((ss_cmd == 0) || (ss_cmd == 0x1))
 				return 1;
 			break;
-#ifdef CONFIG_MACH_APQ8064_EF51S
+#ifdef MACH_APQ8064_EF51S
               // FEATURE_SKY_CP_F3_TRACE[
               // 20120701 hbwoo, Enable f3trace commands
               case 0x25:
