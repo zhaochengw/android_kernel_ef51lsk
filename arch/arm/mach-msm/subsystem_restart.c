@@ -525,7 +525,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
        is_subsystem_restarting = 0;
 #endif
 
-	pr_info("[%p]: Released powerup lock!\n", current);
+	pr_debug("[%p]: Released powerup lock!\n", current);
 
 out:
 	spin_lock_irqsave(&dev->restart_lock, flags);
@@ -756,6 +756,7 @@ static ssize_t ssr_store(struct ssr_obj *ssr_obj, struct ssr_attribute *attr,
 
 int subsystem_restart_dev(struct subsys_device *dev)
 {
+	const char *name = dev->desc->name;
 
 // (+) p15060
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
@@ -768,7 +769,6 @@ int subsystem_restart_dev(struct subsys_device *dev)
 #endif
 // (-) p15060
 
-	const char *name = dev->desc->name;
 
 	/*
 	 * If a system reboot/shutdown is underway, ignore subsystem errors.
