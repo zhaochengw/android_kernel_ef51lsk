@@ -581,6 +581,9 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 		total_sizedwords += 3; /* global timestamp without cache
 					* flush for non-zero context */
 
+	if (flags & KGSL_CMD_FLAGS_EOF)
+		total_sizedwords += 2;
+
 	ringcmds = adreno_ringbuffer_allocspace(rb, context, total_sizedwords);
 	if (!ringcmds)
 		return -ENOSPC;
@@ -1097,8 +1100,9 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 	}
 
 done:
-	kgsl_trace_issueibcmds(device, context->id, ibdesc, numibs,
-		*timestamp, flags, ret, drawctxt->type);
+	kgsl_trace_issueibcmds(device, context ? context->id : 0, ibdesc,
+		numibs, *timestamp, flags, ret,
+		drawctxt ? drawctxt->type : 0);
 
 	kfree(link);
 	return ret;
