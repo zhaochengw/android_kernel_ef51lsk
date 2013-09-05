@@ -44,9 +44,6 @@
 #define MDM_PBLRDY_CNT		20
 
 static int mdm_debug_mask;
-static int power_on_count;
-static int hsic_peripheral_status;
-static DEFINE_MUTEX(hsic_status_lock);
 
 #if defined(CONFIG_PANTECH_SMB347_CHARGER)
 extern unsigned int pantech_charging_status(void);
