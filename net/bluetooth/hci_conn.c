@@ -1,6 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2012 The Linux Foundation.  All rights reserved.
+   Copyright (c) 2000-2001, The Linux Foundation. All rights reserved.
+   Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -661,6 +662,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	hci_conn_put_device(conn);
 
+	if (conn->hidp_session_valid)
+		hci_conn_put_device(conn);
+
 	hci_dev_put(hdev);
 
 	return 0;
@@ -1088,6 +1092,27 @@ timer:
 	}
 }
 
+void hci_conn_update_sniff_lp(struct hci_conn *conn, bool enable)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_write_link_policy cp;
+
+	BT_DBG("conn %p enable %d", conn, enable);
+
+	if (test_bit(HCI_RAW, &hdev->flags))
+		return;
+
+	if (conn->type == LE_LINK)
+		return;
+
+	cp.handle = cpu_to_le16(conn->handle);
+	if (enable)
+		cp.policy = conn->link_policy | HCI_LP_SNIFF ;
+	else
+		cp.policy = conn->link_policy & ~HCI_LP_SNIFF;
+	hci_send_cmd(hdev, HCI_OP_WRITE_LINK_POLICY, sizeof(cp), &cp);
+}
+
 static inline void hci_conn_stop_rssi_timer(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
@@ -1270,8 +1295,10 @@ EXPORT_SYMBOL(hci_conn_hold_device);
 
 void hci_conn_put_device(struct hci_conn *conn)
 {
-	if (atomic_dec_and_test(&conn->devref))
+	if (atomic_dec_and_test(&conn->devref)) {
+		conn->hidp_session_valid = false;
 		hci_conn_del_sysfs(conn);
+	}
 }
 EXPORT_SYMBOL(hci_conn_put_device);
 
@@ -1434,3 +1461,16 @@ int hci_set_auth_info(struct hci_dev *hdev, void __user *arg)
 
 	return copy_to_user(arg, &req, sizeof(req)) ? -EFAULT : 0;
 }
+
+bool hci_get_sco_status(struct hci_conn *conn)
+{
+	if (!conn)
+		return false;
+
+	if (hci_conn_hash_lookup_state(conn->hdev, SCO_LINK, BT_CONNECTED) ||
+			(hci_conn_hash_lookup_state(conn->hdev, ESCO_LINK,
+						    BT_CONNECTED)))
+		return true;
+	return false;
+}
+

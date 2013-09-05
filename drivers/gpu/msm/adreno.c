@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/msm_kgsl.h>
+#include <linux/delay.h>
 
 #include <mach/socinfo.h>
 #include <mach/msm_bus_board.h>
@@ -72,6 +73,9 @@
 	 | (MMU_CONFIG << MH_MMU_CONFIG__TC_R_CLNT_BEHAVIOR__SHIFT)	\
 	 | (MMU_CONFIG << MH_MMU_CONFIG__PA_W_CLNT_BEHAVIOR__SHIFT))
 
+/*default log levels is error for everything*/
+#define KGSL_LOG_LEVEL_DEFAULT 3
+
 static const struct kgsl_functable adreno_functable;
 
 static struct adreno_device device_3d0 = {
@@ -107,6 +111,13 @@ static struct adreno_device device_3d0 = {
 			.resume = kgsl_late_resume_driver,
 		},
 #endif
+		.cmd_log = KGSL_LOG_LEVEL_DEFAULT,
+		.ctxt_log = KGSL_LOG_LEVEL_DEFAULT,
+		.drv_log = KGSL_LOG_LEVEL_DEFAULT,
+		.mem_log = KGSL_LOG_LEVEL_DEFAULT,
+		.pwr_log = KGSL_LOG_LEVEL_DEFAULT,
+		.ft_log = KGSL_LOG_LEVEL_DEFAULT,
+		.pm_dump_enable = 0,
 	},
 	.gmem_base = 0,
 	.gmem_size = SZ_256K,
@@ -114,6 +125,10 @@ static struct adreno_device device_3d0 = {
 	.pm4_fw = NULL,
 	.wait_timeout = 0, /* in milliseconds, 0 means disabled */
 	.ib_check_level = 0,
+	.ft_policy = KGSL_FT_DEFAULT_POLICY,
+	.ft_pf_policy = KGSL_FT_PAGEFAULT_DEFAULT_POLICY,
+	.fast_hang_detect = 1,
+	.long_ib_detect = 1,
 };
 
 /* This set of registers are used for Hang detection
@@ -274,7 +289,17 @@ static int adreno_setup_pt(struct kgsl_device *device,
 	if (result)
 		goto unmap_memstore_desc;
 
+	if (adreno_is_a305(adreno_dev)) {
+		result = kgsl_mmu_map_global(pagetable,
+				&adreno_dev->on_resume_cmd,
+				GSL_PT_PAGE_RV | GSL_PT_PAGE_WV);
+		if (result)
+			goto unmap_setstate_desc;
+	}
 	return result;
+
+unmap_setstate_desc:
+	kgsl_mmu_unmap(pagetable, &device->mmu.setstate_memory);
 
 unmap_memstore_desc:
 	kgsl_mmu_unmap(pagetable, &device->memstore);
@@ -1170,6 +1195,9 @@ adreno_probe(struct platform_device *pdev)
 		goto error_close_rb;
 
 	adreno_debugfs_init(device);
+	adreno_dev->on_resume_issueib = false;
+
+	adreno_ft_init_sysfs(device);
 
 	kgsl_pwrscale_init(device);
 	kgsl_pwrscale_attach_policy(device, ADRENO_DEFAULT_PWRSCALE_POLICY);
@@ -1195,6 +1223,8 @@ static int __devexit adreno_remove(struct platform_device *pdev)
 
 	kgsl_pwrscale_detach_policy(device);
 	kgsl_pwrscale_close(device);
+	if (adreno_is_a305(adreno_dev))
+		kgsl_sharedmem_free(&adreno_dev->on_resume_cmd);
 
 	adreno_ringbuffer_close(&adreno_dev->ringbuffer);
 	kgsl_device_platform_remove(device);
@@ -1273,6 +1303,18 @@ static int adreno_start(struct kgsl_device *device, unsigned int init_ram)
 		ft_detect_regs[10] = A3XX_RBBM_PERFCTR_SP_5_LO;
 		ft_detect_regs[11] = A3XX_RBBM_PERFCTR_SP_5_HI;
 	}
+
+	/*
+	 * Allocate some memory for A305 to do an extra draw on resume
+	 * from SLUMBER state.
+	 */
+	if (adreno_is_a305(adreno_dev) &&
+			adreno_dev->on_resume_cmd.hostptr == NULL) {
+		status = kgsl_allocate_contiguous(&adreno_dev->on_resume_cmd,
+					PAGE_SIZE);
+		if (status)
+			goto error_clk_off;
+        }
 
 	status = kgsl_mmu_start(device);
 	if (status)
@@ -1411,6 +1453,8 @@ static int _find_start_of_cmd_seq(struct adreno_ringbuffer *rb,
 			start_ptr = adreno_ringbuffer_dec_wrapped(start_ptr,
 									size);
 		kgsl_sharedmem_readl(&rb->buffer_desc, &val1, start_ptr);
+		/* Ensure above read is finished before next read */
+		rmb();
 		if (KGSL_CMD_IDENTIFIER == val1) {
 			if ((start_ptr / sizeof(unsigned int)) != rb->wptr)
 				start_ptr = adreno_ringbuffer_dec_wrapped(
@@ -1448,6 +1492,8 @@ static int _find_cmd_seq_after_eop_ts(struct adreno_ringbuffer *rb,
 					temp_rb_rptr, size);
 		kgsl_sharedmem_readl(&rb->buffer_desc, &val[i],
 					temp_rb_rptr);
+		/* Ensure above read is finished before next read */
+		rmb();
 
 		if (check && ((inc && val[i] == global_eop) ||
 			(!inc && (val[i] ==
@@ -1512,6 +1558,8 @@ static int _find_hanging_ib_sequence(struct adreno_ringbuffer *rb,
 
 	while (temp_rb_rptr / sizeof(unsigned int) != rb->wptr) {
 		kgsl_sharedmem_readl(&rb->buffer_desc, &val[i], temp_rb_rptr);
+		/* Ensure above read is finished before next read */
+		rmb();
 
 		if (check && val[i] == ib1) {
 			/* decrement i, i.e i = (i - 1 + 2) % 2 */
@@ -1553,7 +1601,7 @@ static int _find_hanging_ib_sequence(struct adreno_ringbuffer *rb,
 	return status;
 }
 
-static int adreno_setup_ft_data(struct kgsl_device *device,
+static void adreno_setup_ft_data(struct kgsl_device *device,
 					struct adreno_ft_data *ft_data)
 {
 	int ret = 0;
@@ -1578,30 +1626,31 @@ static int adreno_setup_ft_data(struct kgsl_device *device,
 			KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
 			eoptimestamp));
 
+	/* Ensure context id and global eop ts read complete */
+	rmb();
+
 	ft_data->rb_buffer = vmalloc(rb->buffer_desc.size);
 	if (!ft_data->rb_buffer) {
 		KGSL_MEM_ERR(device, "vmalloc(%d) failed\n",
 				rb->buffer_desc.size);
-		return -ENOMEM;
+		return;
 	}
 
 	ft_data->bad_rb_buffer = vmalloc(rb->buffer_desc.size);
 	if (!ft_data->bad_rb_buffer) {
 		KGSL_MEM_ERR(device, "vmalloc(%d) failed\n",
 				rb->buffer_desc.size);
-		ret = -ENOMEM;
-		goto done;
+		return;
 	}
 
 	ft_data->good_rb_buffer = vmalloc(rb->buffer_desc.size);
 	if (!ft_data->good_rb_buffer) {
 		KGSL_MEM_ERR(device, "vmalloc(%d) failed\n",
 				rb->buffer_desc.size);
-		ret = -ENOMEM;
-		goto done;
+		return;
 	}
 
-	ft_data->status =  0;
+	ft_data->status = 0;
 
 	/* find the start of bad command sequence in rb */
 	context = idr_find(&device->context_idr, ft_data->context_id);
@@ -1612,20 +1661,23 @@ static int adreno_setup_ft_data(struct kgsl_device *device,
 		 * If there is no context then fault tolerance does not need to
 		 * replay anything, just reset GPU and thats it
 		 */
-		goto done;
+		return;
 	}
-	ret = _find_cmd_seq_after_eop_ts(rb, &rb_rptr,
-					ft_data->global_eop + 1, false);
-	if (ret)
-		goto done;
 
-	ft_data->start_of_replay_cmds = rb_rptr;
+	ft_data->ft_policy = adreno_dev->ft_policy;
 
 	if (!adreno_dev->ft_policy)
 		adreno_dev->ft_policy = KGSL_FT_DEFAULT_POLICY;
 
-	ft_data->ft_policy = adreno_dev->ft_policy;
+	ret = _find_cmd_seq_after_eop_ts(rb, &rb_rptr,
+					ft_data->global_eop + 1, false);
+	if (ret) {
+		ft_data->ft_policy |= KGSL_FT_TEMP_DISABLE;
+		return;
+	} else
+		ft_data->ft_policy &= ~KGSL_FT_TEMP_DISABLE;
 
+	ft_data->start_of_replay_cmds = rb_rptr;
 
 	adreno_context = context->devctxt;
 	if (adreno_context->flags & CTXT_FLAGS_PREAMBLE) {
@@ -1635,21 +1687,12 @@ static int adreno_setup_ft_data(struct kgsl_device *device,
 			if (ret) {
 				KGSL_FT_ERR(device,
 				"Start not found for replay IB sequence\n");
-				ret = 0;
-				goto done;
+				return;
 			}
 			ft_data->start_of_replay_cmds = rb_rptr;
 			ft_data->replay_for_snapshot = rb_rptr;
 		}
 	}
-
-done:
-	if (ret) {
-		vfree(ft_data->rb_buffer);
-		vfree(ft_data->bad_rb_buffer);
-		vfree(ft_data->good_rb_buffer);
-	}
-	return ret;
 }
 
 static int
@@ -1663,6 +1706,8 @@ _adreno_check_long_ib(struct kgsl_device *device)
 			&curr_global_ts,
 			KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
 			eoptimestamp));
+	/* Ensure above read is finished before long ib check */
+	rmb();
 
 	/* Mark long ib as handled */
 	adreno_dev->long_ib = 0;
@@ -1680,11 +1725,10 @@ _adreno_check_long_ib(struct kgsl_device *device)
 
 static int
 _adreno_ft_restart_device(struct kgsl_device *device,
-		   struct kgsl_context *context,
-		   struct adreno_ft_data *ft_data)
+		   struct kgsl_context *context)
 {
 
-	struct adreno_context *adreno_context = context->devctxt;
+	struct adreno_context *adreno_context = NULL;
 
 	/* restart device */
 	if (adreno_stop(device)) {
@@ -1697,9 +1741,11 @@ _adreno_ft_restart_device(struct kgsl_device *device,
 		return 1;
 	}
 
-	if (context)
+	if ((context != NULL) && (context->devctxt != NULL)) {
+		adreno_context = context->devctxt;
 		kgsl_mmu_setstate(&device->mmu, adreno_context->pagetable,
 			KGSL_MEMSTORE_GLOBAL);
+	}
 
 	/* If iommu is used then we need to make sure that the iommu clocks
 	 * are on since there could be commands in pipeline that touch iommu */
@@ -1751,11 +1797,30 @@ _adreno_ft_resubmit_rb(struct kgsl_device *device,
 			unsigned int *buff, unsigned int size)
 {
 	unsigned int ret = 0;
+	unsigned int retry_num = 0;
 
 	_adreno_debug_ft_info(device, ft_data);
 
-	if (_adreno_ft_restart_device(device, context, ft_data))
-		return 1;
+	do {
+		ret = _adreno_ft_restart_device(device, context);
+		if (ret == 0)
+			break;
+		/*
+		 * If device restart fails sleep for 20ms before
+		 * attempting restart. This allows GPU HW to settle
+		 * and improve the chances of next restart to be
+		 * successful.
+		 */
+		msleep(20);
+		KGSL_FT_ERR(device, "Retry device restart %d\n", retry_num);
+		retry_num++;
+	} while (retry_num < 4);
+
+	if (ret) {
+		KGSL_FT_ERR(device, "Device restart failed\n");
+		BUG_ON(1);
+		goto done;
+	}
 
 	if (size) {
 
@@ -1765,9 +1830,9 @@ _adreno_ft_resubmit_rb(struct kgsl_device *device,
 		ret = adreno_idle(device);
 	}
 
+done:
 	return ret;
 }
-
 
 static int
 _adreno_ft(struct kgsl_device *device,
@@ -1779,11 +1844,13 @@ _adreno_ft(struct kgsl_device *device,
 	struct kgsl_context *context;
 	struct adreno_context *adreno_context = NULL;
 	struct adreno_context *last_active_ctx = adreno_dev->drawctxt_active;
+	unsigned int long_ib = 0;
 
 	context = idr_find(&device->context_idr, ft_data->context_id);
 	if (context == NULL) {
-		KGSL_FT_CRIT(device, "Last context unknown id:%d\n",
+		KGSL_FT_ERR(device, "Last context unknown id:%d\n",
 			ft_data->context_id);
+		goto play_good_cmds;
 	} else {
 		adreno_context = context->devctxt;
 		adreno_context->flags |= CTXT_FLAGS_GPU_HANG;
@@ -1793,16 +1860,33 @@ _adreno_ft(struct kgsl_device *device,
 		 */
 		context->wait_on_invalid_ts = false;
 
+		if (!(adreno_context->flags & CTXT_FLAGS_PER_CONTEXT_TS)) {
+			ft_data->status = 1;
+			KGSL_FT_ERR(device, "Fault tolerance not supported\n");
+			goto play_good_cmds;
+		}
+
 		/*
 		 *  This flag will be set by userspace for contexts
 		 *  that do not want to be fault tolerant (ex: OPENCL)
 		 */
 		if (adreno_context->flags & CTXT_FLAGS_NO_FAULT_TOLERANCE) {
+			ft_data->status = 1;
 			KGSL_FT_ERR(device,
 			"No FT set for this context play good cmds\n");
 			goto play_good_cmds;
 		}
 
+	}
+
+	/* Check if we detected a long running IB,
+	 * if true do not attempt replay of bad cmds */
+	if (adreno_dev->long_ib) {
+		long_ib = _adreno_check_long_ib(device);
+		if (!long_ib) {
+			adreno_context->flags &= ~CTXT_FLAGS_GPU_HANG;
+			return 0;
+		}
 	}
 
 	/*
@@ -1811,45 +1895,43 @@ _adreno_ft(struct kgsl_device *device,
 	 */
 	adreno_ringbuffer_extract(rb, ft_data);
 
-	/* Check if we detected a long running IB,
-	 * if true do not attempt replay of bad cmds */
-	if (adreno_dev->long_ib) {
-		if (_adreno_check_long_ib(device)) {
-			ft_data->status = 1;
-			_adreno_debug_ft_info(device, ft_data);
-			goto play_good_cmds;
-		} else {
-			adreno_context->flags &= ~CTXT_FLAGS_GPU_HANG;
-			return 0;
-		}
-	}
-
-	/* Do not try the bad commands if  hang is due to a fault */
-	if (device->mmu.fault) {
-		KGSL_FT_ERR(device, "MMU fault skipping bad cmds\n");
-		device->mmu.fault = 0;
+	/* If long IB detected do not attempt replay of bad cmds */
+	if (long_ib) {
+		ft_data->status = 1;
+		_adreno_debug_ft_info(device, ft_data);
 		goto play_good_cmds;
 	}
 
-	if (ft_data->ft_policy & KGSL_FT_DISABLE) {
+	if ((ft_data->ft_policy & KGSL_FT_DISABLE) ||
+		(ft_data->ft_policy & KGSL_FT_TEMP_DISABLE)) {
 		KGSL_FT_ERR(device, "NO FT policy play only good cmds\n");
+		ft_data->status = 1;
 		goto play_good_cmds;
+	}
+
+	/* Do not try the reply if hang is due to a pagefault */
+	if (adreno_context->pagefault) {
+		if ((ft_data->context_id == adreno_context->id) &&
+			(ft_data->global_eop == adreno_context->pagefault_ts)) {
+			ft_data->ft_policy &= ~KGSL_FT_REPLAY;
+			KGSL_FT_ERR(device, "MMU fault skipping replay\n");
+		}
+
+		adreno_context->pagefault = 0;
 	}
 
 	if (ft_data->ft_policy & KGSL_FT_REPLAY) {
-
 		ret = _adreno_ft_resubmit_rb(device, rb, context, ft_data,
 				ft_data->bad_rb_buffer, ft_data->bad_rb_size);
 
 		if (ret) {
-			KGSL_FT_ERR(device, "Replay unsuccessful\n");
+			KGSL_FT_ERR(device, "Replay status: 1\n");
 			ft_data->status = 1;
 		} else
 			goto play_good_cmds;
 	}
 
 	if (ft_data->ft_policy & KGSL_FT_SKIPIB) {
-
 		for (i = 0; i < ft_data->bad_rb_size; i++) {
 			if ((ft_data->bad_rb_buffer[i] ==
 					CP_HDR_INDIRECT_BUFFER_PFD) &&
@@ -1874,7 +1956,7 @@ _adreno_ft(struct kgsl_device *device,
 				ft_data->bad_rb_buffer, ft_data->bad_rb_size);
 
 		if (ret) {
-			KGSL_FT_ERR(device, "NOP faulty IB unsuccessful\n");
+			KGSL_FT_ERR(device, "NOP faulty IB status: 1\n");
 			ft_data->status = 1;
 		} else {
 			ft_data->status = 0;
@@ -1883,7 +1965,6 @@ _adreno_ft(struct kgsl_device *device,
 	}
 
 	if (ft_data->ft_policy & KGSL_FT_SKIPFRAME) {
-
 		for (i = 0; i < ft_data->bad_rb_size; i++) {
 			if (ft_data->bad_rb_buffer[i] ==
 					KGSL_END_OF_FRAME_IDENTIFIER) {
@@ -1905,7 +1986,7 @@ _adreno_ft(struct kgsl_device *device,
 				ft_data->bad_rb_buffer, ft_data->bad_rb_size);
 
 		if (ret) {
-			KGSL_FT_ERR(device, "Skip EOF unsuccessful\n");
+			KGSL_FT_ERR(device, "Skip EOF status: 1\n");
 			ft_data->status = 1;
 		} else {
 			ft_data->status = 0;
@@ -1983,9 +2064,7 @@ adreno_ft(struct kgsl_device *device,
 			/* setup new fault tolerance parameters and retry, this
 			 * means more than 1 contexts are causing hang */
 			adreno_destroy_ft_data(ft_data);
-			ret = adreno_setup_ft_data(device, ft_data);
-			if (ret)
-				goto done;
+			adreno_setup_ft_data(device, ft_data);
 			KGSL_FT_INFO(device,
 			"Retry. Parameters: "
 			"IB1: 0x%X, Bad context_id: %u, global_eop: 0x%x\n",
@@ -2050,7 +2129,7 @@ adreno_dump_and_exec_ft(struct kgsl_device *device)
 		kgsl_pwrctrl_pwrlevel_change(device, pwr->max_pwrlevel);
 
 		/* Get the fault tolerance data as soon as hang is detected */
-		result = adreno_setup_ft_data(device, &ft_data);
+		adreno_setup_ft_data(device, &ft_data);
 
 		/*
 		 * If long ib is detected, do not attempt postmortem or
@@ -2072,10 +2151,8 @@ adreno_dump_and_exec_ft(struct kgsl_device *device)
 			kgsl_device_snapshot(device, 1);
 		}
 
-		if (!result) {
-			result = adreno_ft(device, &ft_data);
-			adreno_destroy_ft_data(&ft_data);
-		}
+		result = adreno_ft(device, &ft_data);
+		adreno_destroy_ft_data(&ft_data);
 
 		/* restore power level */
 		kgsl_pwrctrl_pwrlevel_change(device, curr_pwrlevel);
@@ -2092,6 +2169,264 @@ done:
 	return result;
 }
 EXPORT_SYMBOL(adreno_dump_and_exec_ft);
+
+/**
+ * _ft_sysfs_store() -  Common routine to write to FT sysfs files
+ * @buf: value to write
+ * @count: size of the value to write
+ * @sysfs_cfg: KGSL FT sysfs config to write
+ *
+ * This is a common routine to write to FT sysfs files.
+ */
+static int _ft_sysfs_store(const char *buf, size_t count, unsigned int *ptr)
+{
+	char temp[20];
+	unsigned long val;
+	int rc;
+
+	snprintf(temp, sizeof(temp), "%.*s",
+			 (int)min(count, sizeof(temp) - 1), buf);
+	rc = kstrtoul(temp, 0, &val);
+	if (rc)
+		return rc;
+
+	*ptr = val;
+
+	return count;
+}
+
+/**
+ * _get_adreno_dev() -  Routine to get a pointer to adreno dev
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value to write
+ * @count: size of the value to write
+ */
+struct adreno_device *_get_adreno_dev(struct device *dev)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(dev);
+	return device ? ADRENO_DEVICE(device) : NULL;
+}
+
+/**
+ * _ft_policy_store() -  Routine to configure FT policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value to write
+ * @count: size of the value to write
+ *
+ * FT policy can be set to any of the options below.
+ * KGSL_FT_DISABLE -> BIT(0) Set to disable FT
+ * KGSL_FT_REPLAY  -> BIT(1) Set to enable replay
+ * KGSL_FT_SKIPIB  -> BIT(2) Set to skip IB
+ * KGSL_FT_SKIPFRAME -> BIT(3) Set to skip frame
+ * by default set FT policy to KGSL_FT_DEFAULT_POLICY
+ */
+static int _ft_policy_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	int ret;
+	if (adreno_dev == NULL)
+		return 0;
+
+	mutex_lock(&adreno_dev->dev.mutex);
+	ret = _ft_sysfs_store(buf, count, &adreno_dev->ft_policy);
+	mutex_unlock(&adreno_dev->dev.mutex);
+
+	return ret;
+}
+
+/**
+ * _ft_policy_show() -  Routine to read FT policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value read
+ *
+ * This is a routine to read current FT policy
+ */
+static int _ft_policy_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	if (adreno_dev == NULL)
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "0x%X\n", adreno_dev->ft_policy);
+}
+
+/**
+ * _ft_pagefault_policy_store() -  Routine to configure FT
+ * pagefault policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value to write
+ * @count: size of the value to write
+ *
+ * FT pagefault policy can be set to any of the options below.
+ * KGSL_FT_PAGEFAULT_INT_ENABLE -> BIT(0) set to enable pagefault INT
+ * KGSL_FT_PAGEFAULT_GPUHALT_ENABLE  -> BIT(1) Set to enable GPU HALT on
+ * pagefaults. This stalls the GPU on a pagefault on IOMMU v1 HW.
+ * KGSL_FT_PAGEFAULT_LOG_ONE_PER_PAGE  -> BIT(2) Set to log only one
+ * pagefault per page.
+ * KGSL_FT_PAGEFAULT_LOG_ONE_PER_INT -> BIT(3) Set to log only one
+ * pagefault per INT.
+ */
+static int _ft_pagefault_policy_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	int ret;
+	if (adreno_dev == NULL)
+		return 0;
+
+	mutex_lock(&adreno_dev->dev.mutex);
+	ret = _ft_sysfs_store(buf, count, &adreno_dev->ft_pf_policy);
+	mutex_unlock(&adreno_dev->dev.mutex);
+
+	return ret;
+}
+
+/**
+ * _ft_pagefault_policy_show() -  Routine to read FT pagefault
+ * policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value read
+ *
+ * This is a routine to read current FT pagefault policy
+ */
+static int _ft_pagefault_policy_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	if (adreno_dev == NULL)
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "0x%X\n", adreno_dev->ft_pf_policy);
+}
+
+/**
+ * _ft_fast_hang_detect_store() -  Routine to configure FT fast
+ * hang detect policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value to write
+ * @count: size of the value to write
+ *
+ * 0x1 - Enable fast hang detection
+ * 0x0 - Disable fast hang detection
+ */
+static int _ft_fast_hang_detect_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	int ret;
+	if (adreno_dev == NULL)
+		return 0;
+
+	mutex_lock(&adreno_dev->dev.mutex);
+	ret = _ft_sysfs_store(buf, count, &adreno_dev->fast_hang_detect);
+	mutex_unlock(&adreno_dev->dev.mutex);
+
+	return ret;
+
+}
+
+/**
+ * _ft_fast_hang_detect_show() -  Routine to read FT fast
+ * hang detect policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value read
+ */
+static int _ft_fast_hang_detect_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	if (adreno_dev == NULL)
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+				(adreno_dev->fast_hang_detect ? 1 : 0));
+}
+
+/**
+ * _ft_long_ib_detect_store() -  Routine to configure FT long IB
+ * detect policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value to write
+ * @count: size of the value to write
+ *
+ * 0x0 - Enable long IB detection
+ * 0x1 - Disable long IB detection
+ */
+static int _ft_long_ib_detect_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	int ret;
+	if (adreno_dev == NULL)
+		return 0;
+
+	mutex_lock(&adreno_dev->dev.mutex);
+	ret = _ft_sysfs_store(buf, count, &adreno_dev->long_ib_detect);
+	mutex_unlock(&adreno_dev->dev.mutex);
+
+	return ret;
+
+}
+
+/**
+ * _ft_long_ib_detect_show() -  Routine to read FT long IB
+ * detect policy
+ * @dev: device ptr
+ * @attr: Device attribute
+ * @buf: value read
+ */
+static int _ft_long_ib_detect_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
+	if (adreno_dev == NULL)
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+				(adreno_dev->long_ib_detect ? 1 : 0));
+}
+
+
+#define FT_DEVICE_ATTR(name) \
+	DEVICE_ATTR(name, 0644,	_ ## name ## _show, _ ## name ## _store);
+
+FT_DEVICE_ATTR(ft_policy);
+FT_DEVICE_ATTR(ft_pagefault_policy);
+FT_DEVICE_ATTR(ft_fast_hang_detect);
+FT_DEVICE_ATTR(ft_long_ib_detect);
+
+
+const struct device_attribute *ft_attr_list[] = {
+	&dev_attr_ft_policy,
+	&dev_attr_ft_pagefault_policy,
+	&dev_attr_ft_fast_hang_detect,
+	&dev_attr_ft_long_ib_detect,
+	NULL,
+};
+
+int adreno_ft_init_sysfs(struct kgsl_device *device)
+{
+	return kgsl_create_device_sysfs_files(device->dev, ft_attr_list);
+}
+
+void adreno_ft_uninit_sysfs(struct kgsl_device *device)
+{
+	kgsl_remove_device_sysfs_files(device->dev, ft_attr_list);
+}
 
 static int adreno_getproperty(struct kgsl_device *device,
 				enum kgsl_property_type type,
@@ -2226,39 +2561,6 @@ static int adreno_setproperty(struct kgsl_device *device,
 			}
 
 			status = 0;
-		}
-		break;
-	case KGSL_PROP_FAULT_TOLERANCE: {
-			struct kgsl_ft_config ftd;
-
-			if (adreno_dev->ft_user_control == 0)
-				break;
-
-			if (sizebytes != sizeof(ftd))
-				break;
-
-			if (copy_from_user(&ftd, (void __user *) value,
-							   sizeof(ftd))) {
-				status = -EFAULT;
-				break;
-			}
-
-			if (ftd.ft_policy)
-				adreno_dev->ft_policy = ftd.ft_policy;
-			else
-				adreno_dev->ft_policy = KGSL_FT_DEFAULT_POLICY;
-
-			if (ftd.ft_pf_policy)
-				adreno_dev->ft_pf_policy = ftd.ft_policy;
-			else
-				adreno_dev->ft_pf_policy =
-					KGSL_FT_PAGEFAULT_DEFAULT_POLICY;
-
-			if (ftd.ft_pm_dump)
-				device->pm_dump_enable = 1;
-			else
-				device->pm_dump_enable = 0;
-
 		}
 		break;
 	default:
@@ -2434,6 +2736,8 @@ static int adreno_suspend_context(struct kgsl_device *device)
 		adreno_drawctxt_switch(adreno_dev, NULL, 0);
 		status = adreno_idle(device);
 	}
+	if (adreno_is_a305(adreno_dev))
+		adreno_dev->on_resume_issueib = true;
 
 	return status;
 }

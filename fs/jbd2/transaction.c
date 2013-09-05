@@ -209,12 +209,8 @@ repeat:
 		if (!new_transaction)
 			goto alloc_transaction;
 		write_lock(&journal->j_state_lock);
-/* P14774 : patch : j_barrier_count : race condition */
-#if 0
-		if (!journal->j_running_transaction) {
-#else
-		if (!journal->j_running_transaction && !journal->j_barrier_count) {
-#endif
+		if (!journal->j_running_transaction &&
+		    !journal->j_barrier_count) {
 			jbd2_get_transaction(journal, new_transaction);
 			new_transaction = NULL;
 		}

@@ -111,6 +111,9 @@ struct adreno_device {
 	unsigned int gpulist_index;
 	struct ocmem_buf *ocmem_hdl;
 	unsigned int ocmem_base;
+	struct kgsl_memdesc on_resume_cmd;
+	unsigned int on_resume_ib[3];
+	bool on_resume_issueib;
 };
 
 struct adreno_gpudev {
@@ -179,6 +182,22 @@ struct adreno_ft_data {
 	unsigned int replay_for_snapshot;
 };
 
+/* Fault Tolerance policy flags */
+#define  KGSL_FT_DISABLE                  BIT(0)
+#define  KGSL_FT_REPLAY                   BIT(1)
+#define  KGSL_FT_SKIPIB                   BIT(2)
+#define  KGSL_FT_SKIPFRAME                BIT(3)
+#define  KGSL_FT_TEMP_DISABLE             BIT(4)
+#define  KGSL_FT_DEFAULT_POLICY           (KGSL_FT_REPLAY + KGSL_FT_SKIPIB)
+
+/* Pagefault policy flags */
+#define KGSL_FT_PAGEFAULT_INT_ENABLE         BIT(0)
+#define KGSL_FT_PAGEFAULT_GPUHALT_ENABLE     BIT(1)
+#define KGSL_FT_PAGEFAULT_LOG_ONE_PER_PAGE   BIT(2)
+#define KGSL_FT_PAGEFAULT_LOG_ONE_PER_INT    BIT(3)
+#define KGSL_FT_PAGEFAULT_DEFAULT_POLICY     (KGSL_FT_PAGEFAULT_INT_ENABLE + \
+					KGSL_FT_PAGEFAULT_GPUHALT_ENABLE)
+
 extern struct adreno_gpudev adreno_a2xx_gpudev;
 extern struct adreno_gpudev adreno_a3xx_gpudev;
 
@@ -233,6 +252,9 @@ void adreno_dump_rb(struct kgsl_device *device, const void *buf,
 
 unsigned int adreno_ft_detect(struct kgsl_device *device,
 						unsigned int *prev_reg_val);
+
+int adreno_ft_init_sysfs(struct kgsl_device *device);
+void adreno_ft_uninit_sysfs(struct kgsl_device *device);
 
 static inline int adreno_is_a200(struct adreno_device *adreno_dev)
 {

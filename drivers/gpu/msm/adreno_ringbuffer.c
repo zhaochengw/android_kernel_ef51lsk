@@ -571,6 +571,9 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	if (adreno_is_a3xx(adreno_dev))
 		total_sizedwords += 7;
 
+	if (adreno_is_a2xx(adreno_dev))
+		total_sizedwords += 2; /* CP_WAIT_FOR_IDLE */
+
 	total_sizedwords += 2; /* scratchpad ts for fault tolerance */
 	if (context && context->flags & CTXT_FLAGS_PER_CONTEXT_TS &&
 			!(flags & KGSL_CMD_FLAGS_INTERNAL_ISSUE)) {
@@ -581,6 +584,9 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	} else {
 		total_sizedwords += 4; /* global timestamp for fault tolerance*/
 	}
+
+	if (flags & KGSL_CMD_FLAGS_EOF)
+		total_sizedwords += 2;
 
 	ringcmds = adreno_ringbuffer_allocspace(rb, context, total_sizedwords);
 	if (!ringcmds) {
@@ -630,6 +636,16 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 			rb->timestamp[context_id]++;
 	}
 	timestamp = rb->timestamp[context_id];
+
+	/* HW Workaround for MMU Page fault
+	* due to memory getting free early before
+	* GPU completes it.
+	*/
+	if (adreno_is_a2xx(adreno_dev)) {
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			cp_type3_packet(CP_WAIT_FOR_IDLE, 1));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu, 0x00);
+	}
 
 	/* scratchpad ts for fault tolerance */
 	GSL_RB_WRITE(ringcmds, rcmd_gpu, cp_type0_packet(REG_CP_TIMESTAMP, 1));
@@ -965,6 +981,7 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 	unsigned int i;
 	struct adreno_context *drawctxt;
 	unsigned int start_index = 0;
+	int ret = 0;
 
 	if (device->state & KGSL_STATE_HUNG)
 		return -EBUSY;
@@ -1021,9 +1038,15 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 		if (unlikely(adreno_dev->ib_check_level >= 1 &&
 		    !_parse_ibs(dev_priv, ibdesc[i].gpuaddr,
 				ibdesc[i].sizedwords))) {
-			kfree(link);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto done;
 		}
+
+		if (ibdesc[i].sizedwords == 0) {
+			ret = -EINVAL;
+			goto done;
+		}
+
 		*cmds++ = CP_HDR_INDIRECT_BUFFER_PFD;
 		*cmds++ = ibdesc[i].gpuaddr;
 		*cmds++ = ibdesc[i].sizedwords;
@@ -1046,7 +1069,6 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 	KGSL_CMD_INFO(device, "ctxt %d g %08x numibs %d ts %d\n",
 		context->id, (unsigned int)ibdesc, numibs, *timestamp);
 
-	kfree(link);
 
 #ifdef CONFIG_MSM_KGSL_CFF_DUMP
 	/*
@@ -1063,9 +1085,12 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 	 */
 	if (drawctxt->flags & CTXT_FLAGS_GPU_HANG_FT) {
 		drawctxt->flags &= ~CTXT_FLAGS_GPU_HANG_FT;
-		return -EPROTO;
-	} else
-		return 0;
+		ret = -EPROTO;
+	}
+
+done:
+	kfree(link);
+	return ret;
 }
 
 static void _turn_preamble_on_for_ib_seq(struct adreno_ringbuffer *rb,
