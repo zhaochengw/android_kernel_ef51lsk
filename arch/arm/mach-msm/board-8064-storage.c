@@ -51,7 +51,7 @@ static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.name = "sdc_vdd",
-		.high_vol_level = 2950000, 
+		.high_vol_level = 2950000,
 		.low_vol_level = 2950000,
 		.hpm_uA = 800000, /* 800mA */
 	}

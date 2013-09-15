@@ -208,7 +208,6 @@ static int prepare_tsc_input_device(uint16_t ind,
 #endif
 
 	in_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-
 	in_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(in_dev, ABS_X,
 			     input_info->tsc_x_dim[MIN_IND],
@@ -236,8 +235,6 @@ static int prepare_tsc_input_device(uint16_t ind,
 			     input_info->tsc_y_tilt[MIN_IND],
 			     input_info->tsc_y_tilt[MAX_IND],
 			     0, 0);
-
-	input_mt_init_slots(in_dev, NUM_TRK_ID);	
 
 	return 0;
 }
@@ -1286,7 +1283,7 @@ static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_err("%s: start_tx: wrong state[%d]\n",
 			       __func__,
 			       usf_xx->usf_state);
-				return -EBADFD;
+			return -EBADFD;
 		}
 		break;
 	}
@@ -1414,25 +1411,21 @@ static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	     (cmd == US_SET_RX_INFO)))
 		release_xx(usf_xx);
 
-	
 	return rc;
 } /* usf_ioctl */
 
 static int usf_mmap(struct file *file, struct vm_area_struct *vms)
 {
 	struct usf_type *usf = file->private_data;
-	int dir = OUT, rc;
+	int dir = OUT;
 	struct usf_xx_type *usf_xx = &usf->usf_tx;
-	mutex_lock(&session_lock);
 
 	if (vms->vm_flags & USF_VM_WRITE) { /* RX buf mapping */
 		dir = IN;
 		usf_xx = &usf->usf_rx;
 	}
 
-	rc = q6usm_get_virtual_address(dir, usf_xx->usc, vms);
-	mutex_unlock(&session_lock);
-	return rc;
+	return q6usm_get_virtual_address(dir, usf_xx->usc, vms);
 }
 
 static uint16_t add_opened_dev(int minor)
@@ -1464,17 +1457,14 @@ static int usf_open(struct inode *inode, struct file *file)
 	struct usf_type *usf =  NULL;
 	uint16_t dev_ind = 0;
 	int minor = MINOR(inode->i_rdev);
-	mutex_lock(&session_lock);
+
 	dev_ind = add_opened_dev(minor);
-	if (dev_ind == USF_UNDEF_DEV_ID) {
-		mutex_unlock(&session_lock);
+	if (dev_ind == USF_UNDEF_DEV_ID)
 		return -EBUSY;
-	}
 
 	usf = kzalloc(sizeof(struct usf_type), GFP_KERNEL);
 	if (usf == NULL) {
 		pr_err("%s:usf allocation failed\n", __func__);
-		mutex_unlock(&session_lock);
 		return -ENOMEM;
 	}
 
@@ -1491,14 +1481,12 @@ static int usf_open(struct inode *inode, struct file *file)
 #endif
 
 	pr_debug("%s:usf in open\n", __func__);
-	mutex_unlock(&session_lock);
 	return 0;
 }
 
 static int usf_release(struct inode *inode, struct file *file)
 {
 	struct usf_type *usf = file->private_data;
-	mutex_lock(&session_lock);
 
 	pr_debug("%s: release entry\n", __func__);
 
@@ -1514,7 +1502,6 @@ static int usf_release(struct inode *inode, struct file *file)
 	touch_clear_finger(0);
 #endif
 	pr_debug("%s: release exit\n", __func__);
-	mutex_unlock(&session_lock);
 	return 0;
 }
 
@@ -1558,4 +1545,3 @@ device_initcall(usf_init);
 
 MODULE_DESCRIPTION("Ultrasound framework driver");
 MODULE_VERSION(DRV_VERSION);
-
