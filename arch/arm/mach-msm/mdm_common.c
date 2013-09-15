@@ -266,7 +266,6 @@ static irqreturn_t mdm_vddmin_change(int irq, void *dev_id)
 handled:
 	return IRQ_HANDLED;
 }
-
 /* The vddmin_res resource may not be supported by some platforms. */
 static void mdm_setup_vddmin_gpios(void)
 {
@@ -690,18 +689,18 @@ static irqreturn_t mdm_pblrdy_change(int irq, void *dev_id)
 
 static int mdm_subsys_shutdown(const struct subsys_desc *crashed_subsys)
 {
-#if defined(CONFIG_PANTECH_SMB347_CHARGER)
-	// if offline charging mode, skip func
-	if(pantech_charging_status()) 
-		return 0;
-#endif
-
 	struct mdm_device *mdev =
 	 container_of(crashed_subsys, struct mdm_device, mdm_subsys);
 	struct mdm_modem_drv *mdm_drv = &mdev->mdm_data;
 
 	pr_debug("%s: ssr on modem id %d\n", __func__,
 			 mdev->mdm_data.device_id);
+
+#if defined(CONFIG_PANTECH_SMB347_CHARGER)
+	// if offline charging mode, skip func
+	if(pantech_charging_status()) 
+		return 0;
+#endif
 
 	mdm_ssr_started(mdev);
 	cancel_delayed_work(&mdev->mdm2ap_status_check_work);
@@ -727,11 +726,6 @@ static int mdm_subsys_shutdown(const struct subsys_desc *crashed_subsys)
 
 static int mdm_subsys_powerup(const struct subsys_desc *crashed_subsys)
 {
-#if defined(CONFIG_PANTECH_SMB347_CHARGER)
-	// if offline charging mode, skip func
-	if(pantech_charging_status()) 
-		return 0;
-#endif
 	struct mdm_device *mdev =
 		container_of(crashed_subsys, struct mdm_device,
 					 mdm_subsys);
@@ -739,6 +733,12 @@ static int mdm_subsys_powerup(const struct subsys_desc *crashed_subsys)
 
 	pr_debug("%s: ssr on modem id %d\n",
 			 __func__, mdev->mdm_data.device_id);
+
+#if defined(CONFIG_PANTECH_SMB347_CHARGER)
+	// if offline charging mode, skip func
+	if(pantech_charging_status()) 
+		return 0;
+#endif
 
 	gpio_direction_output(mdm_drv->ap2mdm_errfatal_gpio, 0);
 	gpio_direction_output(mdm_drv->ap2mdm_status_gpio, 1);

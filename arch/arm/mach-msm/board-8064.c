@@ -34,7 +34,7 @@
 #include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
 #if 0 //!defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-#include <linux/cyttsp.h>
+#include <linux/cyttsp-qc.h>
 #endif
 #include <linux/i2c/isa1200.h>
 #include <linux/gpio_keys.h>
