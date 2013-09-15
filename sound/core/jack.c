@@ -78,9 +78,8 @@ static int snd_jack_dev_register(struct snd_device *device)
 		if (!(jack->type & testbit))
 			continue;
 
-		if (!jack->key[i]) {
-			jack->key[i] = BTN_0 + i;			
-		}
+		if (!jack->key[i])
+			jack->key[i] = BTN_0 + i;
 
 		input_set_capability(jack->input_dev, EV_KEY, jack->key[i]);
 	}

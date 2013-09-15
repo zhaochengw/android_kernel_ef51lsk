@@ -32,14 +32,12 @@ static struct gpiomux_setting gpio_eth_config = {
 	.func = GPIOMUX_FUNC_GPIO,
 };
 
-//#ifndef CONFIG_SKY_DMB_I2C_CMD
 /* The SPI configurations apply to GSBI 5*/
 static struct gpiomux_setting gpio_spi_config = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_12MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
-//#endif
 
 /* The SPI configurations apply to GSBI 5 chip select 2*/
 static struct gpiomux_setting gpio_spi_cs2_config = {
@@ -502,13 +500,13 @@ static struct gpiomux_setting hdmi_active_2_cfg = {
 
 static struct gpiomux_setting gsbi5_suspended_cfg = {
 	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_8MA,
+	.drv = GPIOMUX_DRV_12MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 
 static struct gpiomux_setting gsbi5_active_cfg = {
 	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_8MA,
+	.drv = GPIOMUX_DRV_12MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 
@@ -1995,8 +1993,15 @@ void __init apq8064_init_gpiomux(void)
 	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l()|| machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() || machine_is_apq8064_ef52k() || machine_is_apq8064_ef52l())
 #endif
 	)
-		msm_gpiomux_install(cyts_gpio_configs,
-				ARRAY_SIZE(cyts_gpio_configs));
+ {
+		if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
+			msm_gpiomux_install(cyts_gpio_alt_config,
+					ARRAY_SIZE(cyts_gpio_alt_config));
+		} else {
+			msm_gpiomux_install(cyts_gpio_configs,
+					ARRAY_SIZE(cyts_gpio_configs));
+		}
+	}
 #endif
 
 #ifdef CONFIG_USB_EHCI_MSM_HSIC

@@ -1563,7 +1563,7 @@ enum csid_cfg_type_t {
 struct csid_cfg_data {
 	enum csid_cfg_type_t cfgtype;
 	union {
-	uint32_t csid_version;
+		uint32_t csid_version;
 		struct msm_camera_csid_params *csid_params;
 	} cfg;
 };

@@ -51,7 +51,7 @@ static struct scalable scalable[] __initdata = {
 		.vreg[VREG_DIG]  = { "krait0_dig", 1150000 },
 		.vreg[VREG_HFPLL_A] = { "krait0_s8", 2050000 },
 		.vreg[VREG_HFPLL_B] = { "krait0_l23", 1800000 },
-		},
+	},
 	[CPU1] = {
 		.hfpll_phys_base = 0x00903300,
 		.aux_clk_sel_phys = 0x02098014,
@@ -63,7 +63,7 @@ static struct scalable scalable[] __initdata = {
 		.vreg[VREG_DIG]  = { "krait1_dig", 1150000 },
 		.vreg[VREG_HFPLL_A] = { "krait1_s8", 2050000 },
 		.vreg[VREG_HFPLL_B] = { "krait1_l23", 1800000 },
-		},
+	},
 	[L2] = {
 		.hfpll_phys_base = 0x00903400,
 		.aux_clk_sel_phys = 0x02011028,
@@ -72,7 +72,7 @@ static struct scalable scalable[] __initdata = {
 		.l2cpmr_iaddr = 0x0500,
 		.vreg[VREG_HFPLL_A] = { "l2_s8", 2050000 },
 		.vreg[VREG_HFPLL_B] = { "l2_l23", 1800000 },
-		},
+	},
 };
 
 static struct msm_bus_paths bw_level_tbl[] __initdata = {

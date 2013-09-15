@@ -439,19 +439,6 @@ void __init parse_early_param(void)
  *	Activate the first processor.
  */
 
-
-static void __init cpu_len_lk(void)
-{
-	int cn = smp_processor_id();
-	printk("=====================================================\n");
-	printk("smp_processor_id = %d\n", cn);
-
-	if(cn >1)
-	{
-		setup_nr_cpu_ids();
-	}
-	
-}
 static void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();
@@ -525,10 +512,7 @@ asmlinkage void __init start_kernel(void)
 	mm_init_owner(&init_mm, &init_task);
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
-
-	cpu_len_lk();
-	//setup_nr_cpu_ids();
-	
+	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
@@ -541,6 +525,7 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   0, 0, &unknown_bootoption);
 
+	jump_label_init();
 #ifdef CONFIG_PANTECH_SMB347_CHARGER
         if (strstr(boot_command_line,"androidboot.mode=charger")) {
                 battchg_pause_offline = 1;

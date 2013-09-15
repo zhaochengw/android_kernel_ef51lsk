@@ -2428,18 +2428,18 @@ static void tabla_codec_start_hs_polling(struct snd_soc_codec *codec)
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B5_CTL, 0x00);
 	} else if (unlikely(mbhc_state == MBHC_STATE_POTENTIAL)) {
 		pr_debug("%s recovering MBHC state machine\n", __func__);
-			tabla->mbhc_state = MBHC_STATE_POTENTIAL_RECOVERY;
-			/* set to max button press threshold */
+		tabla->mbhc_state = MBHC_STATE_POTENTIAL_RECOVERY;
+		/* set to max button press threshold */
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B2_CTL, 0x7F);
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B1_CTL, 0xFF);
-			snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B4_CTL,
-				      (TABLA_IS_1_X(tabla_core->version) ?
-				       0x07 : 0x7F));
+		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B4_CTL,
+			      (TABLA_IS_1_X(tabla_core->version) ?
+			       0x07 : 0x7F));
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B3_CTL, 0xFF);
-			/* set to max */
+		/* set to max */
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B6_CTL, 0x7F);
 		snd_soc_write(codec, TABLA_A_CDC_MBHC_VOLT_B5_CTL, 0xFF);
-		}
+	}
 
 	snd_soc_write(codec, TABLA_A_CDC_MBHC_EN_CTL, 0x1);
 	snd_soc_update_bits(codec, TABLA_A_CDC_MBHC_CLK_CTL, 0x8, 0x0);
@@ -4353,7 +4353,7 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 		}
 	} else if (dai->id == AIF1_CAP || dai->id == AIF2_CAP ||
 		   dai->id == AIF3_CAP) {
-			tabla->dai[dai->id - 1].ch_tot = tx_num;
+		tabla->dai[dai->id - 1].ch_tot = tx_num;
 		/* All channels are already active.
 		 * do not reset ch_act flag
 		 */
@@ -4974,7 +4974,7 @@ static int tabla_codec_enable_chmask(struct tabla_priv *tabla_p,
 				__func__);
 			ret = -EINVAL;
 		} else
-		ret = 0;
+			ret = 0;
 		break;
 	}
 	return ret;
@@ -4999,7 +4999,7 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 			pm_runtime_mark_last_busy(tabla->dev->parent);
 			pm_runtime_put(tabla->dev->parent);
 		}
- 		return 0;
+		return 0;
 	}
 
 	pr_debug("%s: %s %d\n", __func__, w->name, event);
@@ -5057,7 +5057,7 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 			}
 			tabla_p->dai[j].rate = 0;
 			memset(tabla_p->dai[j].ch_num, 0, (sizeof(u32)*
-					tabla_p->dai[j].ch_tot));
+				tabla_p->dai[j].ch_tot));
 			tabla_p->dai[j].ch_tot = 0;
 
 			if ((tabla != NULL) &&
@@ -5065,8 +5065,8 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 			    (tabla->dev->parent != NULL)) {
 				pm_runtime_mark_last_busy(tabla->dev->parent);
 				pm_runtime_put(tabla->dev->parent);
+			}
 		}
-	}
 	}
 	return ret;
 }
@@ -5154,14 +5154,13 @@ static int tabla_codec_enable_slimtx(struct snd_soc_dapm_widget *w,
 			memset(tabla_p->dai[j].ch_num, 0, (sizeof(u32)*
 					tabla_p->dai[j].ch_tot));
 			tabla_p->dai[j].ch_tot = 0;
-
 			if ((tabla != NULL) &&
 			    (tabla->dev != NULL) &&
 			    (tabla->dev->parent != NULL)) {
 				pm_runtime_mark_last_busy(tabla->dev->parent);
 				pm_runtime_put(tabla->dev->parent);
+			}
 		}
-	}
 	}
 	return ret;
 }
@@ -6677,17 +6676,17 @@ static irqreturn_t tabla_dce_handler(int irq, void *data)
 #endif
 
 	if (n_btn_meas == 0) {
-			sta = tabla_codec_read_sta_result(codec);
+		sta = tabla_codec_read_sta_result(codec);
 		stamv_s = stamv = tabla_codec_sta_dce_v(codec, 0, sta);
-			if (vddio)
+		if (vddio)
 			stamv_s = tabla_scale_v_micb_vddio(priv, stamv, false);
 		btn = tabla_determine_button(priv, stamv_s);
 		pr_debug("%s: meas HW - STA %x,%d,%d button %d\n", __func__,
 			 sta, stamv, stamv_s, btn);
 		BUG_ON(meas != 1);
 		if (btnmeas[0] != btn)
-				btn = -1;
-		}
+			btn = -1;
+	}
 
 	/* determine pressed button */
 	for (; ((d->n_btn_meas) && (meas < (d->n_btn_meas + 1))); meas++) {
@@ -8604,7 +8603,7 @@ static ssize_t codec_debug_write(struct file *filp,
 	if (tabla->no_mic_headset_override && tabla->mbhc_polling_active) {
 		tabla_codec_pause_hs_polling(tabla->codec);
 		tabla_codec_start_hs_polling(tabla->codec);
-}
+	}
 	TABLA_RELEASE_LOCK(tabla->codec_resource_lock);
 	return cnt;
 }

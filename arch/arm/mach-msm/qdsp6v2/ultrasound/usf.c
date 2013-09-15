@@ -1405,7 +1405,7 @@ static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = -ENOTTY;
 		break;
 	}
-	
+
 	if (rc &&
 	    ((cmd == US_SET_TX_INFO) ||
 	     (cmd == US_SET_RX_INFO)))

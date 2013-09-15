@@ -2175,7 +2175,7 @@ static int msm_auxpcm_startup(struct snd_pcm_substream *substream)
 	pr_debug("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
 		__func__, substream->name, atomic_read(&auxpcm_rsc_ref));
 	if (atomic_inc_return(&auxpcm_rsc_ref) == 1)
-	ret = msm_aux_pcm_get_gpios();
+		ret = msm_aux_pcm_get_gpios();
 	if (ret < 0) {
 		pr_err("%s: Aux PCM GPIO request failed\n", __func__);
 		return -EINVAL;
@@ -2202,7 +2202,7 @@ static void msm_auxpcm_shutdown(struct snd_pcm_substream *substream)
 	pr_debug("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
 		__func__, substream->name, atomic_read(&auxpcm_rsc_ref));
 	if (atomic_dec_return(&auxpcm_rsc_ref) == 0)
-	msm_aux_pcm_free_gpios();
+		msm_aux_pcm_free_gpios();
 }
 
 static void msm_shutdown(struct snd_pcm_substream *substream)
