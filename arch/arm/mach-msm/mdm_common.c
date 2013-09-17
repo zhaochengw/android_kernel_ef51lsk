@@ -347,6 +347,7 @@ static irqreturn_t mdm_vddmin_change(int irq, void *dev_id)
 handled:
 	return IRQ_HANDLED;
 }
+
 /* The vddmin_res resource may not be supported by some platforms. */
 static void mdm_setup_vddmin_gpios(void)
 {

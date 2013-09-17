@@ -500,13 +500,13 @@ static struct gpiomux_setting hdmi_active_2_cfg = {
 
 static struct gpiomux_setting gsbi5_suspended_cfg = {
 	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_12MA,
+	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 
 static struct gpiomux_setting gsbi5_active_cfg = {
 	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_12MA,
+	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
 

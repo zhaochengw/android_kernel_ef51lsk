@@ -241,7 +241,7 @@ int msm_rtb_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.of_node) {
-	msm_rtb.size = d->size;
+		msm_rtb.size = d->size;
 	} else {
 		int size;
 

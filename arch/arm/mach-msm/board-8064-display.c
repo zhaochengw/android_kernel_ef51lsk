@@ -98,9 +98,7 @@ static bool vci_bootup_set;
 #define MSM_FB_WFD_BUF_SIZE     0
 #endif
 
-#define MSM_FB_SIZE \
-	roundup(MSM_FB_PRIM_BUF_SIZE + \
-		MSM_FB_EXT_BUF_SIZE + MSM_FB_WFD_BUF_SIZE, 4096)
+#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
 #ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
 #ifdef FEATURE_SKYDISP_FUSION3_PANTECH_DISPLAY
@@ -186,8 +184,7 @@ static int msm_fb_detect_panel(const char *name)
 			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
 			return 0;
-	} else if (machine_is_apq8064_cdp() ||
-		       machine_is_mpq8064_dtv()) {
+	} else if (machine_is_apq8064_cdp()) {
 		if (!strncmp(name, LVDS_CHIMEI_PANEL_NAME,
 			strnlen(LVDS_CHIMEI_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
@@ -2080,9 +2077,9 @@ void __init apq8064_init_fb(void)
 	if (machine_is_apq8064_liquid())
 		platform_device_register(&mipi_dsi2lvds_bridge_device);
 	if (machine_is_apq8064_mtp())
-	{
 		platform_device_register(&mipi_dsi_toshiba_panel_device);
-	}
+	if (machine_is_mpq8064_dtv())
+		platform_device_register(&lvds_frc_panel_device);
 
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("lvds", &lvds_pdata);
@@ -2154,8 +2151,8 @@ void __init apq8064_set_display_params(char *prim_panel, char *ext_panel,
 				PANEL_NAME_MAX_LEN))) {
 			pr_debug("MHL is external display by boot parameter\n");
 			mhl_display_enabled = 1;
+		}
 	}
-}
 
 	msm_fb_pdata.ext_resolution = resolution;
 	hdmi_msm_data.is_mhl_enabled = mhl_display_enabled;

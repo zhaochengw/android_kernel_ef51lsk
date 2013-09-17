@@ -1495,7 +1495,6 @@ static void __init apq8064_ehci_host_init(void)
 }
 
 #if !defined(CONFIG_MACH_APQ8064_EF48S) && !defined(CONFIG_MACH_APQ8064_EF49K) && !defined(CONFIG_MACH_APQ8064_EF50L) && !defined(CONFIG_MACH_APQ8064_EF51S) && !defined(CONFIG_MACH_APQ8064_EF51K) && !defined(CONFIG_MACH_APQ8064_EF51L) && !defined(CONFIG_MACH_APQ8064_EF52S) && !defined(CONFIG_MACH_APQ8064_EF52K) && !defined(CONFIG_MACH_APQ8064_EF52L)
-#error
 static struct smb349_platform_data smb349_data __initdata = {
 	.en_n_gpio		= PM8921_GPIO_PM_TO_SYS(37),
 	.chg_susp_gpio		= PM8921_GPIO_PM_TO_SYS(30),
