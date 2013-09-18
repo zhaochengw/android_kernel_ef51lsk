@@ -1724,7 +1724,11 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	long timeout;
 	unsigned long flags;
 	int packet;
-
+	//(+)p10919 1101 : ef48 remotefs transcation error fatch add
+	struct tty_buffer *head;
+	int count;
+	//(-)p10919 1101
+	
 do_it_again:
 
 	BUG_ON(!tty->read_buf);
@@ -1911,6 +1915,24 @@ do_it_again:
 		goto do_it_again;
 
 	n_tty_set_room(tty);
+	
+	//(+)p10919 1101 : ef48 remotefs transcation error fatch add
+	if(tty->update_room_in_ldisc){
+		spin_lock_irqsave(&tty->buf.lock, flags);
+
+		head = tty->buf.head;
+		if (head) {
+			count = head->commit - head->read;
+
+			if ((count || tty->buf.head != tty->buf.tail) && tty->receive_room && !work_pending(&tty->buf.work)){
+				schedule_work(&tty->buf.work);
+			}
+		}
+
+		spin_unlock_irqrestore(&tty->buf.lock, flags);
+	}
+	//(+)p10919 1101
+	
 	return retval;
 }
 

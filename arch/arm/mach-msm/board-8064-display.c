@@ -98,7 +98,9 @@ static bool vci_bootup_set;
 #define MSM_FB_WFD_BUF_SIZE     0
 #endif
 
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
+#define MSM_FB_SIZE \
+	roundup(MSM_FB_PRIM_BUF_SIZE + \
+		MSM_FB_EXT_BUF_SIZE + MSM_FB_WFD_BUF_SIZE, 4096)
 
 #ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
 #ifdef FEATURE_SKYDISP_FUSION3_PANTECH_DISPLAY
@@ -184,7 +186,8 @@ static int msm_fb_detect_panel(const char *name)
 			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
 			return 0;
-	} else if (machine_is_apq8064_cdp()) {
+	} else if (machine_is_apq8064_cdp() ||
+		       machine_is_mpq8064_dtv()) {
 		if (!strncmp(name, LVDS_CHIMEI_PANEL_NAME,
 			strnlen(LVDS_CHIMEI_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
@@ -352,10 +355,8 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD) //20121102 shkwak, EF52 not work in mdp max clock
 	.mdp_max_clk = 200000000,
 #else // EF52
-    .mdp_max_clk = 266667000,
-#endif // EF52
-#else
 	.mdp_max_clk = 266667000,
+#endif
 #endif
 	.mdp_max_bw = 2000000000,
 	.mdp_bw_ab_factor = 115,
@@ -2077,9 +2078,9 @@ void __init apq8064_init_fb(void)
 	if (machine_is_apq8064_liquid())
 		platform_device_register(&mipi_dsi2lvds_bridge_device);
 	if (machine_is_apq8064_mtp())
+	{
 		platform_device_register(&mipi_dsi_toshiba_panel_device);
-	if (machine_is_mpq8064_dtv())
-		platform_device_register(&lvds_frc_panel_device);
+	}
 
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("lvds", &lvds_pdata);

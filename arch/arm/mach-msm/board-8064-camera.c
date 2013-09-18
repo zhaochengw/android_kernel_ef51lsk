@@ -807,7 +807,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_as0260_data = {
 
 #endif
 
-#ifdef CONFIG_IMX074
+#ifdef CONFIG_IMX135
 static struct msm_camera_sensor_flash_data flash_imx135 = {
 	.flash_type = MSM_CAMERA_FLASH_NONE,
 };
@@ -836,7 +836,9 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx135_data = {
 	.sensor_type = BAYER_SENSOR,
 	.actuator_info = &msm_act_main_cam_1_info,
 };
+#endif
 
+#ifdef CONFIG_IMX074
 static struct msm_camera_sensor_flash_data flash_imx074 = {
 	.flash_type	= MSM_CAMERA_FLASH_LED,
 	.flash_src	= &msm_flash_src

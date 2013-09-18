@@ -800,13 +800,13 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 	},
 
 #endif
-#if 0//ndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio      = 32,		/* EPM CS */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gpio_epm_spi_cs_config,
 		},
 	},
+#if 0//ndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio      = 53,		/* NOR CS */
 		.settings = {

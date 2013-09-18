@@ -1535,10 +1535,19 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	wmb();
 	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
 
-	if (!wait_for_completion_timeout(&dsi_dma_comp,
-					msecs_to_jiffies(200))) {
-		pr_err("%s: dma timeout error\n", __func__);
+  /* Pantehc, LCD-timming */
+#if (1) // kkcho_temp def CONFIG_FB_PANTECH_MIPI_DSI_ROHM
+	wait_for_completion_timeout(&dsi_dma_comp, 50UL); // 10 -> 5 flick cursor
+#else
+	wait_for_completion(&dsi_dma_comp);
+#endif
+
+#ifdef FEATURE_SKYDISP_RESET_FIX_SECOND_METHOD	
+	if(tp->dmap == 0){
+		pr_err("%s: tp->dmap is NULL before dma_unmap_single\n", __func__);
+		return 0;
 	}
+#endif
 
 	dma_unmap_single(&dsi_dev, tp->dmap, tp->len, DMA_TO_DEVICE);
 	tp->dmap = 0;
