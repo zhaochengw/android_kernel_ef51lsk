@@ -525,7 +525,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
        is_subsystem_restarting = 0;
 #endif
 
-	pr_debug("[%p]: Released powerup lock!\n", current);
+	pr_info("[%p]: Released powerup lock!\n", current);
 
 out:
 	spin_lock_irqsave(&dev->restart_lock, flags);

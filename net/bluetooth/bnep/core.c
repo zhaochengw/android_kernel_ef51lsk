@@ -56,6 +56,10 @@
 #include "bnep.h"
 
 #define VERSION "1.3"
+/* As this feature is dummy for BNEP net device
+** disabling support */
+//FEATURE_QCOM_CR, 20121218, KSCHOI, BT SIG PAN NAP Bridge TX Fail
+//#undef CONFIG_BT_BNEP_MC_FILTER
 
 static bool compress_src = 1;
 static bool compress_dst = 1;

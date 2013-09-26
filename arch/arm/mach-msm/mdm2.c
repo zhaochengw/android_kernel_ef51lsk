@@ -103,6 +103,10 @@ static void mdm_atomic_soft_reset(struct mdm_modem_drv *mdm_drv)
 	mdm_toggle_soft_reset(mdm_drv);
 }
 
+#if (0) // TODO: ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+	pantech_ram_console_debug_init();
+#endif
+
 static void mdm_power_down_common(struct mdm_modem_drv *mdm_drv)
 {
 	int i;

@@ -355,8 +355,10 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD) //20121102 shkwak, EF52 not work in mdp max clock
 	.mdp_max_clk = 200000000,
 #else // EF52
-	.mdp_max_clk = 266667000,
-#endif
+    .mdp_max_clk = 266667000,
+#endif // EF52
+#else
+	.mdp_max_clk = 200000000,
 #endif
 	.mdp_max_bw = 2000000000,
 	.mdp_bw_ab_factor = 115,
@@ -1631,7 +1633,7 @@ static int lvds_pixel_remap(void)
 	} else if (machine_is_mpq8064_dtv()) {
 		if ((SOCINFO_VERSION_MAJOR(ver) == 1) &&
 		    (SOCINFO_VERSION_MINOR(ver) == 0))
-			return LVDS_PIXEL_MAP_PATTERN_2;
+		return LVDS_PIXEL_MAP_PATTERN_2;
 	}
 	return 0;
 }
@@ -2074,7 +2076,6 @@ void __init apq8064_init_fb(void)
 	platform_device_register(&wfd_panel_device);
 	platform_device_register(&wfd_device);
 #endif
-
 	if (machine_is_apq8064_liquid())
 		platform_device_register(&mipi_dsi2lvds_bridge_device);
 	if (machine_is_apq8064_mtp())
@@ -2152,8 +2153,8 @@ void __init apq8064_set_display_params(char *prim_panel, char *ext_panel,
 				PANEL_NAME_MAX_LEN))) {
 			pr_debug("MHL is external display by boot parameter\n");
 			mhl_display_enabled = 1;
-		}
 	}
+}
 
 	msm_fb_pdata.ext_resolution = resolution;
 	hdmi_msm_data.is_mhl_enabled = mhl_display_enabled;

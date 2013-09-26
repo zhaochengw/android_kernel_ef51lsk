@@ -14,13 +14,8 @@
 /*
  *  BAM DMUX module.
  */
-#ifndef MACH_APQ8064_EF51L
-#define FEATURE_SKY_DS_REMOVE_DBG_RMNET
-#endif
 
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 #define DEBUG
-#endif
 
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -543,13 +538,9 @@ static void handle_bam_mux_cmd(struct work_struct *work)
 	rx_hdr = (struct bam_mux_hdr *)rx_skb->data;
 
 	DBG_INC_READ_CNT(sizeof(struct bam_mux_hdr));
-
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 	DBG("%s: magic %x reserved %d cmd %d pad %d ch %d len %d\n", __func__,
 			rx_hdr->magic_num, rx_hdr->reserved, rx_hdr->cmd,
 			rx_hdr->pad_len, rx_hdr->ch_id, rx_hdr->pkt_len);
-#endif
-
 	if (rx_hdr->magic_num != BAM_MUX_HDR_MAGIC_NO) {
 		DMUX_LOG_KERR("%s: dropping invalid hdr. magic %x"
 			" reserved %d cmd %d"
@@ -760,9 +751,7 @@ int msm_bam_dmux_write(uint32_t id, struct sk_buff *skb)
 	if (!bam_mux_initialized)
 		return -ENODEV;
 
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 	DBG("%s: writing to ch %d len %d\n", __func__, id, skb->len);
-#endif 	
 	spin_lock_irqsave(&bam_ch[id].lock, flags);
 	if (!bam_ch_is_open(id)) {
 		spin_unlock_irqrestore(&bam_ch[id].lock, flags);
@@ -817,11 +806,9 @@ int msm_bam_dmux_write(uint32_t id, struct sk_buff *skb)
 
 	hdr->pad_len = skb->len - (sizeof(struct bam_mux_hdr) + hdr->pkt_len);
 
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 	DBG("%s: data %p, tail %p skb len %d pkt len %d pad len %d\n",
 	    __func__, skb->data, skb->tail, skb->len,
 	    hdr->pkt_len, hdr->pad_len);
-#endif	    
 
 	pkt = kmalloc(sizeof(struct tx_pkt_info), GFP_ATOMIC);
 	if (pkt == NULL) {
@@ -1229,9 +1216,7 @@ static void bam_mux_tx_notify(struct sps_event_notify *notify)
 {
 	struct tx_pkt_info *pkt;
 
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 	DBG("%s: event %d notified\n", __func__, notify->event_id);
-#endif	
 
 	if (in_global_reset)
 		return;
@@ -1260,9 +1245,7 @@ static void bam_mux_rx_notify(struct sps_event_notify *notify)
 	int ret;
 	struct sps_connect cur_rx_conn;
 
-#ifndef FEATURE_SKY_DS_REMOVE_DBG_RMNET
 	DBG("%s: event %d notified\n", __func__, notify->event_id);
-#endif 	
 
 	if (in_global_reset)
 		return;
@@ -1301,7 +1284,8 @@ static void bam_mux_rx_notify(struct sps_event_notify *notify)
 	}
 }
 
-#if defined(CONFIG_DEBUG_FS) && !defined(FEATURE_SKY_DS_REMOVE_DBG_RMNET)
+#ifdef CONFIG_DEBUG_FS
+
 static int debug_tbl(char *buf, int max)
 {
 	int i = 0;
@@ -2394,7 +2378,7 @@ static struct platform_driver bam_dmux_driver = {
 
 static int __init bam_dmux_init(void)
 {
-#if defined(CONFIG_DEBUG_FS) && !defined(FEATURE_SKY_DS_REMOVE_DBG_RMNET)
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *dent;
 
 	dent = debugfs_create_dir("bam_dmux", 0);

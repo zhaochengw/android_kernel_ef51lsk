@@ -67,7 +67,8 @@ struct ehci_timer {
 };
 
 struct msm_hsic_hcd {
-	struct ehci_hcd		ehci;
+        struct ehci_hcd         ehci;
+        /* p10919 : 12/09/08 hello command fail test code */
 	spinlock_t		wakeup_lock;
 	struct device		*dev;
 	struct clk		*ahb_clk;
@@ -837,6 +838,7 @@ static int msm_hsic_resume(struct msm_hsic_hcd *mehci)
 	int cnt = 0, ret;
 	unsigned temp;
 	int min_vol, max_vol;
+	/* p10919 : 12/09/08 hello command fail test code */
 	unsigned long flags;
 
 	if (!atomic_read(&mehci->in_lpm)) {
@@ -852,7 +854,8 @@ static int msm_hsic_resume(struct msm_hsic_hcd *mehci)
 		disable_irq_wake(mehci->wakeup_irq);
 		disable_irq_nosync(mehci->wakeup_irq);
 		mehci->wakeup_irq_enabled = 0;
-	}
+        }
+        /* p10919 : 12/09/08 hello command fail test code */
 	spin_unlock_irqrestore(&mehci->wakeup_lock, flags);
 
 	wake_lock(&mehci->wlock);
@@ -1164,7 +1167,7 @@ static int ehci_hsic_bus_suspend(struct usb_hcd *hcd)
 		dev_dbg(mehci->dev, "%s:port is not enabled skip suspend\n",
 				__func__);
 		return -EAGAIN;
-	}
+}
 
 	dbg_log_event(NULL, "Suspend RH", 0);
 	return ehci_bus_suspend(hcd);
@@ -1333,7 +1336,7 @@ static int ehci_hsic_bus_resume(struct usb_hcd *hcd)
 		pr_err("Error creating resume thread:%lu\n",
 				PTR_ERR(resume_thread));
 		return PTR_ERR(resume_thread);
-	}
+}
 
 	wait_for_completion(&mehci->rt_completion);
 
@@ -1523,12 +1526,14 @@ static irqreturn_t msm_hsic_wakeup_irq(int irq, void *data)
 
 	wake_lock(&mehci->wlock);
 
+        /* p10919 : 12/09/08 hello command fail test code */
 	spin_lock(&mehci->wakeup_lock);
 	if (mehci->wakeup_irq_enabled) {
 		mehci->wakeup_irq_enabled = 0;
 		disable_irq_wake(irq);
 		disable_irq_nosync(irq);
-	}
+        }
+        /* p10919 : 12/09/08 hello command fail test code */
 	spin_unlock(&mehci->wakeup_lock);
 
 	if (!atomic_read(&mehci->pm_usage_cnt)) {

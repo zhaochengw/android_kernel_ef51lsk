@@ -57,7 +57,12 @@
 /* Allow a maximum device id of this many digits */
 #define MAX_DEVICE_DIGITS  10
 #define EXTERNAL_MODEM "external_modem"
+#define SUBSYS_NAME_LENGTH \
+	(sizeof(EXTERNAL_MODEM) + MAX_DEVICE_DIGITS)
 
+#define DEVICE_BASE_NAME "mdm"
+#define DEVICE_NAME_LENGTH \
+	(sizeof(DEVICE_BASE_NAME) + MAX_DEVICE_DIGITS)
 
 #if defined(CONFIG_PANTECH_SMB347_CHARGER)
 extern unsigned int pantech_charging_status(void);
@@ -66,13 +71,6 @@ extern unsigned int pantech_charging_status(void);
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
 extern int sky_reset_reason;
 #endif
-
-#define SUBSYS_NAME_LENGTH \
-	(sizeof(EXTERNAL_MODEM) + MAX_DEVICE_DIGITS)
-
-#define DEVICE_BASE_NAME "mdm"
-#define DEVICE_NAME_LENGTH \
-	(sizeof(DEVICE_BASE_NAME) + MAX_DEVICE_DIGITS)
 
 #define RD_BUF_SIZE			100
 #define SFR_MAX_RETRIES		10
@@ -420,6 +418,13 @@ static void mdm_restart_reason_fn(struct work_struct *work)
 						SFR_MAX_RETRIES);
 			} else {
 				pr_err("mdm restart reason: %s\n", sfr_buf);
+
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+// MDM SSR not support
+#if (0)
+            sky_reset_reason = SYS_RESET_REASON_UNKNOWN;
+#endif
+#endif
 				break;
 			}
 		}

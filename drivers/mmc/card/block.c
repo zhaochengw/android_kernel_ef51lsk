@@ -488,7 +488,14 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	md = mmc_blk_get(bdev->bd_disk);
 	if (!md) {
 		err = -EINVAL;
+		/* [kernel patch] mmc: card: Avoid null pointer dereference (youngkyu.jeon@skhynix.com) */
+
+#ifdef CONFIG_MMC_DEBUG_FOR_HYNIX
+		goto cmd_err;
+#else
 		goto blk_err;
+#endif 
+		/* End of [kernel patch] */
 	}
 
 	card = md->queue.card;
@@ -588,6 +595,10 @@ cmd_rel_host:
 cmd_done:
 	mmc_blk_put(md);
 blk_err:
+
+#ifdef CONFIG_MMC_DEBUG_FOR_HYNIX
+cmd_err: /* [kernel patch] mmc: card: Avoid null pointer dereference (youngkyu.jeon@skhynix.com) */
+#endif
 	kfree(idata->buf);
 	kfree(idata);
 	return err;

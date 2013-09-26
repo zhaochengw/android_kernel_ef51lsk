@@ -482,7 +482,7 @@ static void android_enable(struct android_dev *dev)
 
 		list_for_each_entry(conf, &dev->configs, list_item)
 			usb_add_config(cdev, &conf->usb_config,
-						android_bind_config);
+					android_bind_config);
 
 		usb_gadget_connect(cdev->gadget);
 	}
@@ -578,8 +578,8 @@ static void adb_ready_callback(void)
 	if (data->enabled && dev) {
 		mutex_lock(&dev->mutex);
 		android_enable(dev);
-		mutex_unlock(&dev->mutex);
-	}
+	mutex_unlock(&dev->mutex);
+}
 }
 
 static void adb_closed_callback(void)
@@ -592,8 +592,8 @@ static void adb_closed_callback(void)
 	if (data->enabled) {
 		mutex_lock(&dev->mutex);
 		android_disable(dev);
-		mutex_unlock(&dev->mutex);
-	}
+	mutex_unlock(&dev->mutex);
+}
 }
 
 
@@ -2163,6 +2163,7 @@ static int android_enable_function(struct android_dev *dev,
 {
 	struct android_usb_function **functions = dev->functions;
 	struct android_usb_function *f;
+
 	while ((f = *functions++)) {
 		if (!strcmp(name, f->name)) {
 			if (f->android_dev)
@@ -2170,12 +2171,12 @@ static int android_enable_function(struct android_dev *dev,
 					"configuration or device\n",
 					f->name);
 			else {
-				list_add_tail(&f->enabled_list,
+			list_add_tail(&f->enabled_list,
 					      &conf->enabled_functions);
 				f->android_dev = dev;
-				return 0;
-			}
+			return 0;
 		}
+	}
 	}
 	return -EINVAL;
 }
@@ -2234,10 +2235,10 @@ static ssize_t remote_wakeup_store(struct device *pdev,
 			enable ? "enabling" : "disabling");
 
 	list_for_each_entry(conf, &dev->configs, list_item)
-		if (enable)
+	if (enable)
 			conf->usb_config.bmAttributes |=
 					USB_CONFIG_ATT_WAKEUP;
-		else
+	else
 			conf->usb_config.bmAttributes &=
 					~USB_CONFIG_ATT_WAKEUP;
 
@@ -2258,7 +2259,7 @@ functions_show(struct device *pdev, struct device_attribute *attr, char *buf)
 		if (buff != buf)
 			*(buff-1) = ':';
 		list_for_each_entry(f, &conf->enabled_functions, enabled_list)
-			buff += snprintf(buff, PAGE_SIZE, "%s,", f->name);
+		buff += snprintf(buff, PAGE_SIZE, "%s,", f->name);
 	}
 
 	mutex_unlock(&dev->mutex);
@@ -2742,9 +2743,9 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		list_for_each_entry(conf, &dev->configs, list_item)
 			list_for_each_entry(f, &conf->enabled_functions,
 						enabled_list) {
-				if (f->enable)
-					f->enable(f);
-			}
+			if (f->enable)
+				f->enable(f);
+		}
 		android_enable(dev);
 		dev->enabled = true;
 #ifdef CONFIG_PANTECH_ANDROID_FACTORY_MODE
@@ -2982,9 +2983,9 @@ static int android_bind(struct usb_composite_dev *cdev)
 
 	/* Init the supported functions only once, on the first android_dev */
 	if (android_dev_count == 1) {
-		ret = android_init_functions(dev->functions, cdev);
-		if (ret)
-			return ret;
+	ret = android_init_functions(dev->functions, cdev);
+	if (ret)
+		return ret;
 	}
 
 	/* Allocate string descriptor numbers ... note that string

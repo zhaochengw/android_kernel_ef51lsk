@@ -156,6 +156,7 @@ static void __cpuinit check_temp(struct work_struct *work)
 
 	tsens_dev.sensor_num = msm_thermal_info.sensor_id;
 	ret = tsens_get_temp(&tsens_dev, &temp);
+	//printk("msm_thermal, ts-temp %ld\n", temp);
 	if (ret) {
 		pr_debug("%s: Unable to read TSENS sensor %d\n",
 				KBUILD_MODNAME, tsens_dev.sensor_num);

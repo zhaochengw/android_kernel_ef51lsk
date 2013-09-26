@@ -440,17 +440,17 @@ static struct gpiomux_setting gsbi7_func2_cfg = {
 #endif
 
 #ifdef CONFIG_SKY_DMB_SPI_HW
-static struct gpiomux_setting gsbi7_func1_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
+static struct gpiomux_setting gsbi7_func1_cfg = { 
+  .func = GPIOMUX_FUNC_1, 
+  .drv = GPIOMUX_DRV_8MA, 
+  .pull = GPIOMUX_PULL_NONE, 
+}; 
 
-static struct gpiomux_setting gsbi7_func2_cfg = {
-	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
+static struct gpiomux_setting gsbi7_func2_cfg = { 
+  .func = GPIOMUX_FUNC_2, 
+  .drv = GPIOMUX_DRV_8MA, 
+  .pull = GPIOMUX_PULL_NONE, 
+}; 
 
 static struct gpiomux_setting gsbi7_func3_cfg = { 
   .func = GPIOMUX_FUNC_3, 
@@ -522,7 +522,6 @@ static struct gpiomux_setting sx150x_active_cfg = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
-#ifdef CONFIG_USB_EHCI_MSM_HSIC
 #if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
 
 static struct gpiomux_setting cyts_sleep_sus_cfg = {
@@ -565,6 +564,10 @@ static struct msm_gpiomux_config cyts_gpio_configs[] __initdata = {
 		},
 	},
 };
+#endif
+
+#ifdef CONFIG_USB_EHCI_MSM_HSIC
+#if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
 static struct msm_gpiomux_config cyts_gpio_alt_config[] __initdata = {
 	{	/* TS INTERRUPT */
 		.gpio = 6,
@@ -696,12 +699,12 @@ static struct msm_gpiomux_config apq8064_hdmi_configs[] __initdata = {
 	},
 #else	
 {
-		.gpio = 72,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &hdmi_active_2_cfg,
-			[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
-		},
+	.gpio = 72,	
+	.settings = {
+		[GPIOMUX_ACTIVE]	= &hdmi_active_2_cfg,
+		[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
 	},
+},
 
 
 #endif
@@ -800,13 +803,13 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 	},
 
 #endif
+#if 0//ndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio      = 32,		/* EPM CS */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gpio_epm_spi_cs_config,
 		},
 	},
-#if 0//ndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio      = 53,		/* NOR CS */
 		.settings = {
@@ -870,7 +873,6 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 		},
 	},
 #endif /* CONFIG_SKY_DMB_SPI_HW */
-
 #ifndef CONFIG_PN544
 	{
 		.gpio      = 21,		/* GSBI1 QUP I2C_CLK */
@@ -1992,8 +1994,7 @@ void __init apq8064_init_gpiomux(void)
 #if defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
 	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l()|| machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() || machine_is_apq8064_ef52k() || machine_is_apq8064_ef52l())
 #endif
-	)
- {
+	){
 		if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
 			msm_gpiomux_install(cyts_gpio_alt_config,
 					ARRAY_SIZE(cyts_gpio_alt_config));

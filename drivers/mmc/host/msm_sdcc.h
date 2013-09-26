@@ -339,6 +339,29 @@ struct msmsdcc_msm_bus_vote {
 	struct delayed_work vote_work;
 };
 
+//<20130109> p14986 sim,jungsun. QCT Patch
+#if 0
+#define MSMSDCC_TRACE_RBUF_SZ_ORDER	4	/* 2^4 pages */
+#define MSMSDCC_TRACE_RBUF_SZ		\
+	(PAGE_SIZE * (1 << MSMSDCC_TRACE_RBUF_SZ_ORDER))
+#define MSMSDCC_TRACE_EVENT_SZ		256
+#define MSMSDCC_TRACE_RBUF_NUM_EVENTS	\
+	(MSMSDCC_TRACE_RBUF_SZ / MSMSDCC_TRACE_EVENT_SZ)
+
+#define	MSMSDCC_TRACE_COMM_LEN		12
+
+#define MSMSDCC_TRACE_EVENT_DATA_SZ \
+	MSMSDCC_TRACE_EVENT_SZ
+
+struct msmsdcc_trace_event {
+	char	data[MSMSDCC_TRACE_EVENT_DATA_SZ];
+};
+
+struct msmsdcc_trace_buffer {
+	struct msmsdcc_trace_event	*rbuf;
+	atomic_t			wr_idx;
+};
+#endif
 struct msmsdcc_host {
 	struct resource		*core_irqres;
 	struct resource		*bam_irqres;

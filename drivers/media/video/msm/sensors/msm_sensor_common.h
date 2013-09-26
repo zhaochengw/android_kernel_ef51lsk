@@ -217,13 +217,6 @@ struct msm_sensor_fn_t {
 	void (*sensor_adjust_frame_lines) (struct msm_sensor_ctrl_t *s_ctrl);
 	int32_t (*sensor_get_csi_params)(struct msm_sensor_ctrl_t *,
 		struct csi_lane_params_t *);
-	int (*sensor_set_vision_mode)(struct msm_sensor_ctrl_t *s_ctrl,
-			int32_t vision_mode_enable);
-	int (*sensor_set_vision_ae_control)(
-			struct msm_sensor_ctrl_t *s_ctrl, int ae_mode);
-	int32_t (*sensor_read_eeprom)(struct msm_sensor_ctrl_t *);
-	int32_t (*sensor_hdr_update)(struct msm_sensor_ctrl_t *,
-		 struct sensor_hdr_update_parm_t *);
 
 #ifdef CONFIG_PANTECH_CAMERA_TUNER
     int (*sensor_set_tuner) (struct tuner_cfg);
@@ -255,6 +248,13 @@ struct msm_sensor_fn_t {
     int (*sensor_get_eeprom_data) (struct msm_sensor_ctrl_t *, struct sensor_cfg_data *);//void *);//eeprom
     int (*sensor_set_focus_mode) (struct msm_sensor_ctrl_t *, int8_t); //FOCUS_MODE
 #endif
+	int (*sensor_set_vision_mode)(struct msm_sensor_ctrl_t *s_ctrl,
+			int32_t vision_mode_enable);
+	int (*sensor_set_vision_ae_control)(
+			struct msm_sensor_ctrl_t *s_ctrl, int ae_mode);
+	int32_t (*sensor_read_eeprom)(struct msm_sensor_ctrl_t *);
+	int32_t (*sensor_hdr_update)(struct msm_sensor_ctrl_t *,
+		 struct sensor_hdr_update_parm_t *);
 };
 
 struct msm_sensor_csi_info {

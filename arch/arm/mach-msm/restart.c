@@ -280,7 +280,6 @@ void msm_restart(char mode, const char *cmd)
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
     sky_sys_rst_set_reboot_info(SYS_RESET_REASON_NORMAL);
 #endif
-
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			__raw_writel(0x77665500, restart_reason);
@@ -288,7 +287,6 @@ void msm_restart(char mode, const char *cmd)
 			__raw_writel(0x77665502, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
-            printk(KERN_NOTICE "<jenky> oem  restart now\n");
 			code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;
 			__raw_writel(0x6f656d00 | code, restart_reason);
 		} else {

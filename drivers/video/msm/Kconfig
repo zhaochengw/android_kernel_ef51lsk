@@ -328,6 +328,11 @@ config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
 	select FB_MSM_MIPI_DSI_LGIT
 	default n
 
+config FB_MSM_LVDS_CHIMEI_WXGA
+	bool
+	select FB_MSM_LVDS
+	default n
+
 config FB_PANTECH_MIPI_RENESAS_VIDEO_FHD
 	bool
 	select FB_PANTECH_MIPI_DSI_RENESAS
@@ -344,7 +349,7 @@ config FB_PANTECH_MIPI_ROHM_VIDEO_HD
 	default n
 	 
 
-config FB_MSM_LVDS_CHIMEI_WXGA
+config FB_MSM_LVDS_FRC_FHD
 	bool
 	select FB_MSM_LVDS
 	default n

@@ -225,12 +225,13 @@ static int32_t msm_actuator_move_focus(
 	int16_t dest_step_pos = move_params->dest_step_pos;
 	uint16_t curr_lens_pos = 0;
 	int dir = move_params->dir;
-	int32_t num_steps = move_params->num_steps;
+	// FC temp build warning fixed
+	//int32_t num_steps = move_params->num_steps;
 
 	CDBG("%s called, dir %d, num_steps %d\n",
 		__func__,
 		dir,
-		num_steps);
+		move_params->num_steps);
 
 	if (dest_step_pos == a_ctrl->curr_step_pos)
 		return rc;

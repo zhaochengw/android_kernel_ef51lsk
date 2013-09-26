@@ -675,10 +675,18 @@ static void msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 				sinfo->sensor_platform_info->csi_lane_params);
 		}
 
+#ifndef CONFIG_PANTECH_CAMERA // Case:00871739 : bug fix csiphy reset - jjhwang 2012.06.25.      
 		if (p_mctl->csid_sdev) {
 			v4l2_subdev_call(p_mctl->csid_sdev, core, ioctl,
 				VIDIOC_MSM_CSID_RELEASE, NULL);
 		}
+#endif
+#ifdef CONFIG_PANTECH_CAMERA // Case:00871739 : bug fix csiphy reset - jjhwang 2012.06.25.
+		if (p_mctl->csid_sdev) {
+			v4l2_subdev_call(p_mctl->csid_sdev, core, ioctl,
+				VIDIOC_MSM_CSID_RELEASE, NULL);
+		}
+#endif
 
 		if (p_mctl->act_sdev) {
 			v4l2_subdev_call(p_mctl->act_sdev, core, s_power, 0);

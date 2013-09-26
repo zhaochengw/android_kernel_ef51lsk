@@ -425,7 +425,9 @@ static u8 get_service_classes(struct hci_dev *hdev)
 static int update_class(struct hci_dev *hdev)
 {
 	u8 cod[3];
+	// QCT_getCOD()_patch ++++
 	int err = 0;
+	// QCT_getCOD()_patch ----
 
 	BT_DBG("%s", hdev->name);
 
@@ -439,12 +441,15 @@ static int update_class(struct hci_dev *hdev)
 	if (memcmp(cod, hdev->dev_class, 3) == 0)
 		return 0;
 
+	// QCT_getCOD()_patch ++++
+	//return hci_send_cmd(hdev, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 	err =  hci_send_cmd(hdev, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 
 	if (err == 0)
 		memcpy(hdev->dev_class, cod, 3);
 
 	return err;
+	// QCT_getCOD()_patch ----
 }
 
 static int set_limited_discoverable(struct sock *sk, u16 index,
@@ -1013,12 +1018,20 @@ static int set_dev_class(struct sock *sk, u16 index, unsigned char *data,
 	hdev->major_class |= cp->major & MGMT_MAJOR_CLASS_MASK;
 	hdev->minor_class = cp->minor;
 
+	// QCT_getCOD()_patch ++++
+	//if (test_bit(HCI_UP, &hdev->flags))
 	if (test_bit(HCI_UP, &hdev->flags)) {
+	// QCT_getCOD()_patch ----
 		err = update_class(hdev);
+	// QCT_getCOD()_patch ++++
+	//else
+	//	err = 0;
+
+	//if (err == 0)
 		if (err == 0)
-			err = cmd_complete(sk, index,
-		MGMT_OP_SET_DEV_CLASS, hdev->dev_class, sizeof(u8)*3);
+			err = cmd_complete(sk, index, MGMT_OP_SET_DEV_CLASS, hdev->dev_class, sizeof(u8)*3);
 	} else
+	// QCT_getCOD()_patch ----
 		err = cmd_complete(sk, index, MGMT_OP_SET_DEV_CLASS, NULL, 0);
 
 	hci_dev_unlock_bh(hdev);

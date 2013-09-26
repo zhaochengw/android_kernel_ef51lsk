@@ -212,7 +212,6 @@ extern struct platform_device msm8064_device_vcap;
 extern struct msm_bus_scale_pdata rotator_bus_scale_pdata;
 #endif
 
-extern struct platform_device msm_device_tsif[2];
 extern struct platform_device msm_8064_device_tsif[2];
 extern struct platform_device msm_8064_device_tspp;
 

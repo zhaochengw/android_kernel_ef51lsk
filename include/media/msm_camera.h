@@ -1064,7 +1064,7 @@ struct msm_snapshot_pp_status {
 
 #else
 
-#define CFG_MAX                       59
+#define CFG_MAX                 55
 
 #endif
 #define CFG_SET_VISION_MODE           55
@@ -1563,7 +1563,7 @@ enum csid_cfg_type_t {
 struct csid_cfg_data {
 	enum csid_cfg_type_t cfgtype;
 	union {
-		uint32_t csid_version;
+	uint32_t csid_version;
 		struct msm_camera_csid_params *csid_params;
 	} cfg;
 };

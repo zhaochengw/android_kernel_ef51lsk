@@ -190,6 +190,20 @@ static struct msm_gpiomux_config apq8064_cam_common_configs[] = {
 #endif	
 #if !defined(CONFIG_PANTECH_CAMERA)
 	{
+		.gpio = 10,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[9],
+			[GPIOMUX_SUSPENDED] = &cam_settings[8],
+		},
+	},
+	{
+		.gpio = 11,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[10],
+			[GPIOMUX_SUSPENDED] = &cam_settings[8],
+		},
+	},
+	{
 		.gpio = 12,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &cam_settings[11],
@@ -807,7 +821,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_as0260_data = {
 
 #endif
 
-#ifdef CONFIG_IMX135
+#ifdef CONFIG_IMX074
 static struct msm_camera_sensor_flash_data flash_imx135 = {
 	.flash_type = MSM_CAMERA_FLASH_NONE,
 };
@@ -836,14 +850,13 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx135_data = {
 	.sensor_type = BAYER_SENSOR,
 	.actuator_info = &msm_act_main_cam_1_info,
 };
-#endif
 
-#ifdef CONFIG_IMX074
+/* patch1023error
 static struct msm_camera_sensor_flash_data flash_imx074 = {
 	.flash_type	= MSM_CAMERA_FLASH_LED,
 	.flash_src	= &msm_flash_src
 };
-
+*/
 static struct msm_camera_csi_lane_params imx074_csi_lane_params = {
 	.csi_lane_assign = 0xE4,
 	.csi_lane_mask = 0xF,

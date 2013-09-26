@@ -3838,7 +3838,6 @@ static struct rcg_clk jpegd_clk = {
 		.ns_val = NS_MND_BANKED8(22, 14, n, m, 3, 0, s##_to_mm_mux), \
 		.ctl_val = CC_BANKED(9, 6, n), \
 	}
-
 static struct clk_freq_tbl clk_tbl_mdp_8960ab[] = {
 	F_MDP(        0, gnd,  0,  0),
 	F_MDP(  9600000, pll8, 1, 40),

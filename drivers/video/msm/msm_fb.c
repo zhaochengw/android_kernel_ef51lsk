@@ -423,8 +423,6 @@ static DEVICE_ATTR(ce_ctl, S_IRUGO | S_IWUSR, msm_fb_ce_show, msm_fb_ce_store);
 #endif
 
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, msm_fb_msm_fb_type, NULL);
-static DEVICE_ATTR(msm_fb_fps_level, S_IRUGO | S_IWUSR | S_IWGRP, NULL, \
-				msm_fb_fps_level_change);
 #ifdef F_SKYDISP_CHECK_AND_SET_PANEL_POWER_ON
 static ssize_t msm_fb_check_panel_power_on(struct device *dev,
 		                          struct device_attribute *attr, char *buf)
@@ -489,6 +487,8 @@ static ssize_t msm_fb_set_panel_power_on(struct device *dev,
 }
 static DEVICE_ATTR(panel_power_on, S_IRUGO | S_IWUSR, msm_fb_check_panel_power_on, msm_fb_set_panel_power_on);
 #endif
+static DEVICE_ATTR(msm_fb_fps_level, S_IRUGO | S_IWUSR | S_IWGRP, NULL, \
+				msm_fb_fps_level_change);
 static struct attribute *msm_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	&dev_attr_msm_fb_fps_level.attr,
@@ -2162,6 +2162,9 @@ static void bl_workqueue_handler(struct work_struct *work)
 	struct msm_fb_data_type *mfd = container_of(to_delayed_work(work),
 				struct msm_fb_data_type, backlight_worker);
 	struct msm_fb_panel_data *pdata = mfd->pdev->dev.platform_data;
+#ifdef TEST_LCD_BL_UPDATE3	
+	//printk(KERN_ERR "bl_workqueue_handler unset_bl_level %d bl_updated %d \n",unset_bl_level,bl_updated);
+#endif 
 
 	down(&mfd->sem);
 	if ((pdata) && (pdata->set_backlight) && (!bl_updated)

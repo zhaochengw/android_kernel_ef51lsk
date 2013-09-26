@@ -1524,9 +1524,6 @@ static void binder_transaction(struct binder_proc *proc,
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL) {
 		return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)		
-		printk(KERN_INFO "binder kzalloc(t) fail\n");
-#endif
 		goto err_alloc_t_failed;
 	}
 	binder_stats_created(BINDER_STAT_TRANSACTION);
@@ -1534,9 +1531,6 @@ static void binder_transaction(struct binder_proc *proc,
 	tcomplete = kzalloc(sizeof(*tcomplete), GFP_KERNEL);
 	if (tcomplete == NULL) {
 		return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)		
-		printk(KERN_INFO "binder kzalloc(tcomplete) fail\n");
-#endif
 		goto err_alloc_tcomplete_failed;
 	}
 	binder_stats_created(BINDER_STAT_TRANSACTION_COMPLETE);
@@ -1578,9 +1572,6 @@ static void binder_transaction(struct binder_proc *proc,
 		tr->offsets_size, !reply && (t->flags & TF_ONE_WAY));
 	if (t->buffer == NULL) {
 		return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)		
-		printk(KERN_INFO "binder: t->buffer binder_alloc_buf fail\n");
-#endif		
 		goto err_binder_alloc_buf_failed;
 	}
 	t->buffer->allow_user_free = 0;
@@ -1634,9 +1625,6 @@ static void binder_transaction(struct binder_proc *proc,
 				node = binder_new_node(proc, fp->binder, fp->cookie);
 				if (node == NULL) {
 					return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)					
-					printk(KERN_INFO "binder: %d %d BINDER_TYPE_WEAK_BINDER node==null \n", proc->pid, thread->pid);
-#endif					
 					goto err_binder_new_node_failed;
 				}
 				node->min_priority = fp->flags & FLAT_BINDER_FLAG_PRIORITY_MASK;
@@ -1653,9 +1641,6 @@ static void binder_transaction(struct binder_proc *proc,
 			ref = binder_get_ref_for_node(target_proc, node);
 			if (ref == NULL) {
 				return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)				
-				printk(KERN_INFO "binder %d %d BINDER_TYPE_WEAK_BINDER ref==null\n", proc->pid, thread->pid);
-#endif				
 				goto err_binder_get_ref_for_node_failed;
 			}
 			if (fp->type == BINDER_TYPE_BINDER)
@@ -1701,9 +1686,6 @@ static void binder_transaction(struct binder_proc *proc,
 				new_ref = binder_get_ref_for_node(target_proc, ref->node);
 				if (new_ref == NULL) {
 					return_error = BR_FAILED_REPLY;
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)					
-					printk(KERN_INFO "binder: %d:%d BINDER_TYPE_WEAK_HANDLE\n", proc->pid, thread->pid);
-#endif					
 					goto err_binder_get_ref_for_node_failed;
 				}
 				fp->handle = new_ref->desc;
@@ -1745,9 +1727,6 @@ static void binder_transaction(struct binder_proc *proc,
 			target_fd = task_get_unused_fd_flags(target_proc, O_CLOEXEC);
 			if (target_fd < 0) {
 				fput(file);
-#if defined(CONFIG_PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL) && !defined(CONFIG_PANTECH_USER_BUILD)				
-				binder_user_error("binder: %d:%d can't get target_fd\n", proc->pid, thread->pid);
-#endif				
 				return_error = BR_FAILED_REPLY;
 				goto err_get_unused_fd_failed;
 			}

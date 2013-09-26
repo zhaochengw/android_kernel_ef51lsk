@@ -558,6 +558,11 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 	dev_dbg(drv.dev, "Switching from ACPU%d rate %lu KHz -> %lu KHz\n",
 		cpu, strt_acpu_s->khz, tgt_acpu_s->khz);
 
+#if defined(CONFIG_PANTECH_DEBUG) && !defined(CONFIG_PANTECH_USER_BUILD)
+#if defined(CONFIG_PANTECH_DEBUG_DCVS_LOG) //p14291_121102
+	pantech_debug_dcvs_log(cpu, strt_acpu_s->khz, tgt_acpu_s->khz);
+#endif
+#endif
 	/*
 	 * If we are setting the rate as part of power collapse or in the resume
 	 * path after power collapse, skip the vote for the HFPLL regulators,
@@ -566,11 +571,6 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 	 * sleeping APIs from an atomic context.
 	 */
 	skip_regulators = (reason == SETRATE_PC);
-#if defined(CONFIG_PANTECH_DEBUG) && !defined(CONFIG_PANTECH_USER_BUILD)
-#if defined(CONFIG_PANTECH_DEBUG_DCVS_LOG) //p14291_121102
-	pantech_debug_dcvs_log(cpu, strt_acpu_s->khz, tgt_acpu_s->khz);
-#endif
-#endif
 
 	/* Set the new CPU speed. */
 	set_speed(&drv.scalable[cpu], tgt_acpu_s, skip_regulators);

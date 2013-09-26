@@ -1757,6 +1757,10 @@ int mdp4_mixer_info(int mixer_num, struct mdp_mixer_info *info)
 		info->pnum = pipe->pipe_num;
 		info->pndx = pipe->pipe_ndx;
 		info->mixer_num = pipe->mixer_num;
+#if 0
+		pr_err("*** %s: info->ptype=%d, info->pnum, info->pndx=%d, info->mixer_num=%d\n"
+				, __func__, info->ptype, info->pnum, info->pndx, info->mixer_num);
+#endif
 		info++;
 		cnt++;
 	}
