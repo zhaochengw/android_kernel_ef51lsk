@@ -130,7 +130,7 @@ static irqreturn_t msm_csid_irq(int irq_num, void *data)
 {
 	uint32_t irq;
 	struct csid_device *csid_dev = data;
-	if (!csid_dev||!csid_dev->base) {
+	if (!csid_dev) {
 		pr_err("%s:%d csid_dev NULL\n", __func__, __LINE__);
 		return IRQ_HANDLED;
 	}
@@ -619,7 +619,7 @@ static int __devinit csid_probe(struct platform_device *pdev)
 csid_no_resource:
 	mutex_destroy(&new_csid_dev->mutex);
 	kfree(new_csid_dev);
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id msm_csid_dt_match[] = {
