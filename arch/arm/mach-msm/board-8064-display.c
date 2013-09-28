@@ -361,8 +361,8 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_max_clk = 200000000,
 #endif
 	.mdp_max_bw = 2000000000,
-	.mdp_bw_ab_factor = 115,
-	.mdp_bw_ib_factor = 150,
+	.mdp_bw_ab_factor = 200,
+	.mdp_bw_ib_factor = 210,
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 	.mdp_rev = MDP_REV_44,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
