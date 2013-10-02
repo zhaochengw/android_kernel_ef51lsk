@@ -151,7 +151,7 @@ static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
 	PM8921_GPIO_INPUT(38, PM_GPIO_PULL_UP_30),
 #endif	
 	/* TABLA CODEC RESET */
-	PM8921_GPIO_OUTPUT(34, 1, MED),
+        PM8921_GPIO_OUTPUT(34, 1, MED),
         PM8921_GPIO_INPUT(31, PM_GPIO_PULL_NO),
 	PM8921_GPIO_OUTPUT(13, 0, HIGH),               /* PCIE_CLK_PWR_EN */
 	PM8921_GPIO_INPUT(12, PM_GPIO_PULL_UP_30),     /* PCIE_WAKE_N */
@@ -570,7 +570,7 @@ apq8064_pm8921_irq_pdata __devinitdata = {
 
 static struct pm8xxx_rtc_platform_data
 apq8064_pm8921_rtc_pdata = {
-	.rtc_write_enable       = false,
+	.rtc_write_enable       = true,
 	.rtc_alarm_powerup      = false,
 };
 

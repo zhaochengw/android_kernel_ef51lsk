@@ -4,7 +4,7 @@
  * Copyright (C) 2000 Ralph Metzler & Marcus Metzler
  *                    for convergence integrated media GmbH
  *
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -34,7 +34,7 @@
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/dvb/dmx.h>
 
 #include "dvbdev.h"
@@ -58,14 +58,8 @@ enum dmxdev_state {
 
 struct dmxdev_feed {
 	u16 pid;
-	struct dmx_secure_mode sec_mode;
 	struct dmx_ts_feed *ts;
 	struct list_head next;
-};
-
-struct dmxdev_sec_feed {
-	struct dmx_secure_mode sec_mode;
-	struct dmx_section_feed *feed;
 };
 
 struct dmxdev_events_queue {
@@ -105,7 +99,7 @@ struct dmxdev_filter {
 	union {
 		/* list of TS and PES feeds (struct dmxdev_feed) */
 		struct list_head ts;
-		struct dmxdev_sec_feed sec;
+		struct dmx_section_feed *sec;
 	} feed;
 
 	union {
@@ -119,25 +113,24 @@ struct dmxdev_filter {
 	enum dmxdev_state state;
 	struct dmxdev *dev;
 	struct dvb_ringbuffer buffer;
-	void *priv_buff_handle;
-	enum dmx_buffer_mode buffer_mode;
+	u32 flush_data_len;
 
 	struct mutex mutex;
 
-	/* for recording output */
-	enum dmx_tsp_format_t dmx_tsp_format;
+	/* relevent for decoder PES */
+	unsigned long pes_buffer_size;
+
 	u32 rec_chunk_size;
 
 	/* only for sections */
 	struct timer_list timer;
 	int todo;
 	u8 secheader[3];
-
-	/* Decoder buffer(s) related */
-	struct dmx_decoder_buffers decoder_buffers;
 };
 
 struct dmxdev {
+	struct work_struct dvr_input_work;
+
 	struct dvb_device *dvbdev;
 	struct dvb_device *dvr_dvbdev;
 
@@ -146,10 +139,9 @@ struct dmxdev {
 
 	int filternum;
 	int capabilities;
-#define DMXDEV_CAP_DUPLEX	0x01
-#define DMXDEV_CAP_PULL_MODE	0x02
-#define DMXDEV_CAP_INDEXING	0x04
-#define DMXDEV_CAP_EXTERNAL_BUFFS_ONLY	0x08
+#define DMXDEV_CAP_DUPLEX	0x1
+#define DMXDEV_CAP_PULL_MODE	0x2
+#define DMXDEV_CAP_INDEXING	0x4
 
 	enum dmx_playback_mode_t playback_mode;
 	dmx_source_t source;
@@ -161,15 +153,13 @@ struct dmxdev {
 	struct dmx_frontend *dvr_orig_fe;
 
 	struct dvb_ringbuffer dvr_buffer;
-	void *dvr_priv_buff_handle;
-	enum dmx_buffer_mode dvr_buffer_mode;
 	struct dmxdev_events_queue dvr_output_events;
 	struct dmxdev_filter *dvr_feed;
+	u32 dvr_flush_data_len;
 	int dvr_feeds_count;
 
 	struct dvb_ringbuffer dvr_input_buffer;
-	enum dmx_buffer_mode dvr_input_buffer_mode;
-	struct task_struct *dvr_input_thread;
+	struct workqueue_struct *dvr_input_workqueue;
 
 #define DVR_BUFFER_SIZE (10*188*1024)
 

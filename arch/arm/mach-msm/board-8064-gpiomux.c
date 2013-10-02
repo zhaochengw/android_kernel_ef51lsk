@@ -567,25 +567,6 @@ static struct msm_gpiomux_config cyts_gpio_configs[] __initdata = {
 #endif
 
 #ifdef CONFIG_USB_EHCI_MSM_HSIC
-#if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-static struct msm_gpiomux_config cyts_gpio_alt_config[] __initdata = {
-	{	/* TS INTERRUPT */
-		.gpio = 6,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cyts_int_act_cfg,
-			[GPIOMUX_SUSPENDED] = &cyts_int_sus_cfg,
-		},
-	},
-	{	/* TS SLEEP */
-		.gpio = 12,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cyts_sleep_act_cfg,
-			[GPIOMUX_SUSPENDED] = &cyts_sleep_sus_cfg,
-		},
-	},
-};
-#endif
-
 static struct gpiomux_setting hsic_act_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
@@ -804,12 +785,6 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 
 #endif
 #if 0//ndef CONFIG_SKY_DMB_I2C_CMD
-	{
-		.gpio      = 32,		/* EPM CS */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gpio_epm_spi_cs_config,
-		},
-	},
 	{
 		.gpio      = 53,		/* NOR CS */
 		.settings = {

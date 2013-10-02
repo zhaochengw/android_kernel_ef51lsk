@@ -190,20 +190,6 @@ static struct msm_gpiomux_config apq8064_cam_common_configs[] = {
 #endif	
 #if !defined(CONFIG_PANTECH_CAMERA)
 	{
-		.gpio = 10,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[9],
-			[GPIOMUX_SUSPENDED] = &cam_settings[8],
-		},
-	},
-	{
-		.gpio = 11,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[10],
-			[GPIOMUX_SUSPENDED] = &cam_settings[8],
-		},
-	},
-	{
 		.gpio = 12,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &cam_settings[11],
@@ -1032,12 +1018,8 @@ static struct platform_device msm_camera_server = {
 
 void __init apq8064_init_cam(void)
 {
-	/* for SGLTE2 platform, do not configure i2c/gpiomux gsbi4 is used for
-	 * some other purpose */
-	if (socinfo_get_platform_subtype() != PLATFORM_SUBTYPE_SGLTE2) {
-		msm_gpiomux_install(apq8064_cam_common_configs,
+	msm_gpiomux_install(apq8064_cam_common_configs,
 			ARRAY_SIZE(apq8064_cam_common_configs));
-	}
 
 #ifndef CONFIG_PANTECH_CAMERA
 	if (machine_is_apq8064_cdp()) {
@@ -1048,8 +1030,7 @@ void __init apq8064_init_cam(void)
 #endif
 
 	platform_device_register(&msm_camera_server);
-	if (socinfo_get_platform_subtype() != PLATFORM_SUBTYPE_SGLTE2)
-		platform_device_register(&msm8960_device_i2c_mux_gsbi4);
+	platform_device_register(&msm8960_device_i2c_mux_gsbi4);
 	platform_device_register(&msm8960_device_csiphy0);
 	platform_device_register(&msm8960_device_csiphy1);
 	platform_device_register(&msm8960_device_csid0);

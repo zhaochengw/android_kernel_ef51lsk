@@ -38,14 +38,16 @@
 		writel_relaxed(val, addr);	\
 	} while (0)
 
-struct vcap_client_data;
+#define VCAP_BASE (dev->vcapbase)
+#define VCAP_OFFSET(off) (VCAP_BASE + off)
 
-enum rdy_buf {
-	VC_NO_BUF = 0,
-	VC_BUF1 = 1 << 1,
-	VC_BUF2 = 1 << 2,
-	VC_BUF1N2 = 0x11 << 1,
-};
+#define VCAP_SW_RESET_REQ (VCAP_BASE + 0x024)
+#define VCAP_SW_RESET_STATUS (VCAP_BASE + 0x028)
+
+#define VCAP_VP_MIN_BUF 4
+#define VCAP_VC_MAX_BUF 6
+#define VCAP_VC_MIN_BUF 2
+struct vcap_client_data;
 
 enum vp_state {
 	VP_UNKNOWN = 0,
@@ -75,23 +77,18 @@ enum vcap_op_mode {
 	VC_AND_VP_VCAP_OP,
 };
 
-struct vcap_action {
+struct vc_action {
 	struct list_head		active;
 
 	/* thread for generating video stream*/
-	struct task_struct		*kthread;
 	wait_queue_head_t		wq;
 
 	/* Buffer index */
-	enum rdy_buf            buf_ind;
+	uint8_t					tot_buf;
+	uint8_t					buf_num;
 
 	/* Buffers inside vc */
-	struct vcap_buffer      *buf1;
-	struct vcap_buffer      *buf2;
-
-	/* Counters to control fps rate */
-	int						frame;
-	int						ini_jiffies;
+	struct vcap_buffer      *buf[6];
 };
 
 struct nr_buffer {
@@ -122,8 +119,6 @@ struct vp_action {
 	struct ion_handle		*motionHandle;
 	void					*bufMotion;
 	struct nr_buffer		bufNR;
-	struct nr_param			nr_param;
-	bool					nr_update;
 };
 
 struct vp_work_t {
@@ -167,12 +162,18 @@ struct vcap_dev {
 	bool					vp_resource;
 	bool					vp_dummy_event;
 	bool					vp_dummy_complete;
+	bool					vp_shutdown;
 	wait_queue_head_t		vp_dummy_waitq;
+
+	uint8_t					vc_tot_buf;
 
 	struct workqueue_struct	*vcap_wq;
 	struct vp_work_t		vp_work;
 	struct vp_work_t		vc_to_vp_work;
 	struct vp_work_t		vp_to_vc_work;
+
+	struct nr_param			nr_param;
+	bool					nr_update;
 };
 
 struct vp_format_data {
@@ -204,8 +205,8 @@ struct vcap_client_data {
 	struct vp_format_data	vp_in_fmt;
 	struct vp_format_data	vp_out_fmt;
 
-	struct vcap_action		vid_vc_action;
-	struct vp_action		vid_vp_action;
+	struct vc_action		vc_action;
+	struct vp_action		vp_action;
 	struct workqueue_struct *vcap_work_q;
 	struct ion_handle			*vc_ion_handle;
 

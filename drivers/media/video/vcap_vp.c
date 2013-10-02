@@ -74,8 +74,14 @@ int vp_setup_buffers(struct vcap_client_data *c_data)
 	dev = c_data->dev;
 	dprintk(2, "Start setup buffers\n");
 
+	if (dev->vp_shutdown) {
+		dprintk(1, "%s: VP shutting down, no buf setup\n",
+			__func__);
+		return -EPERM;
+	}
+
 	/* No need to verify vp_client is not NULL caller does so */
-	vp_act = &dev->vp_client->vid_vp_action;
+	vp_act = &dev->vp_client->vp_action;
 
 	spin_lock_irqsave(&dev->vp_client->cap_slock, flags);
 	if (list_empty(&vp_act->in_active)) {
@@ -163,11 +169,10 @@ static void mov_buf_to_vc(struct work_struct *work)
 	}
 }
 
-void update_nr_value(struct vcap_client_data *c_data)
+void update_nr_value(struct vcap_dev *dev)
 {
-	struct vcap_dev *dev = c_data->dev;
 	struct nr_param *par;
-	par = &c_data->vid_vp_action.nr_param;
+	par = &dev->nr_param;
 	if (par->mode == NR_MANUAL) {
 		writel_relaxed(par->window << 24 | par->decay_ratio << 20,
 			VCAP_VP_NR_CONFIG);
@@ -184,7 +189,7 @@ void update_nr_value(struct vcap_client_data *c_data)
 			par->chroma.blend_limit_ratio << 0,
 			VCAP_VP_NR_CHROMA_CONFIG);
 	}
-	c_data->vid_vp_action.nr_update = false;
+	dev->nr_update = false;
 }
 
 static void vp_wq_fnc(struct work_struct *work)
@@ -204,7 +209,7 @@ static void vp_wq_fnc(struct work_struct *work)
 	else
 		return;
 
-	vp_act = &dev->vp_client->vid_vp_action;
+	vp_act = &dev->vp_client->vp_action;
 
 	rc = readl_relaxed(VCAP_OFFSET(0x048));
 	while (!(rc & 0x00000100))
@@ -216,8 +221,8 @@ static void vp_wq_fnc(struct work_struct *work)
 	writel_relaxed(0x40000000, VCAP_VP_REDUCT_AVG_MOTION2);
 
 	spin_lock_irqsave(&dev->vp_client->cap_slock, flags);
-	if (vp_act->nr_update == true)
-		update_nr_value(dev->vp_client);
+	if (dev->nr_update == true)
+		update_nr_value(dev);
 	spin_unlock_irqrestore(&dev->vp_client->cap_slock, flags);
 
 	/* Queue the done buffers */
@@ -238,7 +243,7 @@ static void vp_wq_fnc(struct work_struct *work)
 #endif
 
 	/* Cycle Buffers*/
-	if (vp_work->cd->vid_vp_action.nr_param.mode) {
+	if (dev->nr_param.mode) {
 		if (vp_act->bufNR.nr_pos == TM1_BUF)
 			vp_act->bufNR.nr_pos = BUF_NOT_IN_USE;
 
@@ -262,6 +267,8 @@ static void vp_wq_fnc(struct work_struct *work)
 		writel_relaxed(0x00000000, VCAP_VP_INTERRUPT_ENABLE);
 		writel_iowmb(irq, VCAP_VP_INT_CLEAR);
 		atomic_set(&dev->vp_enabled, 0);
+		if (dev->vp_shutdown)
+			wake_up(&dev->vp_dummy_waitq);
 		return;
 	}
 
@@ -320,7 +327,7 @@ irqreturn_t vp_handler(struct vcap_dev *dev)
 	}
 
 	dprintk(1, "%s: irq=0x%08x\n", __func__, irq);
-	if (!(irq & (VP_PIC_DONE || VP_MODE_CHANGE))) {
+	if (!(irq & (VP_PIC_DONE | VP_MODE_CHANGE))) {
 		writel_relaxed(irq, VCAP_VP_INT_CLEAR);
 		pr_err("VP IRQ shows some error\n");
 		return IRQ_HANDLED;
@@ -332,7 +339,7 @@ irqreturn_t vp_handler(struct vcap_dev *dev)
 		return IRQ_HANDLED;
 	}
 
-	vp_act = &dev->vp_client->vid_vp_action;
+	vp_act = &dev->vp_client->vp_action;
 	c_data = dev->vp_client;
 
 	if (vp_act->vp_state == VP_UNKNOWN) {
@@ -350,30 +357,60 @@ irqreturn_t vp_handler(struct vcap_dev *dev)
 	return IRQ_HANDLED;
 }
 
+int vp_sw_reset(struct vcap_dev *dev)
+{
+	int timeout;
+	writel_iowmb(0x00000010, VCAP_SW_RESET_REQ);
+	timeout = 10000;
+	while (1) {
+		if (!(readl_relaxed(VCAP_SW_RESET_STATUS) & 0x10))
+			break;
+		timeout--;
+		if (timeout == 0) {
+			/* This should not happen */
+			pr_err("VP is not resetting properly\n");
+			writel_iowmb(0x00000000, VCAP_SW_RESET_REQ);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 void vp_stop_capture(struct vcap_client_data *c_data)
 {
 	struct vcap_dev *dev = c_data->dev;
+	int rc;
 
-	writel_iowmb(0x00000000, VCAP_VP_CTRL);
+	dev->vp_shutdown = true;
 	flush_workqueue(dev->vcap_wq);
 
-	if (atomic_read(&dev->vp_enabled) == 1)
-		disable_irq(dev->vpirq->start);
+	if (atomic_read(&dev->vp_enabled) == 1) {
+		rc = wait_event_interruptible_timeout(dev->vp_dummy_waitq,
+				!atomic_read(&dev->vp_enabled),
+				msecs_to_jiffies(50));
+		if (rc == 0 && atomic_read(&dev->vp_enabled) == 1) {
+			/* This should not happen, if it does hw is stuck */
+			pr_err("%s: VP Timeout and VP still running\n",
+				__func__);
+		}
+	}
 
-	writel_iowmb(0x00000001, VCAP_VP_SW_RESET);
-	writel_iowmb(0x00000000, VCAP_VP_SW_RESET);
+	vp_sw_reset(dev);
+	dev->vp_shutdown = false;
 }
 
 int config_vp_format(struct vcap_client_data *c_data)
 {
 	struct vcap_dev *dev = c_data->dev;
+	int rc;
 
 	INIT_WORK(&dev->vp_to_vc_work.work, mov_buf_to_vc);
 	dev->vp_to_vc_work.cd = c_data;
 
 	/* SW restart VP */
-	writel_iowmb(0x00000001, VCAP_VP_SW_RESET);
-	writel_iowmb(0x00000000, VCAP_VP_SW_RESET);
+	rc = vp_sw_reset(dev);
+	if (rc < 0)
+		return rc;
 
 	/* Film Mode related settings */
 	writel_iowmb(0x00000000, VCAP_VP_FILM_PROJECTION_T0);
@@ -429,7 +466,7 @@ int init_motion_buf(struct vcap_client_data *c_data)
 	size_t size = ((c_data->vp_out_fmt.width + 63) >> 6) *
 		((c_data->vp_out_fmt.height + 7) >> 3) * 16;
 
-	if (c_data->vid_vp_action.motionHandle) {
+	if (c_data->vp_action.motionHandle) {
 		pr_err("Motion buffer has already been created");
 		return -ENOEXEC;
 	}
@@ -463,7 +500,7 @@ int init_motion_buf(struct vcap_client_data *c_data)
 	}
 
 	memset(vaddr, 0, size);
-	c_data->vid_vp_action.motionHandle = handle;
+	c_data->vp_action.motionHandle = handle;
 
 	vaddr = NULL;
 	ion_unmap_kernel(dev->ion_client, handle);
@@ -475,14 +512,14 @@ int init_motion_buf(struct vcap_client_data *c_data)
 void deinit_motion_buf(struct vcap_client_data *c_data)
 {
 	struct vcap_dev *dev = c_data->dev;
-	if (!c_data->vid_vp_action.motionHandle) {
+	if (!c_data->vp_action.motionHandle) {
 		pr_err("Motion buffer has not been created");
 		return;
 	}
 
 	writel_iowmb(0x00000000, VCAP_VP_MOTION_EST_ADDR);
-	ion_free(dev->ion_client, c_data->vid_vp_action.motionHandle);
-	c_data->vid_vp_action.motionHandle = NULL;
+	ion_free(dev->ion_client, c_data->vp_action.motionHandle);
+	c_data->vp_action.motionHandle = NULL;
 	return;
 }
 
@@ -494,7 +531,7 @@ int init_nr_buf(struct vcap_client_data *c_data)
 	unsigned long paddr;
 	int rc;
 
-	if (c_data->vid_vp_action.bufNR.nr_handle) {
+	if (c_data->vp_action.bufNR.nr_handle) {
 		pr_err("NR buffer has already been created");
 		return -ENOEXEC;
 	}
@@ -519,16 +556,16 @@ int init_nr_buf(struct vcap_client_data *c_data)
 		return rc;
 	}
 
-	c_data->vid_vp_action.bufNR.nr_handle = handle;
-	update_nr_value(c_data);
+	c_data->vp_action.bufNR.nr_handle = handle;
+	update_nr_value(dev);
 
-	c_data->vid_vp_action.bufNR.paddr = paddr;
+	c_data->vp_action.bufNR.paddr = paddr;
 	rc = readl_relaxed(VCAP_VP_NR_CONFIG2);
 	rc |= (((c_data->vp_out_fmt.width / 16) << 20) | 0x1);
 	writel_relaxed(rc, VCAP_VP_NR_CONFIG2);
 	writel_relaxed(paddr, VCAP_VP_NR_T2_Y_BASE_ADDR);
 	writel_relaxed(paddr + frame_size, VCAP_VP_NR_T2_C_BASE_ADDR);
-	c_data->vid_vp_action.bufNR.nr_pos = NRT2_BUF;
+	c_data->vp_action.bufNR.nr_pos = NRT2_BUF;
 	return 0;
 }
 
@@ -538,11 +575,11 @@ void deinit_nr_buf(struct vcap_client_data *c_data)
 	struct nr_buffer *buf;
 	uint32_t rc;
 
-	if (!c_data->vid_vp_action.bufNR.nr_handle) {
+	if (!c_data->vp_action.bufNR.nr_handle) {
 		pr_err("NR buffer has not been created");
 		return;
 	}
-	buf = &c_data->vid_vp_action.bufNR;
+	buf = &c_data->vp_action.bufNR;
 
 	rc = readl_relaxed(VCAP_VP_NR_CONFIG2);
 	rc &= !(0x0FF00001);
@@ -560,27 +597,27 @@ int nr_s_param(struct vcap_client_data *c_data, struct nr_param *param)
 		return 0;
 
 	/* Verify values in range */
-	if (param->window < VP_NR_MAX_WINDOW)
+	if (param->window > VP_NR_MAX_WINDOW)
 		return -EINVAL;
-	if (param->luma.max_blend_ratio < VP_NR_MAX_RATIO)
+	if (param->luma.max_blend_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->luma.scale_diff_ratio < VP_NR_MAX_RATIO)
+	if (param->luma.scale_diff_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->luma.diff_limit_ratio < VP_NR_MAX_RATIO)
+	if (param->luma.diff_limit_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->luma.scale_motion_ratio < VP_NR_MAX_RATIO)
+	if (param->luma.scale_motion_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->luma.blend_limit_ratio < VP_NR_MAX_RATIO)
+	if (param->luma.blend_limit_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->chroma.max_blend_ratio < VP_NR_MAX_RATIO)
+	if (param->chroma.max_blend_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->chroma.scale_diff_ratio < VP_NR_MAX_RATIO)
+	if (param->chroma.scale_diff_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->chroma.diff_limit_ratio < VP_NR_MAX_RATIO)
+	if (param->chroma.diff_limit_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->chroma.scale_motion_ratio < VP_NR_MAX_RATIO)
+	if (param->chroma.scale_motion_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
-	if (param->chroma.blend_limit_ratio < VP_NR_MAX_RATIO)
+	if (param->chroma.blend_limit_ratio > VP_NR_MAX_RATIO)
 		return -EINVAL;
 	return 0;
 }
@@ -668,20 +705,18 @@ int vp_dummy_event(struct vcap_client_data *c_data)
 
 	dev->vp_dummy_event = true;
 
+	enable_irq(dev->vpirq->start);
 	writel_relaxed(0x01100101, VCAP_VP_INTERRUPT_ENABLE);
 	writel_iowmb(0x00000000, VCAP_VP_CTRL);
 	writel_iowmb(0x00010000, VCAP_VP_CTRL);
 
-	enable_irq(dev->vpirq->start);
 	rc = wait_event_interruptible_timeout(dev->vp_dummy_waitq,
 		dev->vp_dummy_complete, msecs_to_jiffies(50));
 	if (!rc && !dev->vp_dummy_complete) {
 		pr_err("%s: VP dummy event timeout", __func__);
 		rc = -ETIME;
-		writel_iowmb(0x00000000, VCAP_VP_CTRL);
 
-		writel_iowmb(0x00000001, VCAP_VP_SW_RESET);
-		writel_iowmb(0x00000000, VCAP_VP_SW_RESET);
+		vp_sw_reset(dev);
 		dev->vp_dummy_complete = false;
 	}
 
@@ -721,7 +756,7 @@ int kickoff_vp(struct vcap_client_data *c_data)
 		pr_err("No active vp client\n");
 		return -ENODEV;
 	}
-	vp_act = &dev->vp_client->vid_vp_action;
+	vp_act = &dev->vp_client->vp_action;
 
 	spin_lock_irqsave(&dev->vp_client->cap_slock, flags);
 	if (list_empty(&vp_act->in_active)) {
@@ -789,7 +824,7 @@ int kickoff_vp(struct vcap_client_data *c_data)
 		top_field = 1;
 #endif
 	vp_act->vp_state = VP_FRAME2;
-	writel_relaxed(0x01100101, VCAP_VP_INTERRUPT_ENABLE);
+	writel_relaxed(0x01100001, VCAP_VP_INTERRUPT_ENABLE);
 #ifdef TOP_FIELD_FIX
 	writel_iowmb(0x00000000 | vp_act->top_field << 0, VCAP_VP_CTRL);
 	writel_iowmb(0x00010000 | vp_act->top_field << 0, VCAP_VP_CTRL);
@@ -818,7 +853,7 @@ int continue_vp(struct vcap_client_data *c_data)
 		pr_err("No active vp client\n");
 		return -ENODEV;
 	}
-	vp_act = &dev->vp_client->vid_vp_action;
+	vp_act = &dev->vp_client->vp_action;
 
 	if (vp_act->vp_state == VP_UNKNOWN) {
 		pr_err("%s: VP is in an unknown state\n",
@@ -836,7 +871,7 @@ int continue_vp(struct vcap_client_data *c_data)
 #endif
 
 	/* Config VP & Enable Interrupt */
-	writel_relaxed(0x01100101, VCAP_VP_INTERRUPT_ENABLE);
+	writel_relaxed(0x01100001, VCAP_VP_INTERRUPT_ENABLE);
 #ifdef TOP_FIELD_FIX
 	writel_iowmb(0x00000000 | vp_act->top_field << 0, VCAP_VP_CTRL);
 	writel_iowmb(0x00010000 | vp_act->top_field << 0, VCAP_VP_CTRL);
