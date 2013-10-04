@@ -274,7 +274,6 @@ static inline int msm_ion_unsecure_heap_2_0(int heap_id,
  * of the handle, p + offset through p + offset + length will have
  * the cache operations performed
  */
-/*
 struct ion_flush_data {
 	struct ion_handle *handle;
 	int fd;
@@ -282,7 +281,7 @@ struct ion_flush_data {
 	unsigned int offset;
 	unsigned int length;
 };
-*/
+
 /* struct ion_flag_data - information about flags for this buffer
  *
  * @handle:	handle to get flags from
@@ -291,12 +290,11 @@ struct ion_flush_data {
  * Takes handle as an input and outputs the flags from the handle
  * in the flag field.
  */
-/*
 struct ion_flag_data {
 	struct ion_handle *handle;
 	unsigned long flags;
 };
-*/
+
 #define ION_IOC_MSM_MAGIC 'M'
 
 /**
