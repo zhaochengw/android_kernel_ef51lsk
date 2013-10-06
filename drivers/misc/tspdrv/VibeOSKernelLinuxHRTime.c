@@ -68,8 +68,15 @@ static inline int VibeSemIsLocked(struct semaphore *lock)
 static enum hrtimer_restart VibeOSKernelTimerProc(struct hrtimer *timer)
 {
     /* Return right away if timer is not supposed to run */
-    if (!g_bTimerStarted) return  HRTIMER_NORESTART;
-    
+    if (!g_bTimerStarted)
+    {
+        if (VibeSemIsLocked(&g_hSemaphore))
+        {
+            up(&g_hSemaphore);
+        }
+        return  HRTIMER_NORESTART;
+    }
+
     /* Scheduling next timeout value right away */
     if (++g_nWatchdogCounter < WATCHDOG_TIMEOUT)
     {
@@ -141,7 +148,8 @@ static void VibeOSKernelLinuxStartTimer(void)
         */
         if(g_bTimerStarted)
         {            
-            res = down_interruptible(&g_hSemaphore);  /* wait for the semaphore to be freed by the timer */
+            //res = down_interruptible(&g_hSemaphore);  /* wait for the semaphore to be freed by the timer */
+            res = down_timeout(&g_hSemaphore , msecs_to_jiffies(20));  /* wait for the semaphore to be freed by the timer */
             if (res != 0)
             {
                 DbgOut((DBL_INFO, "VibeOSKernelLinuxStartTimer: down_interruptible interrupted by a signal.\n"));
@@ -158,17 +166,22 @@ static void VibeOSKernelLinuxStartTimer(void)
         ** Use interruptible version of down to be safe 
         ** (try to not being stuck here if the semaphore is not freed for any reason)
         */
-		
-        res = down_interruptible(&g_hSemaphore);  /* wait for the semaphore to be freed by the timer */
 
-        if (res != 0)
-        {
-            DbgOut((DBL_INFO, "VibeOSKernelLinuxStartTimer: down_interruptible interrupted by a signal.\n"));
-        }
-		
+        if(g_bTimerStarted)// 20130215 added to fix watchdog issue
+        {            		
+            //res = down_interruptible(&g_hSemaphore);  /* wait for the semaphore to be freed by the timer */
+            res = down_timeout(&g_hSemaphore , msecs_to_jiffies(20));  /* wait for the semaphore to be freed by the timer */
+
+	        if (res != 0)
+	        {
+	            DbgOut((DBL_INFO, "VibeOSKernelLinuxStartTimer: down_interruptible interrupted by a signal.\n"));
+	        }
+    	}		
     }
 
     VibeOSKernelProcessData(NULL);
+
+#if 0 // 20130215 commented out to fix watchdog issue, it can be removed because the code of NACK handling already applied. 
     /* 
     ** Because of possible NACK handling, the  VibeOSKernelProcessData() call above could take more than
     ** 5 ms on some piezo devices that are buffering output samples; when this happens, the timer
@@ -192,10 +205,23 @@ static void VibeOSKernelLinuxStartTimer(void)
         }
     }
 #endif
+#endif
+
 }
 
 static void VibeOSKernelLinuxStopTimer(void)
 {
+    if (g_bTimerStarted)
+    {
+        g_bTimerStarted = false;
+        if (VibeSemIsLocked(&g_hSemaphore))
+            up(&g_hSemaphore);
+    }
+    /* Reset samples buffers */
+    ResetOutputData();
+
+    g_bIsPlaying = false;
+#if 0
     if (g_bTimerStarted)
     {
         g_bTimerStarted = false;
@@ -205,6 +231,7 @@ static void VibeOSKernelLinuxStopTimer(void)
     ResetOutputData();
 
     g_bIsPlaying = false;
+#endif
 } 
 
 static void VibeOSKernelLinuxTerminateTimer(void)

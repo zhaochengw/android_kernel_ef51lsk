@@ -45,6 +45,19 @@
 #include "sky_snd_fab2210.h"
 #endif
 #endif	/* CONFIG_SKY_SND_EXTERNAL_AMP */
+
+#if defined(CONFIG_SKY_SND_QVOICE) //YDA165
+#define QVOICE 1
+#else
+#define QVOICE 0
+#endif
+
+#if QVOICE
+// functions implemented in qdsp6/q6voice.c
+void voc_set_phone_mode(int phone_mode);
+int voc_get_phone_mode(void);
+#endif
+
 /* 8064 machine driver */
 
 #define PM8921_GPIO_BASE		NR_GPIO_IRQS
@@ -1074,6 +1087,9 @@ static const char *slim0_tx_ch_text[] = {"One", "Two", "Three", "Four"};
 static const char *hdmi_rx_ch_text[] = {"Two", "Three", "Four", "Five",
 	"Six", "Seven", "Eight"};
 static const char * const hdmi_rate[] = {"Default", "Variable"};
+#if QVOICE
+static const char *phone_mode[] = {"Handset", "Speakerphone", "Headset", "BT", "VT"};
+#endif
 //HDJ_LS4_Sound_20120503
 static const char *headset_status_function[] = {"Get"};
 //HDJ_LS4_Sound_20120503_END
@@ -1090,6 +1106,9 @@ static const struct soc_enum msm_enum[] = {
 //HDJ_LS4_Sound_20120503	
 	SOC_ENUM_SINGLE_EXT(1, headset_status_function),
 //HDJ_LS4_Sound_20120503_END
+#if QVOICE
+	SOC_ENUM_SINGLE_EXT(5, phone_mode),
+#endif
 };
 
 #ifdef CONFIG_SKY_SND_AUTOANSWER
@@ -1284,6 +1303,26 @@ static int autoans_flag_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 }
 #endif /* CONFIG_SKY_SND_AUTOANSWER */
 
+#if QVOICE
+static int msm8960_phone_mode_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int phone_mode = voc_get_phone_mode();
+	ucontrol->value.integer.value[0] = phone_mode;
+	printk(KERN_DEBUG "*** phone mode get %d", phone_mode);
+	return 0;
+}
+
+static int msm8960_phone_mode_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int phone_mode = ucontrol->value.integer.value[0];
+	voc_set_phone_mode(phone_mode);
+	printk(KERN_DEBUG "*** phone mode put %d", phone_mode);
+	return 0;
+}
+#endif
+
 static int msm_hdmi_rx_ch_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -1342,6 +1381,10 @@ static const struct snd_kcontrol_new tabla_msm_controls[] = {
 	SOC_ENUM_EXT("HDMI RX Rate", msm_enum[4],
 					msm_hdmi_rate_get,
 					msm_hdmi_rate_put),
+#if QVOICE
+	SOC_ENUM_EXT("Phone Mode", msm_enum[4],
+		msm8960_phone_mode_get, msm8960_phone_mode_put),
+#endif
 };
 
 #ifdef CONFIG_SKY_SND_AUTOANSWER

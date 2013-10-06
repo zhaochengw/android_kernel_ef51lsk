@@ -31,11 +31,17 @@
 **=========================================================================*/
 
 #ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-#include "../../../../include/sound/q6asm.h"
 #include "../msm-pcm-routing.h"
 
+#define TRACK_EFFECT_ARR 200
+#define EQ_BAND_ARR 7
+#define EQ_PRESET_MAX 20
+#define EQ_LVL_MAX 18000
+#define BASSBOOST_VALUE_MAX 1000
+#define VIRTUALIZER_VALUE_MAX 1000
+#define REVERB_PRESET_MAX 6
+
 static uint32_t eq_module_enable = 0;
-static int16_t eq_level[7];
 static uint32_t virtual_module_enable = 0;
 static uint32_t bassboost_module_enable = 0;
 static uint32_t limitter_module_enable = 0;
@@ -47,16 +53,23 @@ static uint16_t get_eq_band = 0;
 static uint16_t get_eq_freq = 0;
 static int get_preset = 0;
 
-static int is_cur_eq_preset = 0;
-static int mEq_preset = 0;
-
-static uint32_t mBassboost_val = 0;
-
-static uint32_t mVirtualizer_val = 0;
-
-static int set_reverb_curr_val = 0;
-
 static int lpa_on = 0;
+
+static int mCur_set_session_id = -1;
+static int mCur_match_session_id = -1;
+
+struct Track_Effect_Type{
+		int   session_id;	
+		bool is_eq_preset;
+		int   eq_peset;
+		int16_t eq_lvl[EQ_BAND_ARR];
+		uint32_t   bassboost_val;
+		uint32_t   virtualizer_val;	
+		int reverb_val;
+};
+struct Track_Effect_Type mTack_effect[TRACK_EFFECT_ARR];
+
+int16_t eq_lvl_hs_default[EQ_BAND_ARR] = {150,100,0,0,-150,-300,250};
 #endif  //SKY_SND_QSOUND_OPEN_DSP
 
 static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -72,13 +85,161 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 	int dai_mm = get_dai_mm();
 		
 //	printk("[SKY SND] pantech_audio_ioctl, cmd=%x, get_aud_session_id() : %d\n", cmd, get_aud_session_id());
+	switch(cmd){  // keep native data
+		case PANTECH_AUDIO_SET_SESSION_ID_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id == qsound_data) || (mTack_effect[i].session_id == -1)){
+					mTack_effect[i].session_id = qsound_data;
+					mCur_set_session_id = qsound_data;
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_SET_SESSION_ID_CTL, data=%d     i : %d\n\n", qsound_data,i);
+					break;
+				}
+			}
+			return 0;
+		}
+		case PANTECH_AUDIO_DESTROY_SESSION_ID_CTL:{
+			int i=0;
+			int j=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if(mTack_effect[i].session_id == qsound_data){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_DESTROY_SESSION_ID_CTL, data=%d      i : %d\n\n", qsound_data,i);
+					mTack_effect[i].session_id = -1;
+					mTack_effect[i].is_eq_preset = false;
+					mTack_effect[i].eq_peset = -1;
+					for(j=0; j<EQ_BAND_ARR;j++){
+						mTack_effect[i].eq_lvl[j] = -1;
+					}
+					mTack_effect[i].bassboost_val = -1;
+					mTack_effect[i].virtualizer_val = -1;
+					mTack_effect[i].reverb_val = -1;					
+					break;
+				}
+			}
+			return 0;
+		}
+		
+		case PANTECH_AUDIO_EQ_KEEP_PRESET_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_set_session_id == mTack_effect[i].session_id)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_KEEP_PRESET_CTL, data=%d    mTack_effect[%d].session_id : %d \n\n", qsound_data,i,mTack_effect[i].session_id);
+					mTack_effect[i].eq_peset = qsound_data;
+					mTack_effect[i].is_eq_preset = true; 
+					break;
+				}
+			}
+			return 0;
+		}
+		case PANTECH_AUDIO_EQ_BAND_CTL: {
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			eq_band = (uint16_t)qsound_data ;
+//			printk("[SKY SND] PANTECH_AUDIO_EQ_BAND_CTL,  eq_band : %d session_id : %d\n",  eq_band, session_id);
+			
+			return 0;
+		}
+		case PANTECH_AUDIO_EQ_KEEP_LVL_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_set_session_id == mTack_effect[i].session_id)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_KEEP_LVL_CTL, data=%d    mTack_effect[%d].session_id : %d\n\n", qsound_data,i,mTack_effect[i].session_id);
+					mTack_effect[i].is_eq_preset = false;
+					if((qsound_data & 0xffff0000) != 0){
+						mTack_effect[i].eq_lvl[eq_band] = (int16_t)((qsound_data-1)-65535 /*0xffff*/);
+						break;
+					}else{
+						mTack_effect[i].eq_lvl[eq_band] = (int16_t) qsound_data;
+						break;
+					}
+				}
+			}
+
+			return 0;
+		}
+		case PANTECH_AUDIO_BASS_BOOST_KEEP_VAL_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_set_session_id == mTack_effect[i].session_id)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_BASS_BOOST_KEEP_VAL_CTL, data=%d    mTack_effect[%d].session_id : %d\n\n", qsound_data,i,mTack_effect[i].session_id);
+					mTack_effect[i].bassboost_val = qsound_data;
+					break;
+				}
+			}
+
+			return 0;
+		}
+		case PANTECH_AUDIO_VIRTUAL_KEEP_VALUE_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_set_session_id == mTack_effect[i].session_id)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_VIRTUAL_KEEP_VALUE_CTL, data=%d    mTack_effect[%d].session_id : %d\n\n", qsound_data,i,mTack_effect[i].session_id);
+					mTack_effect[i].virtualizer_val = qsound_data;
+					break;
+				}
+			}
+
+			return 0;
+		}
+		case PANTECH_AUDIO_KEEP_PRESET_REVERB_CTL:{
+			int i=0;
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_set_session_id == mTack_effect[i].session_id)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_KEEP_PRESET_REVERB_CTL, data=%d    mTack_effect[%d].session_id : %d\n\n", qsound_data,i,mTack_effect[i].session_id);
+					mTack_effect[i].reverb_val = qsound_data;
+					break;
+				}
+			}
+			return 0;
+		}
+	}
+
 
 	if((sessionid > 0) && (sessionid < 0x8)){
 		if((dai_mm != 0) && (dai_mm != 2)){ // it is not matched dai mm MULTIMEDIA1 / MULTIMEDIA3
-			printk("@#@#[SKY SND] sessionid=%d  dai_mm : %d \n", sessionid, dai_mm);		
+			printk("\n@#@#[SKY SND] sessionid=%d  dai_mm : %d \n", sessionid, dai_mm);		
 			return 10;
 		}
 		session_id = sessionid;
+		if(!lpa_on) session_id = get_aud_non_lpa_session_id();
 	}
 	else
 		session_id = 10;
@@ -106,13 +267,24 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 
 			break;
 		}
+		case PANTECH_AUDIO_MATCH_SESSION_ID_CTL: {
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
+				break;
+			}
+
+//			printk("@#@#[SKY SND] PANTECH_AUDIO_MATCH_SESSION_ID_CTL, data=%d   \n", qsound_data);
+
+			mCur_match_session_id = qsound_data;
+			break;
+		}
 		case PANTECH_AUDIO_EQ_MODE_CTL: {
 			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
 				ret = -1;
 				break;
 			}
 
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_MODE_CTL, data=%d  session_id : %d, is_cur_eq_preset : %d,  lpa_on : %d\n\n", qsound_data, is_cur_eq_preset,session_id, lpa_on);
+//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_MODE_CTL, data=%d  session_id : %d,  lpa_on : %d\n\n", qsound_data, session_id, lpa_on);
 			
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
@@ -128,7 +300,7 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 				return -22 ;//	EINVAL		
 			}
 
-//			if(eq_module_enable != qsound_data) printk("[SKY SND] PANTECH_AUDIO_EQ_MODE_CTL, data=%d  is_cur_eq_preset : %d , session_id : %d\n", qsound_data, is_cur_eq_preset, session_id);
+//			if(eq_module_enable != qsound_data) printk("[SKY SND] PANTECH_AUDIO_EQ_MODE_CTL, data=%d  session_id : %d\n", qsound_data, session_id);
 			
 			if(1/*eq_module_enable != qsound_data*/){
 				ret = q6asm_qsound_module_enable_dsp(session_id, QSOUND_EQ_MODULE_ID, QSOUND_EQ_ENABLE_ID, qsound_data);
@@ -140,31 +312,29 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			}
 			break;
 		}
-		case PANTECH_AUDIO_EQ_KEEP_PRESET_CTL:{
-			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
-				ret = -1;
-				break;
-			}
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_KEEP_PRESET_CTL, data=%d \n\n", qsound_data);
-
-			mEq_preset = qsound_data;
-			is_cur_eq_preset = 1;
-			break;
-		}
 		case PANTECH_AUDIO_EQ_PRESET_CTL: {
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_PRESET_CTL, is_cur_eq_preset : %d ,  mEq_preset : %d,  lpa_on : %d\n\n", is_cur_eq_preset, mEq_preset,lpa_on);
+			int i=0;
 
-			if(is_cur_eq_preset == 0){
-				break;
-			}					
-
-			qsound_data = mEq_preset;	
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_match_session_id == mTack_effect[i].session_id) && (mTack_effect[i].is_eq_preset == true)){
+					 qsound_data = mTack_effect[i].eq_peset;
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_PRESET_CTL, lpa_on : %d     mTack_effect[%d].eq_peset : %d\n\n", lpa_on,i,mTack_effect[i].eq_peset);
+					break;
+				}
+			}
 
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
 			   	printk("@#@#PANTECH_AUDIO_EQ_PRESET_CTL......lpa_active not ready !!!!!\n");
 			   	return -22;//EINVAL
 			   }
+			}
+
+			if((qsound_data >= 0) && (qsound_data <= EQ_PRESET_MAX)){
+//				pr_err(" eq preset valid data : %d\n", qsound_data);				
+			}else{
+				pr_err(" failed eq preset because not invalid data : %d\n", qsound_data);
+				return -22 ;//	EINVAL		
 			}
 			
 //			printk("[SKY SND] PANTECH_AUDIO_EQ_PRESET_CTL, data=%x, session_id : %d\n", qsound_data, session_id);
@@ -176,37 +346,53 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			}
 			break;
 		}
-		case PANTECH_AUDIO_EQ_BAND_CTL: {
+		case PANTECH_AUDIO_HEADSET_DEFAULT_CTL: {
+			int non_lpa_sessionid = get_aud_non_lpa_session_id();
 			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
 				ret = -1;
 				break;
 			}
 
-			eq_band = (uint16_t)qsound_data ;
-//			printk("[SKY SND] PANTECH_AUDIO_EQ_BAND_CTL,  eq_band : %d session_id : %d\n",  eq_band, session_id);
-			
-			break;
-		}
-		case PANTECH_AUDIO_EQ_KEEP_LVL_CTL:{
-			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
-				ret = -1;
+//			printk("[SKY SND] PANTECH_AUDIO_HEADSET_DEFAULT_CTL, data=%x, session_id : %d\n", qsound_data, session_id);
+
+			if((qsound_data == 0) || (qsound_data == 1)){
+//				pr_err(" eq module enable/disable valid data : %d\n", qsound_data);				
+			}else{
+				pr_err(" failed headset default eq module enable/disable because not invalid data : %d\n", qsound_data);
+				return -22; //	EINVAL		
+			}
+
+			ret = q6asm_qsound_module_enable_dsp(session_id, QSOUND_EQ_MODULE_ID, QSOUND_EQ_ENABLE_ID, qsound_data);
+			if (ret < 0) {
+				pr_err(" failed eq module enable\n");
 				break;
 			}
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_KEEP_LVL_CTL, data=%d \n\n", qsound_data);
+		
+			ret = q6asm_qsound_eq_band_level_dsp(session_id, eq_lvl_hs_default);
+			if (ret < 0) {
+				pr_err(" failed eq level\n");
+				break;
+			}
 
-			if((qsound_data & 0xffff0000) != 0)
-				eq_level[eq_band] = (int16_t)((qsound_data-1)-65535 /*0xffff*/);
-			else
-				eq_level[eq_band] = (int16_t) qsound_data;
-
-			is_cur_eq_preset = 0;
+			if(session_id != non_lpa_sessionid){
+			   if((get_lpa_active() == 1) && ((non_lpa_sessionid > 0) && (non_lpa_sessionid < 0x8))){
+				if(dai_mm != 0){ // it is not matched dai mm MULTIMEDIA1
+					return 0;
+				}
+//			   	printk("@#@#PANTECH_AUDIO_HEADSET_DEFAULT_CTL......non lpa music is also playing so headset eq default set cmd : %d !!!!!\n",qsound_data);
+				ret = q6asm_qsound_eq_band_level_dsp(non_lpa_sessionid, eq_lvl_hs_default);
+				if (ret < 0) {
+					pr_err(" failed extreme volume module enable\n");
+					break;				
+				}
+				
+			   }
+			}			
 			break;
-		}
+		}		
 		case PANTECH_AUDIO_EQ_LVL_CTL: {
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_LVL_CTL, data=%d  is_cur_eq_preset : %d\n\n", qsound_data, is_cur_eq_preset);
-			if(is_cur_eq_preset == 1){
-				break;
-			}
+			int i=0;
+			int j=0;
 			
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
@@ -215,15 +401,30 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			   }
 			}
 
-//			printk("[SKY SND] PANTECH_AUDIO_EQ_LVL_CTL, eq_level=%d, eq_band : %d session_id : %d\n", eq_level[eq_band], eq_band, session_id);
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_match_session_id == mTack_effect[i].session_id) && (mTack_effect[i].is_eq_preset == false)){
+//					printk("@#@#[SKY SND] PANTECH_AUDIO_EQ_LVL_CTL, mTack_effect[i].eq_lvl[eq_band]=%d  mTack_effect[%d].session_id : %d\n\n",  mTack_effect[i].eq_lvl[eq_band], i,mTack_effect[i].session_id);
 
-			if(1/*eq_band == 6*/){
-				ret = q6asm_qsound_eq_band_level_dsp(session_id, /*eq_band,*/ eq_level);
-				if (ret < 0) {
-					pr_err(" failed eq level\n");
+				   for(j=0; j<EQ_BAND_ARR;j++){
+					if((mTack_effect[i].eq_lvl[j] >= -EQ_LVL_MAX) && (mTack_effect[i].eq_lvl[j] <= EQ_LVL_MAX)){
+		//				pr_err(" eq band[%d]  lvl valid data : %d\n", j,mTack_effect[i].eq_lvl[j]);				
+					}else{
+						pr_err(" failed eq module enable/disable because not invalid mTack_effect[i].eq_lvl[%d] : %d\n", j,mTack_effect[i].eq_lvl[j]);
+						return -22 ;//	EINVAL		
+					}
+				   }
+				   
+					ret = q6asm_qsound_eq_band_level_dsp(session_id, /*eq_band,*/ mTack_effect[i].eq_lvl);
+					if (ret < 0) {
+						pr_err(" failed eq level\n");
+						break;
+					}
 					break;
 				}
 			}
+
+//			printk("[SKY SND] PANTECH_AUDIO_EQ_LVL_CTL, eq_level=%d, eq_band : %d session_id : %d\n", eq_level[eq_band], eq_band, session_id);
+
 			break;
 		}
 /*		case PANTECH_AUDIO_GET_BAND_NUM_CTL: {
@@ -445,19 +646,8 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			}
 			break;
 		}
-		case PANTECH_AUDIO_BASS_BOOST_KEEP_VAL_CTL:{
-			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
-				ret = -1;
-				break;
-			}
-
-			mBassboost_val = qsound_data;
-			break;
-		}
 		case PANTECH_AUDIO_BASS_BOOST_VALUE_CTL: {
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_BASS_BOOST_VALUE_CTL, mBassboost_val : %d , session_id : %d\n", mBassboost_val, session_id);
-
-			qsound_data = mBassboost_val;
+			int i=0;
 
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
@@ -466,7 +656,21 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			   }
 			}
 
-//			printk("[SKY SND] PANTECH_AUDIO_BASS_BOOST_VALUE_CTL, data=%x\n", qsound_data);
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_match_session_id == mTack_effect[i].session_id)){
+					 qsound_data = mTack_effect[i].bassboost_val;
+//					printk("[SKY SND] PANTECH_AUDIO_BASS_BOOST_VALUE_CTL, mTack_effect[i].session_id=%d,   mTack_effect[%d].bassboost_val : %d\n", mTack_effect[i].session_id,i,mTack_effect[i].bassboost_val);
+					break;
+				}
+			}
+
+
+			if((qsound_data >= 0) && (qsound_data <= BASSBOOST_VALUE_MAX)){
+//				pr_err(" BASSBOOST VALUE valid data : %d\n", qsound_data);				
+			}else{
+				pr_err(" failed eq module enable/disable because not invalid data : %d\n", qsound_data);
+				return -22 ;//	EINVAL		
+			}
 			
 			ret = q6asm_qsound_bassboost_strength_dsp(session_id, qsound_data);
 			if (ret < 0) {
@@ -527,19 +731,8 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			}
 			break;
 		}
-		case PANTECH_AUDIO_VIRTUAL_KEEP_VALUE_CTL:{
-			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
-				ret = -1;
-				break;
-			}
-
-			mVirtualizer_val = qsound_data;
-			break;
-		}
 		case PANTECH_AUDIO_VIRTUAL_VALUE_CTL: {
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_VIRTUAL_VALUE_CTL, mVirtualizer_val : %d , session_id : %d\n", mVirtualizer_val, session_id);
-
-			qsound_data = mVirtualizer_val;
+			int i=0;
 
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
@@ -548,7 +741,20 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			   }
 			}
 
-//			printk("[SKY SND] PANTECH_AUDIO_VIRTUAL_VALUE_CTL, data=%x, session_id : %d\n", qsound_data, session_id);
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				if((mTack_effect[i].session_id != -1) && (mCur_match_session_id == mTack_effect[i].session_id)){
+					 qsound_data = mTack_effect[i].virtualizer_val;
+//					printk("[SKY SND] PANTECH_AUDIO_VIRTUAL_VALUE_CTL, mTack_effect[i].session_id=%d, mTack_effect[%d].virtualizer_val : %d\n", mTack_effect[i].session_id, i,mTack_effect[i].virtualizer_val);
+					break;
+				}
+			}
+
+			if((qsound_data >= 0) && (qsound_data <= VIRTUALIZER_VALUE_MAX)){
+//				pr_err(" VIRTUALIZER VALUE valid data : %d\n", qsound_data);				
+			}else{
+				pr_err(" failed eq module enable/disable because not invalid data : %d\n", qsound_data);
+				return -22 ;//	EINVAL		
+			}
 			
 			ret = q6asm_qsound_virtual_spread_dsp(session_id, qsound_data);
 			if (ret < 0) {
@@ -575,25 +781,23 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 //			printk("[SKY SND] PANTECH_AUDIO_GET_VIRTUAL_VALUE_CTL, qsound_get_data : %d\n",  qsound_get_data);
 			break;
 		}	*/
-		case PANTECH_AUDIO_KEEP_PRESET_REVERB_CTL:{
-			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
-				ret = -1;
-				break;
-			}
-
-			set_reverb_curr_val = qsound_data;
-			break;
-		}
 		
 		case PANTECH_AUDIO_PRESET_REVERB_CTL: {
+			int i=0;
 			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
 				ret = -1;
 				break;
 			}
 
-//			printk("@#@#[SKY SND] PANTECH_AUDIO_PRESET_REVERB_CTL, data=%d  set_reverb_curr_val : %d , session_id : %d\n", qsound_data, set_reverb_curr_val, session_id);
-
-			if(qsound_data != 0) qsound_data = set_reverb_curr_val;
+			if(qsound_data != 0){
+				for(i=0; i<TRACK_EFFECT_ARR;i++){
+					if((mTack_effect[i].session_id != -1) && (mCur_match_session_id == mTack_effect[i].session_id)){
+						 qsound_data = mTack_effect[i].reverb_val;
+//						printk("[SKY SND] PANTECH_AUDIO_PRESET_REVERB_CTL, mTack_effect[i].session_id=%d, mTack_effect[%d].reverb_val : %d\n", mTack_effect[i].session_id, i,mTack_effect[i].reverb_val);
+						break;
+					}
+				}
+			}
 			
 			if(lpa_on == 1){
 			   if(get_lpa_active() == 0){
@@ -602,7 +806,12 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			   }
 			}
 
-//			printk("[SKY SND] PANTECH_AUDIO_PRESET_REVERB_CTL, data=%x, session_id : %d\n", qsound_data, session_id);
+			if((qsound_data >= 0) && (qsound_data <= REVERB_PRESET_MAX)){
+//				pr_err(" REVERB PRESET VALUE valid data : %d\n", qsound_data);				
+			}else{
+				pr_err(" failed eq module enable/disable because not invalid data : %d\n", qsound_data);
+				return -22 ;//	EINVAL		
+			}
 			
 			ret = q6asm_qsound_reverb_preset_dsp(session_id, qsound_data);
 			if (ret < 0) {
@@ -629,56 +838,59 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 //			printk("[SKY SND] PANTECH_AUDIO_GET_PRESET_REVERB_CTL, qsound_get_data : %d\n",  qsound_get_data);
 			break;
 		}	*/		
-		case PANTECH_AUDIO_EXTREME_VOL_CTL: {
+		case PANTECH_AUDIO_LPA_EXTREME_VOL_CTL:{
+			int lpa_sessionid = get_aud_lpa_session_id();
 			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
 				ret = -1;
 				break;
 			}
 
-			if(qsound_data == 200){
-				return 0;
-			}else if(qsound_data == 110){
-				ret = q6asm_qsound_module_enable_dsp(session_id, QSOUND_EXTREME_VOL_MODULE_ID, QSOUND_EXTREME_VOL_ENABLE_ID, 0);
+			if((qsound_data == 0) || (qsound_data == 1)){
+//				pr_err(" lpa extreme volume module enable/disable valid data : %d  lpa_sessionid : %d, session_id : %d \n", qsound_data, lpa_sessionid,session_id);				
+			}else{
+				pr_err(" failed lpa extreme volume module enable/disable because not invalid data : %d\n", qsound_data);
+				return -22; //	EINVAL		
+			}
+
+			if(1){
+				ret = q6asm_qsound_module_enable_dsp(lpa_sessionid, QSOUND_EXTREME_VOL_MODULE_ID, QSOUND_EXTREME_VOL_ENABLE_ID, qsound_data);
 				if (ret < 0) {
-					pr_err(" failed extreme volume module enable\n");
+					pr_err(" failed lpa extreme volume module enable\n");
 					break;
 				}
+			}else{
+				pr_err(" lpa extreme volume module failed lpa_sessionid : %d, session_id : %d, dai_mm : %d \n", lpa_sessionid,session_id, dai_mm);	
+				return -22;
+			}
+
+			break;
+		}
+				
+		case PANTECH_AUDIO_EXTREME_VOL_CTL: {
+			int lpa_sessionid = get_aud_lpa_session_id();
+		       int non_lpa_sessionid = get_aud_non_lpa_session_id();
+			if(lpa_sessionid == non_lpa_sessionid) return -22;  //not ready for non-lpa music
+				
+			if (copy_from_user(&qsound_data, (void __user *)arg, sizeof(qsound_data))) {
+				ret = -1;
 				break;
 			}
 
 			if((qsound_data == 0) || (qsound_data == 1)){
-//				pr_err(" extreme volume module enable/disable valid data : %d\n", qsound_data);				
+//				pr_err(" non-lpa extreme volume module enable/disable valid data : %d  non_lpa_sessionid : %d, session_id : %d \n", qsound_data, non_lpa_sessionid,session_id);				
 			}else{
-				pr_err(" failed extreme volume module enable/disable because not invalid data : %d\n", qsound_data);
+				pr_err(" non-lpa failed extreme volume module enable/disable because not invalid data : %d\n", qsound_data);
 				return -22; //	EINVAL		
 			}
-//			if(exterme_vol_module_enable != qsound_data) printk("[SKY SND] PANTECH_AUDIO_PRESET_EXTREME_VOL_CTL, data=%x, exterme_vol_module_enable : %x, session_id : %d\n", qsound_data, exterme_vol_module_enable, session_id);
 			
 			if(1/*exterme_vol_module_enable != qsound_data*/){
-				ret = q6asm_qsound_module_enable_dsp(session_id, QSOUND_EXTREME_VOL_MODULE_ID, QSOUND_EXTREME_VOL_ENABLE_ID, qsound_data);
+				ret = q6asm_qsound_module_enable_dsp(non_lpa_sessionid, QSOUND_EXTREME_VOL_MODULE_ID, QSOUND_EXTREME_VOL_ENABLE_ID, qsound_data);
 				if (ret < 0) {
-					pr_err(" failed extreme volume module enable\n");
+					pr_err(" failed non-lpa extreme volume module enable\n");
 					break;
 				}
 				exterme_vol_module_enable = qsound_data;
 			}
-
-			if(lpa_on == 1){
-			    int non_lpa_sessionid = get_aud_non_lpa_session_id();
-			   if((get_lpa_active() == 1) && ((non_lpa_sessionid > 0) && (non_lpa_sessionid < 0x8))){
-				if(dai_mm != 0){ // it is not matched dai mm MULTIMEDIA1
-					return 0;
-				}
-//			   	printk("@#@#PANTECH_AUDIO_PRESET_EXTREME_VOL_CTL......non lpa music is also playing so qxv set cmd : %d !!!!!\n",qsound_data);
-				ret = q6asm_qsound_module_enable_dsp(non_lpa_sessionid, QSOUND_EXTREME_VOL_MODULE_ID, QSOUND_EXTREME_VOL_ENABLE_ID, qsound_data);
-				if (ret < 0) {
-					pr_err(" failed extreme volume module enable\n");
-					break;				
-				}
-				
-			   }
-			}
-
 			
 			break;
 		}
@@ -737,9 +949,37 @@ static long pantech_audio_ioctl(struct file *file, unsigned int cmd, unsigned lo
 			}
 			break;
 		}
+		case PANTECH_AUDIO_SET_SESSION_ID_CTL:
+		case PANTECH_AUDIO_DESTROY_SESSION_ID_CTL:		
+		case PANTECH_AUDIO_EQ_KEEP_PRESET_CTL:
+		case PANTECH_AUDIO_EQ_BAND_CTL: 
+		case PANTECH_AUDIO_EQ_KEEP_LVL_CTL:
+		case PANTECH_AUDIO_BASS_BOOST_KEEP_VAL_CTL:
+		case PANTECH_AUDIO_VIRTUAL_KEEP_VALUE_CTL:
+		case PANTECH_AUDIO_KEEP_PRESET_REVERB_CTL:
+			break;
+		case PANTECH_AUDIO_INIT_ALL_DATA_CTL: {
+			int i=0;
+			int j=0;
+
+			printk("\n[SKY SND] PANTECH_AUDIO_INIT_ALL_DATA_CTL................\n");
+			
+			for(i=0; i<TRACK_EFFECT_ARR;i++){
+				mTack_effect[i].session_id = -1;
+				mTack_effect[i].is_eq_preset = false;
+				mTack_effect[i].eq_peset = -1;
+				for(j=0; j<EQ_BAND_ARR;j++){
+					mTack_effect[i].eq_lvl[j] = -1;
+				}
+				mTack_effect[i].bassboost_val = -1;
+				mTack_effect[i].virtualizer_val = -1;
+				mTack_effect[i].reverb_val = -1;
+			}			
+			break;
+		}
 #endif  //CONFIG_SKY_SND_QSOUND_OPEN_DSP
 		default: {
-			printk("\n--------------- INVALID COMMAND ---------------");
+			printk("\n--------------- INVALID COMMAND ---------------\n");
 			ret = -1;
 			break;
 		}

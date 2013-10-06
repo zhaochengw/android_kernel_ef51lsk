@@ -4198,7 +4198,8 @@ static int tabla_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if 0 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
+/* 20130320 Jimmy, enable below block (153346 Turn off slimbus clocks when no ports are active) */
+#if 1 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
 static void tabla_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -4817,7 +4818,8 @@ static int tabla_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_dai_ops tabla_dai_ops = {
 	.startup = tabla_startup,
-#if 0 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
+/* 20130320 Jimmy, enable below block (153346 Turn off slimbus clocks when no ports are active) */	
+#if 1 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
 	.shutdown = tabla_shutdown,
 #endif
 	.hw_params = tabla_hw_params,

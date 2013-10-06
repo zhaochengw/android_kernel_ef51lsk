@@ -29,69 +29,43 @@
 #include <linux/workqueue.h>
 #include "u_serial.h"
 
-#define SECTOR_SIZE               512
-#define SKY_RAWDATA_MAX           (8192*SECTOR_SIZE) // 4MB
-#define SECTOR_SIZE_DEFAULT       1
-
-#define GPT_PARTITION_SIZE        (SECTOR_SIZE*80) 
-
-#define DLOAD_SECTOR_START        0
-#define DLOAD_INFO_OFFSET         (DLOAD_SECTOR_START)
-#define PARTITION_INFO_OFFSET     (DLOAD_SECTOR_START+SECTOR_SIZE)
-#define BACKUP_DLOAD_INFO_OFFSET  (DLOAD_SECTOR_START + GPT_PARTITION_SIZE)
-#define DLOAD_STATUS_OFFSET       (DLOAD_SECTOR_START + GPT_PARTITION_SIZE*2)
-#define DLOAD_HISTORY_OFFSET      (DLOAD_SECTOR_START + GPT_PARTITION_SIZE*2 + SECTOR_SIZE)
-
-#ifdef FEATURE_GOTA_UPDATE_INFO
-#define GOTA_UPDATE_STATUS_OFFSET           (DLOAD_HISTORY_OFFSET + SECTOR_SIZE)	// indicates which update process is performed (ex, FOTA, PDL, SKY station, etc)
-#define GOTA_UPDATE_STATUS_LENGTH           (SECTOR_SIZE)
-#define GOTA_RESET_STATUS_OFFSET            (GOTA_UPDATE_STATUS_OFFSET + GOTA_UPDATE_STATUS_LENGTH)	// indicates whether the device was reset by update process
-#define GOTA_RESET_STATUS_LENGTH            (SECTOR_SIZE)
-#define GOTA_BACKUP_OFFSET                  (GOTA_RESET_STATUS_OFFSET + GOTA_RESET_STATUS_LENGTH)	// gieil, 20120210, added fot FOTA DM info backups
-#define GOTA_BACKUP_LENGTH                  (SECTOR_SIZE)
-#define DLOAD_SECTOR_MAX                    (GOTA_BACKUP_OFFSET + (GOTA_BACKUP_LENGTH*17))	// gieil, 20120209
+#if (0)
+#include "sky_rawdata.h"
 #else
-#define DLOAD_SECTOR_MAX                    (DLOAD_HISTORY_OFFSET + SECTOR_SIZE*20)
-#endif /* FEATURE_GOTA_UPDATE_INFO */
+#define SECTOR_SIZE              512
+#define NON_SECURE_IMEI_START    (SECTOR_SIZE*394)
+#endif
 
-#define BACKUP_SECTOR_START           (DLOAD_SECTOR_START + DLOAD_SECTOR_MAX + SECTOR_SIZE)
+#if (0) //	F_PANTECH_SECBOOT
+//#include "../../../../../../../boot_images/core/securemsm/secboot/shared/inc/secboot_types.h"
+typedef struct
+{ 
+  #define SECBOOT_FUSE_FLAG_MAGIC_NUM     0xAAFFFF
+  #define SECBOOT_FUSE_FLAG_UNSET         0xF0F0F0
+  #define SECBOOT_FUSE_FLAG_SET           0xF1F1F1
+  #define SECBOOT_FUSE_NOT_BLOWN          0xF2F2F2
+  #define SECBOOT_FUSE_BLOWN              0xF3F3F3  
 
-#define SECUREESN_START                     BACKUP_SECTOR_START
-#define SECUREESN_LENGTH                    ((SECTOR_SIZE*25) * 2) // use sectors as pages // "*2" means 2 blocks
+  unsigned int secboot_magic_num;
 
-#define RFCAL_BACKUP_START                  (SECUREESN_START+SECUREESN_LENGTH)
-#define RFCAL_BACKUP_LENGTH                 (SECTOR_SIZE*150)
-#define RFCAL_BACKUP_INDEX                   1
+  unsigned int auth_en;
+  unsigned int shk_blow;
+  unsigned int shk_rw_dis;
+  unsigned int jtag_dis;
+} secboot_fuse_flag;
+/*
+typedef struct
+{ 
+  #define SECBOOT_SECBOOT_CHECK_MAGIC_NUM     0xCCBBBB
+  #define SECBOOT_AUTH_IMG_NUM                16
 
-#define FACTORY_EFS_INIT_START               (RFCAL_BACKUP_START+RFCAL_BACKUP_LENGTH)
-#define FACTORY_EFS_INIT_LENGTH              (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
+  uint32 secboot_magic_num;
+  uint32 auth_img_result[SECBOOT_AUTH_IMG_NUM];
+} secboot_auth_img_result;
+*/
+#endif
 
-#define MSEC_BACKUP_START                    (FACTORY_EFS_INIT_START+FACTORY_EFS_INIT_LENGTH)
-#define MSEC_BACKUP_LENGTH                   (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
 
-#define FUNCTEST_RESULT_INIT_START           (MSEC_BACKUP_START+MSEC_BACKUP_LENGTH)
-#define FUNCTEST_RESULT_INIT_LENGTH          (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define WIFI_DEVICE_INFO_START               (FUNCTEST_RESULT_INIT_START+FUNCTEST_RESULT_INIT_LENGTH)
-#define WIFI_DEVICE_INFO_LENGTH              (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define BT_DEVICE_INFO_START                 (WIFI_DEVICE_INFO_START+WIFI_DEVICE_INFO_LENGTH)
-#define BT_DEVICE_INFO_LENGTH                (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define PWR_ON_CNT_START                     (BT_DEVICE_INFO_START+BT_DEVICE_INFO_LENGTH)
-#define PWR_ON_CNT_LENGTH                    (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define SDCARD_UPDATE_START                   (PWR_ON_CNT_START+PWR_ON_CNT_LENGTH)
-#define SDCARD_UPDATE_LENGTH                  (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define USB_CHARGING_START                    (SDCARD_UPDATE_START+SDCARD_UPDATE_LENGTH)
-#define USB_CHARGING_LENGTH                   (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
-
-#define PERMANENTMEMORY_START                 (USB_CHARGING_START+USB_CHARGING_LENGTH)
-#define PERMANENTMEMORY_LENGTH                (SECTOR_SIZE*2)
-
-#define NON_SECURE_IMEI_START                 (PERMANENTMEMORY_START+PERMANENTMEMORY_LENGTH)
-#define NON_SECURE_IMEI_LENGTH                (SECTOR_SIZE*SECTOR_SIZE_DEFAULT)
 
 enum {
   DLOADINFO_NONE_STATE = 0,
@@ -360,7 +334,16 @@ static void ghsic_data_write_tohost(struct work_struct *w)
 		req->context = skb;
 		req->buf = skb->data;
 		req->length = skb->len;
-
+#if 0
+		 if( dloadinfo_state != DLOADINFO_NONE_STATE )
+		{
+//		 char temp_buf[SECTOR_SIZE]={0,};
+		
+				printk(KERN_ERR "%s: run cmd send_dload_packet download state %d", __func__, dloadinfo_state);
+				req->buf = temp_buf;
+				req->length = fill_writereq(&dloadinfo_state, req);			
+		}
+#endif
 		port->n_tx_req_queued++;
 		if (port->n_tx_req_queued == ghsic_data_tx_intr_thld) {
 			req->no_interrupt = 0;
@@ -558,7 +541,75 @@ static void load_phoneinfo_with_imei(struct work_struct *work_s)
     memcpy(pantech_phoneinfo_buff_ptr->Imei, read_buf+4, NV_UE_IMEI_SIZE);
   }
 
+#if (0) 	//F_PANTECH_SECBOOT
+  {
+    secboot_fuse_flag *secboot_flag_ptr = NULL;
+    const char str_secure[] = "$3(UR3"; // secure target
+    const char str_non_secure[] = "3ru(3$"; // non-secure target
 
+    rawdata_filp->f_pos = PANTECH_SECBOOT_FLAG_START;
+    memset(read_buf, 0, SECTOR_SIZE);
+    printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG pos=%x\n", __func__, PANTECH_SECBOOT_FLAG_START);
+
+    if (((rawdata_filp->f_flags & O_ACCMODE) & O_RDONLY) != 0)
+    {
+      printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG permission denied!\n", __func__);
+      printk(KERN_ERR "%s: secure target (for safety)\n", __func__);
+      strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_secure);
+      return;
+    }
+
+    oldfs = get_fs();
+    set_fs(KERNEL_DS);
+
+    rc = rawdata_filp->f_op->read(rawdata_filp, read_buf, SECTOR_SIZE, &rawdata_filp->f_pos);
+    if (rc < 0) {
+      set_fs(oldfs);
+      printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG read failed! (%d)\n", __func__, rc);
+      printk(KERN_ERR "%s: secure target (for safety)\n", __func__);
+      strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_secure);
+      filp_close(rawdata_filp, NULL);
+      return;
+    }
+
+    set_fs(oldfs);
+
+    printk(KERN_INFO "%s: PANTECH_SECBOOT_FLAG read done\n", __func__);
+
+    secboot_flag_ptr = (secboot_fuse_flag *)&read_buf[0];
+
+    if (secboot_flag_ptr->secboot_magic_num == SECBOOT_FUSE_FLAG_MAGIC_NUM)
+    {
+      printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG valid magic\n", __func__);
+
+      if (secboot_flag_ptr->auth_en == SECBOOT_FUSE_NOT_BLOWN)
+      {
+        printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG non-secure target\n", __func__);
+        strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_non_secure);
+      }
+      else if (secboot_flag_ptr->auth_en == SECBOOT_FUSE_BLOWN)
+      {
+        printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG secure target\n", __func__);
+        strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_secure);
+      }
+      else
+      {
+        printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG secure target (for safety)\n", __func__);
+        strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_secure);
+      }
+    }
+    else
+    {
+      printk(KERN_ERR "%s: PANTECH_SECBOOT_FLAG invalid magic!\n", __func__);
+      printk(KERN_ERR "%s: secure target (for safety)\n", __func__);
+      strcpy(pantech_phoneinfo_buff_ptr->secure_magic_, str_secure);
+    }
+  }
+#endif
+
+
+
+  
   filp_close(rawdata_filp, NULL);
 
   if(check_phoneinfo() != 1 && read_count < 5)
@@ -603,6 +654,13 @@ unsigned fill_writereq(int *dloadinfo_state, struct usb_request *writereq)
       printk(KERN_ERR "%s: case DLOADINFO_PHONE_INFO_STATE", __func__);
       memset( writereq->buf, 0x0, 16 + sizeof(phoneinfo_type) );
       len = writereq->length = fill_phoneinfo((char *)writereq->buf); 
+
+      #if 0 //test
+        for( i=3; i < len/16; i++ )
+        {
+          printk(KERN_ERR "%s : phoneinfo <%x> %x %x %x %x, %x %x %x %x, %x %x %x %x, %x %x %x %x\n",__func__,i*16,tx_buf[i*16],tx_buf[i*16+1],tx_buf[i*16+2],tx_buf[i*16+3],tx_buf[i*16+4],tx_buf[i*16+5],tx_buf[i*16+6],tx_buf[i*16+7],tx_buf[i*16+8],tx_buf[i*16+9],tx_buf[i*16+10],tx_buf[i*16+11],tx_buf[i*16+12],tx_buf[i*16+13],tx_buf[i*16+14],tx_buf[i*16+15]);
+        }
+      #endif 
 
       printk(KERN_ERR "%s: packet make DLOADINFO_PHONE_INFO_STATE", __func__);
     }

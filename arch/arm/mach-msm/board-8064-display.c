@@ -316,6 +316,23 @@ static struct msm_bus_vectors mdp_1080p_vectors[] = {
 	},
 };
 
+#ifdef CONFIG_PANTECH_LCD_FIX_UNDERRUN_WITH_3LAYER
+static struct msm_bus_vectors mdp_1080p_plus_vectors[] = {
+	/* 1080p and less video */
+	{
+		.src = MSM_BUS_MASTER_MDP_PORT0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(FEATURE_SKYDISP_SHARP_RENESAS_FHD)
+        .ab = 3080000000LL * 0.8,
+        .ib = 3080000000LL * 0.8,
+#else	
+		.ab = 334080000 * 2,
+		.ib = 417600000 * 2,
+#endif 		
+	},
+};
+#endif
+
 static struct msm_bus_paths mdp_bus_scale_usecases[] = {
 	{
 		ARRAY_SIZE(mdp_init_vectors),
@@ -341,6 +358,12 @@ static struct msm_bus_paths mdp_bus_scale_usecases[] = {
 		ARRAY_SIZE(mdp_1080p_vectors),
 		mdp_1080p_vectors,
 	},
+#ifdef CONFIG_PANTECH_LCD_FIX_UNDERRUN_WITH_3LAYER
+	{
+		ARRAY_SIZE(mdp_1080p_plus_vectors),
+		mdp_1080p_plus_vectors,
+	},
+#endif
 };
 
 static struct msm_bus_scale_pdata mdp_bus_scale_pdata = {
@@ -360,9 +383,9 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #else
 	.mdp_max_clk = 200000000,
 #endif
-	.mdp_max_bw = 2100000000,
-	.mdp_bw_ab_factor = 200,
-	.mdp_bw_ib_factor = 210,
+	.mdp_max_bw = 2000000000,
+	.mdp_bw_ab_factor = 115,
+	.mdp_bw_ib_factor = 150,
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 	.mdp_rev = MDP_REV_44,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -2105,6 +2128,10 @@ static void set_mdp_clocks_for_wuxga(void)
 	mdp_720p_vectors[0].ib = 2000000000;
 	mdp_1080p_vectors[0].ab = 2000000000;
 	mdp_1080p_vectors[0].ib = 2000000000;
+#ifdef CONFIG_PANTECH_LCD_FIX_UNDERRUN_WITH_3LAYER
+    mdp_1080p_plus_vectors[0].ab = 2000000000;
+	mdp_1080p_plus_vectors[0].ib = 2000000000;
+#endif
 
 	if (apq8064_hdmi_as_primary_selected()) {
 		dtv_bus_def_vectors[0].ab = 2000000000;

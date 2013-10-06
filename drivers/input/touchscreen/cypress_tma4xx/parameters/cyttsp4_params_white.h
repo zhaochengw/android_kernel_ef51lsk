@@ -1,7 +1,7 @@
 //*****************************************************************************
 //*****************************************************************************
 //  FILENAME: Driver.h
-//  TrueTouch Host Emulator Version Information: 2.1.681
+//  TrueTouch Host Emulator Version Information: 3.0.1008
 //  TrueTouch Firmware Version Information: 1.1.360995
 //
 //  DESCRIPTION: This file contains configuration values.
@@ -19,7 +19,7 @@ static const uint8_t cyttsp4_param_regs_white[] = {
 	0xFC, 0x05,  /* CONFIG_DATA_SIZE */
 	0xFC, 0x05,  /* CONFIG_DATA_MAX_SIZE */
 	0x4C, 0x00, 0x00, 0x00,  /* SDK_CTRL_CFG_SIZE */
-	0x08, 0x00,  /* CONFIG_VER */
+	0x09, 0x00,  /* CONFIG_VER */
 	0x02,  /* PANELID_ENABLE */
 	0x30,  /* IMO_FREQ_MHZ */
 	0xF6, 0x19,  /* X_LEN_PHY */
@@ -27,7 +27,7 @@ static const uint8_t cyttsp4_param_regs_white[] = {
 	0x14,  /* HST_MODE0 */
 	0x07,  /* ACT_DIST0 */
 	0x00,  /* SCAN_TYP0 */
-	0x00,  /* ACT_INTRVL0 */
+	0x08,  /* ACT_INTRVL0 */
 	0x03,  /* ACT_LFT_INTRVL0 */
 	0x00,  /* Reserved21 */
 	0x32, 0x00,  /* LP_INTRVL0 */
@@ -612,7 +612,7 @@ static const uint8_t cyttsp4_param_regs_white[] = {
 	0x00, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x00,  /* Reserved1500 */
-	0x4D, 0x70,  /* CONFIG_CRC */
+	0xDF, 0xD7,  /* CONFIG_CRC */
 };
 
 /* Touchscreen Parameters Field Sizes (Writable: 0:Readonly; 1:Writable) */

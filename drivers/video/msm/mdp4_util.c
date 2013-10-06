@@ -446,6 +446,11 @@ void mdp4_hw_init(void)
 	/* max read pending cmd config */
 	outpdw(MDP_BASE + 0x004c, 0x02222);	/* 3 pending requests */
 
+#ifdef CONFIG_PANTECH_LCD_QC_CONFIG_AXI_BUS_FOR_FIXING_UNDERRUN
+    outpdw(MDP_BASE + 0x0400, 0x7FF);
+    outpdw(MDP_BASE + 0x0404, 0x30050);
+#endif
+
 #ifndef CONFIG_FB_MSM_OVERLAY
 	/* both REFRESH_MODE and DIRECT_OUT are ignored at BLT mode */
 	mdp4_overlay_cfg(MDP4_MIXER0, OVERLAY_MODE_BLT, 0, 0);

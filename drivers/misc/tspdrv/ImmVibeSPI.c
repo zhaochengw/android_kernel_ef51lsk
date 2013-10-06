@@ -184,14 +184,17 @@ static struct i2c_client* g_pTheClient = NULL;
 //static VibeInt8 g_i2cBuf[VIBE_OUTPUT_SAMPLE_SIZE+1];
 static VibeInt8 g_i2cBuf[VIBE_OUTPUT_SAMPLE_SIZE*3];
 static char g_szFWVersion[VIBE_MAX_DEVICE_NAME_LENGTH];
+#if 0//20130628 watchdog fix
 static struct workqueue_struct *g_workqueueStruct = 0;
 struct semaphore g_hSemaphoreAmpDisableEnable;
+#endif
 static VibeInt8 g_lastPacket_i2cBuf[VIBE_OUTPUT_SAMPLE_SIZE+1];
 static VibeInt8 lastPacket_size = 0;
 
+#if 0//20130628 watchdog fix
 static void AmpDisableWorkQueueHandler(struct work_struct *w);
 DECLARE_DELAYED_WORK(g_AmpDisableHandler, AmpDisableWorkQueueHandler);
-
+#endif
 /*
 ** TS5000/I2C structs and forward declarations
 */
@@ -225,7 +228,7 @@ static struct i2c_driver ts5000_driver =
         .pm = &ts5000_i2c_pm_ops,
     },
 };
-
+#if 0//20130628 watchdog fix
 /*
 ** If standbyState is TRUE put the chip into standby mode (low-power state)
 */
@@ -274,6 +277,7 @@ static void setStandby(bool standbyState)
        i2c_transfer(g_pTheClient->adapter, msg, 1);
     }
 }
+#endif
 /*
 ** Workqueue thread handler used to wait for WAIT_TIME_BEFORE_DISABLE_AMP_MS  before turning off the amp every time
 ** ImmVibeSPI_ForceOut_AmpDisable() is called, so the DRV2665 would have time to send all of the 
@@ -281,6 +285,7 @@ static void setStandby(bool standbyState)
 ** ImmVibeSPI_ForceOut_AmpDisable(). We cannot use a pure timer/interrupt solution here as the 
 ** setsandby() that is called here uses interrupts and could wait for mutex.
  */
+ #if 0//20130628 watchdog fix
 static void AmpDisableWorkQueueHandler(struct work_struct *w)
 {
     if (0 != down_timeout(&g_hSemaphoreAmpDisableEnable, msecs_to_jiffies(AMP_ENABLE_DISABLE_TIMEOUT_MS)))
@@ -294,18 +299,19 @@ static void AmpDisableWorkQueueHandler(struct work_struct *w)
     }
     up(&g_hSemaphoreAmpDisableEnable);
 }
-
+#endif
 /*
 ** Called to disable amp (disable output force)
 */
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex)
 {
+#if 0//20130628 watchdog fix
     if (0 != down_timeout(&g_hSemaphoreAmpDisableEnable, msecs_to_jiffies(AMP_ENABLE_DISABLE_TIMEOUT_MS)))
     {
         DbgOut((DBL_ERROR, "ImmVibeSPI_ForceOut_AmpDisable: down_timeout timed out.\n"));
         return VIBE_E_FAIL;
     }
-
+#endif
     if (g_bAmpEnabled[nActuatorIndex])
     {
         g_bAmpEnabled[nActuatorIndex] = false;
@@ -314,15 +320,18 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
         ** DRV2665 has standby bit to put it in low power mode 
         ** Wake up the the AmpDisable thread
         */
+#if 0//20130628 watchdog fix        
         if (g_workqueueStruct)
         {
             queue_delayed_work(g_workqueueStruct,
                                &g_AmpDisableHandler,
                                msecs_to_jiffies(WAIT_TIME_BEFORE_DISABLE_AMP_MS));
         }
+#endif		
     }
+#if 0//20130628 watchdog fix
     up(&g_hSemaphoreAmpDisableEnable);
-	
+#endif
     return VIBE_S_SUCCESS;
 }
 
@@ -331,6 +340,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 */
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 {
+#if 0//20130628 watchdog fix
     cancel_delayed_work_sync(&g_AmpDisableHandler);
 
     if (0 != down_timeout(&g_hSemaphoreAmpDisableEnable, msecs_to_jiffies(AMP_ENABLE_DISABLE_TIMEOUT_MS)))
@@ -338,17 +348,19 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
         DbgOut((DBL_ERROR, "ImmVibeSPI_ForceOut_AmpEnable: down_timeout timed out.\n"));
         return VIBE_E_FAIL;
     }
-
+#endif
     if (!g_bAmpEnabled[nActuatorIndex])
     {
         g_bAmpEnabled[nActuatorIndex] = true;
-
+#if 0//20130628 watchdog fix	
         /* DRV2665 has standby bit that needs to be cleared to enable the amp output  */
         if (0 == nActuatorIndex)
             setStandby(false);
+#endif
     }
+#if 0//20130628 watchdog fix	
     up(&g_hSemaphoreAmpDisableEnable);
-	
+#endif	
     return VIBE_S_SUCCESS;
 }
 
@@ -412,10 +424,10 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 
     i2c_transfer(g_pTheClient->adapter, msg, 1);
     /* gain setting ends here */
-
+#if 0//20130628 watchdog fix
     sema_init(&g_hSemaphoreAmpDisableEnable, 1); /* initialize semaphore that synchronize Amp disanling/enabling functions */
     g_workqueueStruct = create_workqueue("tspdrv_disable_amp_workqueue"); /* create workqueue to handle amp disabling thread */
-
+#endif
     /* For each actuator... */
     for (nActuatorIndex = 0; NUM_ACTUATORS > nActuatorIndex; ++nActuatorIndex)
     {
@@ -435,13 +447,13 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Terminate(void)
     int nActuatorIndex;  /* Initialized below. */
 
     DbgOut((DBL_WARNING,"ImmVibeSPI_ForceOut_Terminate.\n"));
-
+#if 0//20130628 watchdog fix
     if (g_workqueueStruct)
     {
         destroy_workqueue(g_workqueueStruct);
         g_workqueueStruct = 0;
     }
-
+#endif
     /* For each actuator... */
     for (nActuatorIndex = 0; NUM_ACTUATORS > nActuatorIndex; ++nActuatorIndex)
     {

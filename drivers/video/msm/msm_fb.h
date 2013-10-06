@@ -54,6 +54,14 @@
 /* lived, 2013.01.23 for fix mixer_info based on pipe_used not stage list
    because, when the framework reset occurred, the pipe clean does not clearly */
 //#define PANTECH_LCD_PIPE_CLEAN_WHEN_FRAMEWORK_RESET
+/* lived, 2013.02.13 bug fix for mdp bandwidth request */
+#define PANTECH_LCD_BUG_FIX_MDP_BANDWIDTH_REQUEST
+/* lived, 2013.05.08 bug fix for mdp composition with AOT */
+#define PANTECH_LCD_BUG_FIX_QCPATCH_FOR_MDP_COMP_WITH_AOT
+/* lived, 2013.03.05 support framework reset when lcd off*/
+/* lived, 2013.03.20 add again by the following patch */
+/* https://www.codeaurora.org/gitweb/quic/la/?p=kernel/msm.git;a=commit;h=548ff607d8d20792203260e0d74e013b43ea3781 */
+#define PANTECH_LCD_SUPPORT_FRAMEWORK_RESET_WHEN_LCD_OFF
 
 //#define CONFIG_LCD_DRIVER_STABILITY
 #ifdef CONFIG_F_SKYDISP_SILENT_BOOT

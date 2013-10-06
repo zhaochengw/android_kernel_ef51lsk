@@ -99,12 +99,11 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 				 */
 
 #ifdef FEATURE_LGT_DS_TCP_SYN_RETRANSMIT
-#define TCP_SYN_RETRIES	 2	/* number of times to retry active opening a
-				 * connection: ~180sec is RFC minimum	*/
+#define TCP_SYN_RETRIES	 4
 #else
 #define TCP_SYN_RETRIES	 5	/* number of times to retry active opening a
 				 * connection: ~180sec is RFC minimum	*/
-#endif /* FEATURE_LGT_DS_TCP_SYN_RETRANSMIT */				 
+#endif /* FEATURE_LGT_DS_TCP_SYN_RETRANSMIT */
 
 #define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
 				 * connection: ~180sec is RFC minimum	*/
@@ -128,13 +127,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #endif
 #define TCP_RTO_MAX	((unsigned)(120*HZ))
 #define TCP_RTO_MIN	((unsigned)(HZ/5))
-
-#ifdef FEATURE_LGT_DS_TCP_SYN_RETRANSMIT
-#define TCP_TIMEOUT_INIT ((unsigned)100)	/* RFC2988bis initial RTO value	*/
-#else
 #define TCP_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC2988bis initial RTO value	*/
-#endif /* FEATURE_LGT_DS_TCP_SYN_RETRANSMIT */
-
 #define TCP_TIMEOUT_FALLBACK ((unsigned)(3*HZ))	/* RFC 1122 initial RTO value, now
 						 * used as a fallback RTO for the
 						 * initial data transmission if no

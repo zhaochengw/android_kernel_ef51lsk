@@ -1378,32 +1378,7 @@ static struct msm_bus_vectors vidc_init_vectors[] = {
 	},
 };
 static struct msm_bus_vectors vidc_venc_vga_vectors[] = {
-#ifndef CONFIG_PANTECH_CAMERA
-	{
-		.src = MSM_BUS_MASTER_VIDEO_ENC,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 54525952,
-		.ib  = 436207616,
-	},
-	{
-		.src = MSM_BUS_MASTER_VIDEO_DEC,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 72351744,
-		.ib  = 289406976,
-	},
-	{
-		.src = MSM_BUS_MASTER_AMPSS_M0,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 500000,
-		.ib  = 1000000,
-	},
-	{
-		.src = MSM_BUS_MASTER_AMPSS_M0,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 500000,
-		.ib  = 1000000,
-	},
-#else
+#ifdef CONFIG_PANTECH_CAMERA
 	{
 		.src = MSM_BUS_MASTER_VIDEO_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
@@ -1427,6 +1402,31 @@ static struct msm_bus_vectors vidc_venc_vga_vectors[] = {
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 1750000,
 		.ib  = 3500000,
+	},
+#else
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 54525952,
+		.ib  = 436207616,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 72351744,
+		.ib  = 289406976,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 500000,
+		.ib  = 1000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 500000,
+		.ib  = 1000000,
 	},
 #endif
 };
@@ -1457,6 +1457,32 @@ static struct msm_bus_vectors vidc_vdec_vga_vectors[] = {
 	},
 };
 static struct msm_bus_vectors vidc_venc_720p_vectors[] = {
+#ifdef CONFIG_PANTECH_CAMERA
+	{
+		.src = MSM_BUS_MASTER_VIDEO_ENC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 372244480,
+		.ib  = 2560000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_VIDEO_DEC,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 501219328,
+		.ib  = 2560000000U,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+	{
+		.src = MSM_BUS_MASTER_AMPSS_M0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = 2500000,
+		.ib  = 5000000,
+	},
+#else
 	{
 		.src = MSM_BUS_MASTER_VIDEO_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
@@ -1481,6 +1507,7 @@ static struct msm_bus_vectors vidc_venc_720p_vectors[] = {
 		.ab  = 1750000,
 		.ib  = 3500000,
 	},
+#endif
 };
 static struct msm_bus_vectors vidc_vdec_720p_vectors[] = {
 	{
@@ -1538,26 +1565,26 @@ static struct msm_bus_vectors vidc_vdec_1080p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VIDEO_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 372244480,
-		.ib  = 3522000000U,
+		.ab  = 222298112,
+		.ib  = 2560000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_VIDEO_DEC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 501219328,
-		.ib  = 3522000000U,
+		.ab  = 330301440,
+		.ib  = 2560000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 700000000,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 10000000,
 	},
 };
 
@@ -1565,26 +1592,26 @@ static struct msm_bus_vectors vidc_venc_1080p_turbo_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VIDEO_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 372244480,
+		.ab  = 222298112,
 		.ib  = 3522000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_VIDEO_DEC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 501219328,
+		.ab  = 330301440,
 		.ib  = 3522000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 700000000,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 10000000,
 	},
 };
 static struct msm_bus_vectors vidc_vdec_1080p_turbo_vectors[] = {

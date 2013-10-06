@@ -126,6 +126,8 @@ char disp_off[2]    = {0x28, 0x00};
 char protect_off[2]    	= {0xb0, 0x00};
 char dsc[2]    			= {0x00, 0x00};
 
+char pwm_dimming[8] = {0xce,0x00,0x04,0x00,0xc1,0xd1,0x0a,0x06};
+
 char display_setting_1dot[8]	= {0xc2,0x30,0x07,0x80,0x06,0x08,0x00,0x00};
 char display_setting_2dot[8]	= {0xc2,0x30,0x17,0x80,0x06,0x08,0x00,0x00};
 char display_setting_3dot[8]	= {0xc2,0x30,0x27,0x80,0x06,0x08,0x00,0x00};
@@ -141,7 +143,7 @@ char protect_on[2]   	= {0xb0, 0x03};
 #ifndef SKY_LCD_SINGLE_WIRE_LB_CON		
 char cabc_min_bl_val[3]    	= {0x5e, 0x00, 40};
 char cabc_data_val[3]    	= {0x51, 0x00,0xff};		// 0xfff  | 0xff
-char cabc_ctrl_val[2]    	= {0x53, 0x24};		
+char cabc_ctrl_val[2]    	= {0x53, 0x2c};
 /* cabc_ctrl_con parameter is changed in cabc_control() */
 char cabc_ctrl_con[2]    	= {0x55, 0x03};			// 00 off 01 ui 02 still 03 movie
 
@@ -232,6 +234,7 @@ static struct dsi_cmd_desc renesas_part1[] = {
     // dcs command NOPs
     {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(dsc), dsc},
     {DTYPE_DCS_WRITE, 1, 0, 0, 0, sizeof(dsc), dsc},
+    {DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(pwm_dimming), pwm_dimming},
 };
 
 static struct dsi_cmd_desc renesas_part2[] = {

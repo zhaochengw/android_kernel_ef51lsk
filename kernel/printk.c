@@ -408,10 +408,20 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	char c;
 	int error;
 
+// 2013.03.18 code by effectivesky for dmesg user mode
+#if 0
 	error = check_syslog_permissions(type, from_file);
 	if (error)
 		goto out;
-
+#else
+	if (type >> 12 == 0xB04A)
+		type = type & 0xFFF;
+	else {
+		error = check_syslog_permissions(type, from_file);
+		if (error)
+			goto out;
+	}
+#endif
 	error = security_syslog(type);
 	if (error)
 		return error;

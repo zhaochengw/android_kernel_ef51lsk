@@ -21,7 +21,11 @@
 #define VOC_REC_UPLINK		0x00
 #define VOC_REC_DOWNLINK	0x01
 #define VOC_REC_BOTH		0x02
-
+#if defined(CONFIG_SKY_SND_QVOICE)
+#define QVOICE 1
+#else
+#define QVOICE 0
+#endif
 /* Needed for VOIP & VOLTE support */
 /* Due to Q6 memory map issue */
 enum {
@@ -668,6 +672,12 @@ struct cvs_start_record_cmd {
 #define VSS_IVOCPROC_TOPOLOGY_ID_NONE			0x00010F70
 #define VSS_IVOCPROC_TOPOLOGY_ID_TX_SM_ECNS		0x00010F71
 #define VSS_IVOCPROC_TOPOLOGY_ID_TX_DM_FLUENCE		0x00010F72
+#if QVOICE
+#define VSS_IVOCPROC_TOPOLOGY_ID_TX_SM_AEC		0x1000C110
+#define VSS_IVOCPROC_TOPOLOGY_ID_TX_DM_AEC		0x1000C111
+#define VSS_IVOCPROC_TOPOLOGY_ID_TX_SM_SUBBAND		0x1000C112
+#define VSS_IVOCPROC_TOPOLOGY_ID_TX_DM_SUBBAND		0x1000C113
+#endif
 
 #define VSS_IVOCPROC_TOPOLOGY_ID_RX_DEFAULT		0x00010F77
 
@@ -980,6 +990,23 @@ struct cal_data {
 #define MAX_VOC_SESSIONS 4
 #define SESSION_ID_BASE 0xFFF0
 
+#if QVOICE
+enum {
+	QVOICE_HANDSET,
+	QVOICE_SPEAKERPHONE
+};
+
+void voc_set_phone_mode(int phone_mode);
+int voc_get_phone_mode(void);
+
+struct qvoice {
+	struct cal_mem cal;
+	bool loaded;
+	int phone_mode;
+	__kernel_time_t cal_mtime;
+};
+#endif
+
 struct common_data {
 	/* these default values are for all devices */
 	uint32_t default_mute_val;
@@ -1009,6 +1036,10 @@ struct common_data {
 	struct mvs_driver_info mvs_info;
 
 	struct voice_data voice[MAX_VOC_SESSIONS];
+
+#if QVOICE
+	struct qvoice qvoice;
+#endif
 };
 
 void voc_register_mvs_cb(ul_cb_fn ul_cb,

@@ -17,6 +17,7 @@
  * MA  02110-1301, USA.
  */
 
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -43,31 +44,11 @@
 
 #include <linux/miscdevice.h>
 #include <linux/completion.h>
+
 #include "tchkey_pt.h"
 
-//#include "Pantech_Back_Touch_EF51_Rev0R0_WS02_PDN.h"		//ver.0.0
-//#include "Pantech_Back_Touch_EF51_Rev0R1_WS02.h"			//ver0.1
-//#include "Pantech_Back_Touch_EF51_Rev0R2_WS02.h"		//ver 0.2	 / WS20
-//#include"Pantech_Back_Touch_EF51_Rev0R3_WS02.h"	//ver0.3 true / tuning side and liniarity and exception / TP10
-//#include "REV0R3_DELAY.h"	//temp - decrease time before up gesture;
-//#include"Pantech_Back_Touch_EF51_Rev0R4_TP1O.h"	//ver0.4 / modifiy exception : 7 channel -> 9 channel / waketime 70ms -> 10ms
-//#include"Pantech_Back_Touch_EF51_Rev0R5_TP1O.h"	//ver0.5 / delete exceptioiin for double tapexception / delete release when down two point.
-//#include"Pantech_Back_Touch_EF51_Rev0R6_TP1O.h" //ver0.6 / modify x,y axis range 
-//#include"Pantech_Back_Touch_EF51_Rev0R9_TP1O.h" // 0.7 & 0.8 skip , ver 0.9 - reduce time after HW_reset / reduce time at change Mode
-//#include"Pantech_Back_Touch_EF51_Rev1R0_TP1O.h"	// ver1.0 / verify fw ver : bottom / modify release event time. / modify reset problem.
-//#include"Pantech_Back_Touch_EF51_Rev1R1_TP1O.h"	// ver1.1 / delete ACK 
-//#include"Pantech_Back_Touch_EF51_Rev1R2_TP1O.h"	// ver1.2 / modify mode change flag : protect to crush interrupt mode and change mode / Modify thr by sensitivity
-//#include"Pantech_Back_Touch_EF51_Rev1R5_TP1O.h"	// ver1.5 / keep alive mode, / timeout count down.
-//#include"Pantech_Back_Touch_EF51_Rev1R6_TP2O.h"	// ver1.6 / Sensitivity Setting
-//#include"Pantech_Back_Touch_EF51_Rev1R7_TP2O.h"		// ver1.7 / modify keep alive bug / modify stability time after HW_reset
-//#include"Pantech_Back_Touch_EF51_Rev1R8_TP2O.h"		// ver1.8 / liniarity filter delete. 
-//#include"Pantech_Back_Touch_EF51_Rev1R9_TP2O.h"		//Calibration modified
-//#include"Pantech_Back_Touch_EF51_Rev2R0_TP20.h"		//Calibration modified
-#include"Pantech_Back_Touch_EF51_Rev2R1_TP20.h"		//Calibration modified
+#include"Pantech_Back_Touch_EF51_Rev2R7_TP20.h"		//Modify Gesture mode
 
-
-#define TCHKEYPT_DRV_NAME	"tchkeypt"
-#define DRIVER_VERSION		"1.1.0"	// for INVENSENSE
 
 #define TOUCHPAD_RST				62
 
@@ -84,7 +65,6 @@
 #define SINGLE_TOUCH
 //#define MULTI_TOUCH
 
-//#define TUNING_POINTER_TEST		//for use POINTER
 #define CONFIG_BACKTOUCH_DBG
 
 /* -------------------------------------------------------------------- */
@@ -109,16 +89,23 @@
 
 #define TCHKEYPT_REG_BASE						0x0000
 #define TCHKEYPT_SEQUENCE_KEY_REG			(TCHKEYPT_REG_BASE+0x0000)
+#define TCHKEYPT_CHECK_MODE						0x0180
 
 #define TCHKEYPT_SELF_TEST_REQ					0x0181
 
 //operatioin Mode
-#define NORMAL_MODE								0x00
+#define GESTURE_MODE								0x00
 #define POWER_DOWN_MODE							0x01
 #define HISTGRAM_MODE							0x02
 #define CAP_SENSING_MODE						0x03
 #define SELF_TEST_MODE							0x04
 
+//Add for Mouse Mode 2013 05 14
+#define MOUSE_MODE							0x05
+
+#ifdef MOUSE_MODE
+#define MOUSE_MODE_DOUBLE_TAP
+#endif
 
 
 // I2C Done Status
@@ -132,9 +119,6 @@
 #define IC_EEPROM_NORMAL_MODE				0x00
 
 
-//Firmware Status
-#define INITIAL_PARAMETER_REQUEST			0xFF
-
 /************************************************************************************
   TCHKEYPT STATUS MODE : by use tchkeyptdatat->status_mode 
  1. Status Interrupt Mode
@@ -142,8 +126,6 @@
  3. Firmware mode
  4. Check FW Version
  5. Change Operation Parameter Mode
-
- 10. I2C fail mode
 *************************************************************************************/
 #define STATUS_INTERRUPT_MODE				0x01
 #define STATUS_CHANGE_MODE					0x02
@@ -173,31 +155,20 @@
 #define CAP_MODE							128
 
 //LCD resolution 
-#ifdef TUNING_POINTER_TEST
-#define RESOLUTION_X						1080
-#define RESOLUTION_Y						1920
-#else
-#define RESOLUTION_X						200
-#define RESOLUTION_Y						200
+#ifdef MOUSE_MODE
+//Mouse mode
+#define RESOLUTION_X_MOUSE				1080
+#define RESOLUTION_Y_MOUSE				1920
 #endif
+
+//Gesture mode
+#define RESOLUTION_X_GESTURE				200
+#define RESOLUTION_Y_GESTURE				200
 
 // Back touch status
 #define ONE_FINGER_RELEASE_STATUS			0x00
 #define ONE_FINGER_PRESS_STATUS				0x02
 
-
-#ifdef SIZE_100x100
-#define TCHPAD_MIN_X							350
-#define TCHPAD_MIN_Y							590
-#define TCHPAD_RANGE_X							100
-#define TCHPAD_RANGE_Y							100
-#define TCHPAD_MAX_X							(TCHPAD_MIN_X+TCHPAD_RANGE_X)
-#define TCHPAD_MAX_Y							(TCHPAD_MIN_Y+TCHPAD_RANGE_Y)
-#define UP_BAR									30
-#define MENU_BAR								30
-#define LEFT_SIDE								25
-#define RIGHT_SIDE								25
-#endif
 
 /* -------------------------------------------------------------------- */
 /* Debug Option */
@@ -227,20 +198,20 @@
 #define FILE_BUF_SIZE	32768
 #define READ_BUF_SIZE	512
 
-#define MAX_FIRMWARE_RETRY_COUNT	5
+#define MAX_FIRMWARE_RETRY_COUNT	4
 
 #define FIRMWARE_ENABLE
 
 #define REPEAT_FW_UPDATE
 
-//static int tchkeypt_fwupdate_array(void);
 static int tchkeypt_fwupdate_start_array(void);
 
+static int tchkeypt_fw_ver_erase_func(void);
 #ifdef REPEAT_FW_UPDATE
 static void tchkeypt_repeat_fw_update_func(struct work_struct * p);
 #endif
 
-static void tchkey_cancel_input(void);
+static void tchkeypt_cancel_input(void);
 
 /* -------------------------------------------------------------------- */
 /* Structure */
@@ -252,7 +223,6 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 static struct i2c_driver tchkeypt_driver;
 static struct tchkeyptdata_t *tchkeyptdata;
-
 /* -------------------------------------------------------------------- */
 /* Debug Option */
 /* -------------------------------------------------------------------- */
@@ -282,9 +252,17 @@ static int tchkeypt_status_change_mode(int Mode);
 static int tchkeypt_check_firmware_ver(void);
 static int tchkeypt_compare_fw_fwfile_ver(void);
 
-static int tchkeypt_normal_mode_polling(void);
+static int tchkeypt_gesture_mode_polling(void);
 static int tchkeypt_power_down_mode_polling(void);
 static int tchkeypt_status_change_mode_polling_front_touch_reset(void);
+#ifdef MOUSE_MODE
+static int tchkeypt_mouse_mode_polling(void);
+static int tchkeypt_probe_mouse(struct i2c_client *client);
+
+#endif
+
+static int tchkeypt_probe_gesture(struct i2c_client *client);
+
 
 
 static irqreturn_t tchkeypt_irq_handler(int irq, void *dev_id);
@@ -319,7 +297,10 @@ static struct miscdevice touch_io =
 
 typedef enum {
 	BACK_TOUCH_OFF,
-	BACK_TOUCH_ON,
+	BACK_TOUCH_ON_GESTURE,
+#ifdef MOUSE_MODE
+	BACK_TOUCH_ON_MOUSE,
+#endif
 }BACK_TOUCH_MODE;
 
 /* -------------------------------------------------------------------- */
@@ -334,6 +315,71 @@ static int tchkey_wd_prev_cnt = 0;
 
 #define TCHKEY_WD_TIME		6
 #define TCHKEY_WD_TIMEOUT msecs_to_jiffies(TCHKEY_WD_TIME * 1000)
+
+#ifdef MOUSE_MODE_DOUBLE_TAP
+#define DOUBLE_TAP_SLOP     12	//10
+#define DOUBLE_TAP_INTERVAL 400
+#define KEY_PRESS           1
+#define KEY_RELEASE         0
+struct touch_info {
+    int x;
+    int y;
+    int mov_x;
+    int mov_y;
+    int state;
+    unsigned long down_time;
+    unsigned long up_time;
+};
+struct double_tap_touch_info {
+    struct touch_info info[2];
+    int toggle;
+};
+
+struct double_tap_touch_info dt_ti;
+
+static void tchkey_raise_double_tap(struct input_dev *input) {
+    input_report_key(input, BTN_LEFT, KEY_PRESS);
+    input_sync(input);
+    input_report_key(input, BTN_LEFT, KEY_RELEASE);
+    input_sync(input);
+}
+
+static void tchkey_set_double_tap_toggle(void) {
+    dt_ti.toggle = !dt_ti.toggle;
+}
+
+static void tchkey_set_double_tap_touch_info(int x, int y, int state) {
+    if(dt_ti.info[dt_ti.toggle].state != state) {
+        dt_ti.info[dt_ti.toggle].x = x == 0 ? dt_ti.info[dt_ti.toggle].mov_x : x;
+        dt_ti.info[dt_ti.toggle].y = y == 0 ? dt_ti.info[dt_ti.toggle].mov_y : y;
+        dt_ti.info[dt_ti.toggle].mov_x = x;
+        dt_ti.info[dt_ti.toggle].mov_y = y;
+        if(state) 
+            dt_ti.info[dt_ti.toggle].down_time = jiffies;
+        else
+            dt_ti.info[dt_ti.toggle].up_time = jiffies;
+        dt_ti.info[dt_ti.toggle].state = state;
+    } else {
+        dt_ti.info[dt_ti.toggle].mov_x = x;
+        dt_ti.info[dt_ti.toggle].mov_y = y;
+    }
+}
+
+static int tchkey_double_tap_check_interval(struct double_tap_touch_info dt) {
+    int retval = 0;
+    unsigned long diff = dt.info[dt.toggle].up_time - dt.info[!dt.toggle].down_time;
+    if(jiffies_to_msecs(diff) <= DOUBLE_TAP_INTERVAL) {
+        if(abs(dt.info[dt.toggle].x - dt.info[!dt.toggle].x) <= DOUBLE_TAP_SLOP
+           && abs(dt.info[dt.toggle].y - dt.info[!dt.toggle].y) <= DOUBLE_TAP_SLOP) {
+            retval = 1;
+        }
+    }
+    return retval;
+}
+#endif /* MOUSE_MODE_DOUBLE_TAP */
+
+
+
 
 static void tchkey_start_wd_timer(struct tchkeyptdata_t *ts)
 {
@@ -352,8 +398,11 @@ static void tchkey_stop_wd_timer(struct tchkeyptdata_t *ts)
 static void tchkey_timer_watchdog(struct work_struct *work)
 {
 	struct tchkeyptdata_t *ts = container_of(work, struct tchkeyptdata_t, watchdoc_work);
-
-	if(tchkey_wd_curr_cnt == tchkey_wd_prev_cnt && ts->setting_mode == BACK_TOUCH_ON)
+#ifdef MOUSE_MODE
+	if(tchkey_wd_curr_cnt == tchkey_wd_prev_cnt && (ts->setting_mode == BACK_TOUCH_ON_GESTURE || ts->setting_mode == BACK_TOUCH_ON_MOUSE ))
+#else
+	if(tchkey_wd_curr_cnt == tchkey_wd_prev_cnt && ts->setting_mode == BACK_TOUCH_ON_GESTURE)
+#endif		
 	{
 		int ret = 0;
 		// HW reset
@@ -361,7 +410,7 @@ static void tchkey_timer_watchdog(struct work_struct *work)
 		printk("tchkey_timer_watchdog curr :%d prev : %d\n", tchkey_wd_curr_cnt, tchkey_wd_prev_cnt);
 
 		if(	tchkeyptdata->PAD_FUNCTION==ONE_FINGER_PRESS_STATUS)
-			tchkey_cancel_input();
+			tchkeypt_cancel_input();
 		
 		ret = tchkeypt_hwreset();
 		
@@ -784,11 +833,11 @@ static void tchkeypt_struct_initial(void){
 
 
 /* -------------------------------------------------------------------- */
-/* Tchkey_pt ON /Normal Mode Setting - by polling method */
+/* Tchkey_pt ON /Gesture Mode Setting - by polling method */
 /* -------------------------------------------------------------------- */
-// State : Normal Mode
+// State : Gesture Mode
 
-static int tchkeypt_normal_mode_polling(void)
+static int tchkeypt_gesture_mode_polling(void)
 {
 	
 	int resume_count = 0;
@@ -805,7 +854,7 @@ static int tchkeypt_normal_mode_polling(void)
 #endif
 
 	t_buf[0] = 0x01;
-	t_buf[1] = 0x00;	//Normal mode
+	t_buf[1] = GESTURE_MODE;	//Gesture mode
 
 	ret = tchkeypt_interrupt_only_wave();
 
@@ -868,7 +917,7 @@ static int tchkeypt_normal_mode_polling(void)
 		mdelay(5);
 	}while(resume_count <= MAX_POWER_ON_CHECK_COUNT);
 
-	tchkeyptdata->current_mode = NORMAL_MODE;		
+	tchkeyptdata->current_mode = GESTURE_MODE;		
 	return 0;
 }
 
@@ -895,7 +944,7 @@ static int tchkeypt_power_down_mode_polling(void)
 #endif
 
 	t_buf[0] = 0x01;
-	t_buf[1] = 0x01;	//power down mode
+	t_buf[1] = POWER_DOWN_MODE;	//power down mode
 
 	ret = tchkeypt_interrupt_only_wave();
 	if(ret < 0)
@@ -948,9 +997,9 @@ static int tchkeypt_power_down_mode_polling(void)
 
 /* -------------------------------------------------------------------- */
 /* for Backtouch ON after power on / off */
-/* because Front touch often entered int bootloader mode */
+/* because Front touch often entered in bootloader mode */
 /* -------------------------------------------------------------------- */
-// State : Power down Mode & Normal Mode
+// State : Power down Mode & Gesture Mode
 void tchkeypt_status_change_mode_front_touch_reset(void){
 	int ret = 0;
 	//disable_irq(tchkeyptdata->client->irq);
@@ -985,8 +1034,15 @@ static int tchkeypt_status_change_mode_polling_front_touch_reset(void){
 #endif
 
 	t_buf[0] = 0x01;
-	t_buf[1] = 0x00; //Normal mode
 	
+	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+		t_buf[1] = GESTURE_MODE; //Gesture mode
+
+#ifdef MOUSE_MODE
+	else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+		t_buf[1] = MOUSE_MODE; //Mouse mode
+#endif
+
 	tchkeypt_hwreset();
 	ret = tchkeypt_interrupt_only_wave();
 	mdelay(10);
@@ -997,7 +1053,8 @@ static int tchkeypt_status_change_mode_polling_front_touch_reset(void){
 		return -1;	
 	}
 
-	do{
+	do
+	{
 		status = gpio_get_value(TCHKEYPT_PS_INT_N);
 
 		if(!status)
@@ -1018,7 +1075,8 @@ static int tchkeypt_status_change_mode_polling_front_touch_reset(void){
 			}
 			break;
 		}
-		if(resume_count > power_reset_count){
+		if(resume_count > power_reset_count)
+		{
 #ifdef CONFIG_BACKTOUCH_DBG
 			if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)
 				printk("[TCHKEYPT][%s] chip power on check count is over\n",__func__);
@@ -1055,12 +1113,113 @@ static int tchkeypt_status_change_mode_polling_front_touch_reset(void){
 		return -1;
 	}
 
+	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+		tchkeyptdata->current_mode = GESTURE_MODE;			
 
-	tchkeyptdata->current_mode = NORMAL_MODE;			
+#ifdef MOUSE_MODE
+	else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+		tchkeyptdata->current_mode = MOUSE_MODE;			
+#endif
 
 	return 0;
 }
 
+
+
+/* -------------------------------------------------------------------- */
+/* For Backtouch ON after power on / off */
+/* because Front touch often entered int bootloader mode */
+/* -------------------------------------------------------------------- */
+
+#ifdef MOUSE_MODE
+static int tchkeypt_mouse_mode_polling()
+{
+{	
+	int resume_count = 0;
+	int status = -1;
+	int ret =0;
+	u8 t_buf[2] = {0,};
+	int power_reset_count = MAX_POWER_ON_CHECK_COUNT;
+	
+	dbg_func_in();
+	
+#ifdef CONFIG_BACKTOUCH_DBG
+	if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)
+		printk("[TCHKEYPT][%s] start\n",__func__);
+#endif
+
+	t_buf[0] = 0x01;
+	t_buf[1] = MOUSE_MODE;	//Mouse mode
+
+	ret = tchkeypt_interrupt_only_wave();
+
+	if(ret < 0)
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_interrupt_only_wave] INT pin failed\n",__func__);
+		return -1;	
+	}
+
+	do{
+		status = gpio_get_value(TCHKEYPT_PS_INT_N);
+
+		if(!status)
+		{
+#ifdef CONFIG_BACKTOUCH_DBG
+			if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_2)
+				printk("[TCHKEYPT][%s] IN write detected\n",__func__);
+#endif			
+			ret = tchkeypt_i2c_write_done(0x007F, t_buf, 2);
+			if(ret < 0)
+				printk("[TCHKEYPT] [%s][tchkeypt_i2c_write_done] 2. Check Host mode change Flag Area is failed\n",__func__);
+			else
+			{
+#ifdef CONFIG_BACKTOUCH_DBG
+				if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_0)
+					printk("[TCHKEYPT][%s]Change Mode is Successed\n",__func__);
+#endif
+			}
+			break;
+		}
+
+		if(resume_count >= power_reset_count)
+		{
+#ifdef CONFIG_BACKTOUCH_DBG
+			if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_0)
+				printk("[TCHKEYPT][%s][%d][%d] chip power on check count is over\n",__func__,resume_count,power_reset_count);
+#endif			
+
+			ret = tchkeypt_hwreset();
+			if(ret < 0)
+			{
+				printk("[TCHKEYPT] [%s][tchkeypt_hwreset] hw_reset failed\n",__func__);
+				return -1;
+			}
+			
+			msleep(5);
+			
+			ret = tchkeypt_interrupt_only_wave();
+			
+			if(ret < 0)
+			{
+				printk("[TCHKEYPT] [%s][tchkeypt_interrupt_only_wave] INT pin failed\n",__func__);
+				return -1;	
+			}
+
+			tchkeyptdata->current_mode = POWER_DOWN_MODE;	
+			return 0;
+		}
+		resume_count++;
+		mdelay(5);
+	}while(resume_count <= MAX_POWER_ON_CHECK_COUNT);
+
+	tchkeyptdata->current_mode = MOUSE_MODE;		
+	return 0;
+}	
+	
+
+}
+
+#endif
 void tchkeyptdata_disable_irq(void){
     printk("%s: \n", __func__);	
 #ifdef CONFIG_BACKTOUCH_DBG
@@ -1083,7 +1242,7 @@ EXPORT_SYMBOL(tchkeyptdata_disable_irq);
 /* Tchkey_pt ON /OFF Mode Setting */
 /* ON  = 1 / OFF = 2 */
 /* -------------------------------------------------------------------- */
-// State : Power down Mode & Normal Mode
+// State : Power down Mode & Gesture Mode
 static int tchkeypt_status_change_mode(int Mode){
 	int ret = 0;
 
@@ -1106,22 +1265,22 @@ static int tchkeypt_status_change_mode(int Mode){
 
 	tchkeyptdata->status_cmd[0] = 0x01;
 
-	if(Mode == 1)	//Normal Mode
+	if(Mode == 1)	//Gesture Mode
 	{	
-		// 2. check Host mode change flag Area ->1. Normal Mode writting Reg
-		tchkeyptdata->status_cmd[1] = NORMAL_MODE;
-		tchkeyptdata->current_mode = NORMAL_MODE;			
+		// 2. check Host mode change flag Area ->1. Gesture Mode writting Reg
+		tchkeyptdata->status_cmd[1] = GESTURE_MODE;
+		tchkeyptdata->current_mode = GESTURE_MODE;			
 		
 #ifdef CONFIG_BACKTOUCH_DBG
 		if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)
-			printk("[TCHKEYPT][%s] Normal Mode\n",__func__);
+			printk("[TCHKEYPT][%s] Gesture Mode\n",__func__);
 #endif
 		
-	}//end Setting Normal Mode
+	}//end Setting Gesture Mode
 
 	if(Mode == 2)	//PowerDown  Mode
 	{
-		// 2. check Host mode change flag Area ->1. Normal Mode writting Reg
+		// 2. check Host mode change flag Area ->1. Gesture Mode writting Reg
 		tchkeyptdata->status_cmd[1] = POWER_DOWN_MODE;
 		tchkeyptdata->current_mode = POWER_DOWN_MODE;
 #ifdef CONFIG_BACKTOUCH_DBG
@@ -1141,6 +1300,20 @@ static int tchkeypt_status_change_mode(int Mode){
 			printk("[TCHKEYPT][%s] Self Test Mode\n",__func__);
 #endif
 		}
+#ifdef MOUSE_MODE
+	if(Mode == 4)	//Mouse Mode
+	{	
+		// 2. check Host mode change flag Area ->1. Mouse Mode writting Reg
+		tchkeyptdata->status_cmd[1] = MOUSE_MODE;
+		tchkeyptdata->current_mode = MOUSE_MODE;			
+		
+#ifdef CONFIG_BACKTOUCH_DBG
+		if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)
+			printk("[TCHKEYPT][%s] Mouse Mode\n",__func__);
+#endif
+		
+	}//end Setting Mouse Mode
+#endif	
 	//Setting flag before i2c write(ISR)
 	tchkeyptdata->in_status_chg_mode = STATUS_CHANGE_MODE_WRITE;
 
@@ -1211,18 +1384,18 @@ static int tchkeypt_compare_fw_fwfile_ver(void)
 #endif
 
 
-	if(tchkeyptdata->ic_fw_ver[0] < tchkeyptdata->fwfile_ver[0])
+	if(tchkeyptdata->ic_fw_ver[0] != tchkeyptdata->fwfile_ver[0])
 	{
-		printk("[TCHKEYPT][%s] Fw ver is not latest ver\n",__func__);
+		printk("[TCHKEYPT][%s] Fw Major ver is different\n",__func__);
 		
 		tchkeyptdata->need_fw_update = 1; // need to update fw
 	}
 	
-	else if(tchkeyptdata->ic_fw_ver[0] == tchkeyptdata->fwfile_ver[0])
+	else 
 	{
-		if(tchkeyptdata->ic_fw_ver[1] < tchkeyptdata->fwfile_ver[1])
+		if(tchkeyptdata->ic_fw_ver[1] != tchkeyptdata->fwfile_ver[1])
 		{
-			printk("[TCHKEYPT][%s] Fw upgrade is not latest ver\n",__func__);
+			printk("[TCHKEYPT][%s] Fw Minor Ver is different ver\n",__func__);
 
 			tchkeyptdata->need_fw_update = 1; // need to update fw
 		}
@@ -1233,39 +1406,89 @@ static int tchkeypt_compare_fw_fwfile_ver(void)
 			tchkeyptdata->need_fw_update = 0; // dont need to update fw
 		}
 	}
-	else
-	{
-		printk("[TCHKEYPT] Fw Ver is Latest Ver,\n");
 
-		tchkeyptdata->need_fw_update = 0; // dont need to update fw
-	}
 	return 0;
 }
 
-/*static int tchkeypt_fwupdate_array()
+static int tchkeypt_fw_ver_erase_func()
 {
-#ifdef CONFIG_BACKTOUCH_DBG
-	if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)
-		printk("[TCHKEYPT]Tchkeypt_ARRAY_START & Setting Flag(check fw flag)\n");
-#endif
-	tchkeyptdata->check_i2c_fw = 1;
-
-	//disable_irq(tchkeyptdata->client->irq);
-    tchkey_enable_irq(DISABLE_IRQ);
-
-	tchkeyptdata->status_mode = STATUS_FIRMWARE_MODE;
-
-	tchkeypt_interrupt_only_wave();
+	u8 cmd[2] = {0,};
+	
+	u8 erase_buf[128] = {0,};
+	
+	dbg_func_in();
 
 #ifdef CONFIG_BACKTOUCH_DBG
-	if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_2)
-		printk("[TCHKEYPT][%s]enable irq after i2c write\n",__func__);
-#endif
+	// 3. Page Register Setting
+	if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_0)
+		printk("[TCHKEYPT][%s] Pagenum 255 Erase data write START\n",__func__);
 
-	//enable_irq( tchkeyptdata->client->irq);
-    tchkey_enable_irq(ENABLE_IRQ);
+	// a. Set to write at Page Number.
+	cmd[0] = 0xFF;	//fw version page is 255(0xff)
+	if(	tchkeypt_i2c_only_write(0xFFF9, cmd, 1))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write]  a. Set to write at Page Number.  is failed\n",__func__);
+		return -1;
+	}
+
+	// b. Page Buffer Reset
+	cmd[0] = 0x01;
+	if(tchkeypt_i2c_only_write(0xFFFE, cmd, 1))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write]  b. Page Buffer Reset is failed\n",__func__);
+		return -1;
+	}
+
+	// c. Fill Buffer Load Enable(128 byte)
+	cmd[0] = 0x02;
+	if(tchkeypt_i2c_only_write(0xFFFE, cmd, 1))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write] c. Fill Buffer Load Enable(128 byte) is failed\n",__func__);
+		return -1;
+	}
+
+	// d. Fill Page Buffer (128 byte)
+	if(tchkeypt_i2c_only_write(0x0000,&erase_buf[0],128))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write]  d. Fill Page Buffer (128 byte) is failed\n",__func__);
+		return -1;
+	}
+
+	// -------------------------------------------------------------------- 
+	// Erase & wait 
+	// -------------------------------------------------------------------- 
+
+	cmd[0] = 0x03;
+	if(tchkeypt_i2c_only_write(0xFFFE, cmd, 1))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write] Erase & wait   is failed\n",__func__);
+		return -1;
+	}
+	mdelay(5);
+
+	// -------------------------------------------------------------------- 
+	// Program & wait 
+	// -------------------------------------------------------------------- 
+	cmd[0] = 0x04;
+	if(tchkeypt_i2c_only_write(0xFFFE, cmd, 1))
+	{
+		printk("[TCHKEYPT] [%s][tchkeypt_i2c_only_write] Program & wait   is failed\n",__func__);
+		return -1;
+	}
+	// Use the Delay because HW bug
+	mdelay(5);
+
+	if(tchkeyptdata->dbg_op >= 0)
+		printk("[TCHKEYPT]Finish to write FW Ver EEPROM\n");
+	// -------------------------------------------------------------------- 
+	// Read * Verify 
+	// -------------------------------------------------------------------- 
+
+#endif
+	dbg_func_out();
+
 	return 0;
-}*/
+}
 
 
 static int tchkeypt_fwupdate_start_array()
@@ -1277,14 +1500,11 @@ static int tchkeypt_fwupdate_start_array()
 	u8 rom_status;
 #endif
 	int page_num;
-	int byte_num;
 	int ret = 0;
 	int i,j,k = 0;
 
-	u16 write_addr;
 	u16 read_page;
 	u8 read_buf[128] = {0,};
-	page_num = FILE_BUF_SIZE;
 
 	
 	dbg_func_in();
@@ -1320,9 +1540,7 @@ static int tchkeypt_fwupdate_start_array()
  
 	// 3. Page Register Setting
 	page_num = 256;
-	write_addr = 0x0000;
 	k = 0;
-	byte_num = 128;
 
 	if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_2)
 		printk("[TCHKEYPT][%s] Pagenum 1 ~ 256 write START\n",__func__);
@@ -1372,7 +1590,7 @@ static int tchkeypt_fwupdate_start_array()
 			return -1;
 		}
 #if 1		// Use the Delay because HW bug
-		mdelay(3);
+		mdelay(5);
 #else
 		while(1)
 		{
@@ -1393,7 +1611,7 @@ static int tchkeypt_fwupdate_start_array()
 			return -1;
 		}
 #if 1	// Use the Delay because HW bug
-		mdelay(3);
+		mdelay(5);
 #else
 
 
@@ -1436,6 +1654,7 @@ static int tchkeypt_fwupdate_start_array()
 			if( rawData[k] != read_buf[j]){
 				printk("[TCHKEYPT]rawData[%d]: %d\t read_buf[%d]:%d\n",k,rawData[k],j,read_buf[j]);
 				printk("[TCHKEYPT][%s] diff Firmware Data\n",__func__);
+				tchkeypt_fw_ver_erase_func();	// if verify fail, erase version EEPROM page.
 				return -1;
 			}
 				
@@ -1620,8 +1839,13 @@ static void tchkeypt_work_f(struct work_struct *work)
 		if(tchkeyptdata->current_mode == POWER_DOWN_MODE)
 		{			
 			printk("Func [%s, %d] Detecting the sleep mode -> Exit sleep mode\n",__FUNCTION__,__LINE__);
-			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON)	//setting on
-				tchkeypt_normal_mode_polling();	
+			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE) //setting on gesture mode
+				tchkeypt_gesture_mode_polling();	
+#ifdef MOUSE_MODE
+			else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE) //setting on mouse mode
+				tchkeypt_mouse_mode_polling();
+#endif
+
 		}
 		else if(tchkeyptdata->current_mode == SELF_TEST_MODE)
 		{
@@ -1660,7 +1884,6 @@ static void tchkeypt_work_f(struct work_struct *work)
 			}
 			}
 			
-			if(tchkeyptdata->dbg_op >= BTOUCH_DBG_LVL_1)		
 			printk("[TCHKEYPT] result_open:%d\t result_short:%d\tresult_reference:%d\n",
 				tchkeyptdata->self.result_open,tchkeyptdata->self.result_short,tchkeyptdata->self.result_reference);
 			
@@ -1673,7 +1896,7 @@ static void tchkeypt_work_f(struct work_struct *work)
 #endif
 
 		}
-		else	//		tchkeyptdata->current_mode == NORMAL_MODE
+		else	//		tchkeyptdata->current_mode == GESTURE_MODE || MOUSE_MODE
 	{
 			ret = tchkeypt_i2c_read_done(TCHKEYPT_SEQUENCE_KEY_REG,&data[0],16);
 
@@ -1725,12 +1948,17 @@ static void tchkeypt_work_f(struct work_struct *work)
 			temp_y = (temp_y1<<8) | (temp_y&0x00FF);
 			
 
-#ifdef TUNING_POINTER_TEST
-			temp_x = temp_x ;
-			temp_y = temp_y ;
-#else
-			temp_x = temp_x * 2;
-			temp_y = temp_y * 2;
+				if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+				{
+					temp_x = temp_x * 2 ;
+					temp_y = temp_y * 2 ;
+				}
+#ifdef MOUSE_MODE			
+				else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+				{
+					temp_x = temp_x;
+					temp_y = temp_y;
+				}			
 #endif
 			
 			
@@ -1750,13 +1978,30 @@ static void tchkeypt_work_f(struct work_struct *work)
 #endif
 
 #ifdef SINGLE_TOUCH
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_X, temp_x);
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_Y, temp_y);
-#ifndef TUNING_POINTER_TEST
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_Z, 255);
+				if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+				{					
+					input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_X, temp_x);
+					input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_Y, temp_y);
+					input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_Z, 255);
+					
+					input_report_key(tchkeyptdata->tchkeypt_gesture, BTN_TOUCH, 1);
+					input_sync(tchkeyptdata->tchkeypt_gesture);
+				}
+#ifdef MOUSE_MODE			
+				else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+				{
+#ifdef MOUSE_MODE_DOUBLE_TAP
+                    tchkey_set_double_tap_touch_info(temp_x, temp_y, 1);
+#endif					
+					input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_X, temp_x);
+					input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_Y, temp_y);			
+                                   //+US1-CF1
+                                   input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_Z, 255);
+                                   //-US1-CF1
+					input_report_key(tchkeyptdata->tchkeypt_mouse, BTN_TOUCH, 1);
+					input_sync(tchkeyptdata->tchkeypt_mouse);
+				}			
 #endif
-			input_report_key(tchkeyptdata->tchkeypt, BTN_TOUCH, 1);
-			input_sync(tchkeyptdata->tchkeypt);
 #endif
 			
 			tchkeyptdata->PAD_FUNCTION=ONE_FINGER_PRESS_STATUS;
@@ -1794,30 +2039,45 @@ if(test_keep_alive_log == true)
 #endif
 
 #ifdef SINGLE_TOUCH
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_X, temp_x);
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_Y, temp_y);
-#ifndef TUNING_POINTER_TEST
-			input_report_abs(tchkeyptdata->tchkeypt, ABS_Z, 255);
-#endif
-			input_report_key(tchkeyptdata->tchkeypt, BTN_TOUCH, 0);
 
+						if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+						{							
+							input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_X, temp_x);
+							input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_Y, temp_y);
+							input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_Z, 255);						
+							input_report_key(tchkeyptdata->tchkeypt_gesture, BTN_TOUCH, 0);
+							input_sync(tchkeyptdata->tchkeypt_gesture);
+						}
+#ifdef MOUSE_MODE			
+						else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+						{
+#ifdef MOUSE_MODE_DOUBLE_TAP
+                            tchkey_set_double_tap_touch_info(temp_x, temp_y, 0);
+#endif							
+							input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_X, temp_x);
+							input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_Y, temp_y);
+                                                 //+US1-CF1
+                                                 input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_Z, 255);
+                                                 //-US1-CF1
+							input_report_key(tchkeyptdata->tchkeypt_mouse, BTN_TOUCH, 0);
+							input_sync(tchkeyptdata->tchkeypt_mouse);
+#ifdef MOUSE_MODE_DOUBLE_TAP							
+                            if(tchkey_double_tap_check_interval(dt_ti)) {
+                                tchkey_raise_double_tap(tchkeyptdata->tchkeypt_mouse);
+						}			
+                            tchkey_set_double_tap_toggle();
 #endif
-
-			input_sync(tchkeyptdata->tchkeypt);
+						}			
+#endif
+#endif
 
 			}
 			tchkeyptdata->PAD_FUNCTION=ONE_FINGER_RELEASE_STATUS;
 			tchkeyptdata->PAD_TEMP_FUNCTION=ONE_FINGER_RELEASE_STATUS;
 		}
 		}
-//err_work_exit:
-		/*mutex_unlock(&tchkeyptdata->i2clock); // mutex
-		enable_irq(tchkeyptdata->client->irq);
-        */		
 	}
 err_work_exit:
-	//enable_irq(tchkeyptdata->client->irq);
-
 	if(tchkeyptdata->status_mode == STATUS_CHECK_FW_VER || tchkeyptdata->status_mode == STATUS_CHANGE_MODE ||
 		tchkeyptdata->status_mode == STATUS_FIRMWARE_MODE)
 	{	
@@ -1833,7 +2093,6 @@ err_work_exit:
 	if(	pre_status_mode == STATUS_CHECK_FW_VER )
 		complete(&tchkeyptdata->check_ver_completion);
 
-	//enable_irq(tchkeyptdata->client->irq);
     tchkey_enable_irq(ENABLE_IRQ);
 	dbg_func_out();
 }
@@ -1844,7 +2103,7 @@ err_work_exit:
 /* Driver */
 /* -------------------------------------------------------------------- */
 
-static void tchkey_cancel_input(void)
+static void tchkeypt_cancel_input(void)
 {
 #ifdef MULTI_TOUCH
 	input_mt_slot(tchkeyptdata->tchkeypt, 0);
@@ -1853,12 +2112,23 @@ static void tchkey_cancel_input(void)
 #endif
 	
 #ifdef SINGLE_TOUCH
-#ifndef TUNING_POINTER_TEST
-	input_report_abs(tchkeyptdata->tchkeypt, ABS_Z, 255);
+	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+	{
+		input_report_abs(tchkeyptdata->tchkeypt_gesture, ABS_Z, 255);		
+		input_report_key(tchkeyptdata->tchkeypt_gesture, BTN_TOUCH, 0);		
+		input_sync(tchkeyptdata->tchkeypt_gesture);
+	}
+#ifdef MOUSE_MODE			
+	else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+	{
+              //+US1-CF1
+              input_report_abs(tchkeyptdata->tchkeypt_mouse, ABS_Z, 255);
+              //-US1-CF1
+		input_report_key(tchkeyptdata->tchkeypt_mouse, BTN_TOUCH, 0);		
+		input_sync(tchkeyptdata->tchkeypt_mouse);
+	}			
 #endif
-	input_report_key(tchkeyptdata->tchkeypt, BTN_TOUCH, 0);
 #endif
-	input_sync(tchkeyptdata->tchkeypt);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1870,14 +2140,22 @@ static void tchkey_early_suspend(struct early_suspend *handler)
 	
 	tchkey_stop_wd_timer(tchkeyptdata);
 
-    tchkey_cancel_input();	
+    tchkeypt_cancel_input();	
 
-	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON)	//setting on
+	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)	//setting on gesture
 	{
 		mutex_lock(&tchkeyptdata->i2clock);	
 		tchkeypt_power_down_mode_polling();
 		mutex_unlock(&tchkeyptdata->i2clock);
 	}
+#ifdef MOUSE_MODE
+	else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE) //setting on mouse
+	{
+		mutex_lock(&tchkeyptdata->i2clock); 
+		tchkeypt_power_down_mode_polling();
+		mutex_unlock(&tchkeyptdata->i2clock);
+	}
+#endif
 	
 	test_keep_alive_log = true;
 
@@ -1890,13 +2168,20 @@ static void tchkey_late_resume(struct early_suspend *handler)
 
 	test_keep_alive_log = false;
 	
-	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON)	//setting on
+	if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)	//setting on gesture
 	{
 		mutex_lock(&tchkeyptdata->i2clock);	
-		tchkeypt_normal_mode_polling();
+		tchkeypt_gesture_mode_polling();
 		mutex_unlock(&tchkeyptdata->i2clock);
 	}
-
+#ifdef MOUSE_MODE
+	else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)	//setting on mouse
+	{
+		mutex_lock(&tchkeyptdata->i2clock);	
+		tchkeypt_mouse_mode_polling();
+		mutex_unlock(&tchkeyptdata->i2clock);
+	}
+#endif
 	tchkey_enable_irq(ENABLE_IRQ);
 	dbg_func_out();
 
@@ -1906,12 +2191,13 @@ static void tchkey_late_resume(struct early_suspend *handler)
 
 static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int err=0, rc= 0;
-	int error = 0;
+	int err_g=0, err_m = 0, rc= 0;
+	int error = 0, err = 0;
 	int fw_update_count = 0;
 	int status = 0;
 	u8 cmd[2] = {0,};
 	dbg_func_in();
+
 	printk("[%s] START\n",__func__);
 	
 	tchkeyptdata = kzalloc (sizeof(struct tchkeyptdata_t),GFP_KERNEL);
@@ -1958,6 +2244,9 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 		return -EINVAL;
 	}
 	
+#ifdef MOUSE_MODE_DOUBLE_TAP
+    memset(&dt_ti, 0, sizeof(struct double_tap_touch_info));
+#endif /* MOUSE_MODE */
 	
 #ifdef USE_FILE_ATTR
 	if(!touch_pad_class)
@@ -1983,17 +2272,6 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 		goto err_exit;
 	}
 
-	tchkeyptdata->tchkeypt = input_allocate_device();
-	if (!tchkeyptdata->tchkeypt) {
-		dbg("[%s] err input allocate device\n",__func__);
-		err = -ENOMEM;
-		goto err_exit;
-	}
-
-	tchkeyptdata->tchkeypt = tchkeyptdata->tchkeypt;
-	tchkeyptdata->tchkeypt->name = TCHKEYPT_DRV_NAME;
-	tchkeyptdata->tchkeypt->dev.parent = &client->dev;
-
 	INIT_WORK(&tchkeyptdata->work, tchkeypt_work_f);
 	
 
@@ -2001,43 +2279,17 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 	INIT_WORK(&tchkeyptdata->firmware_work,tchkeypt_repeat_fw_update_func);
 #endif
 
+//For Mode change
+	err_g = tchkeypt_probe_gesture(client);
+	if(err_g)
+		goto err_exit;
 
-	set_bit(EV_KEY, tchkeyptdata->tchkeypt->evbit);
-	set_bit(EV_ABS, tchkeyptdata->tchkeypt->evbit);
-    set_bit(EV_SYN, tchkeyptdata->tchkeypt->evbit);
-#ifndef TUNING_POINTER_TEST
-	set_bit(INPUT_PROP_DIRECT, tchkeyptdata->tchkeypt->propbit);	//for divide back touch device
-#endif
-	set_bit(BTN_TOUCH, tchkeyptdata->tchkeypt->keybit);
-
-
-#ifdef MULTI_TOUCH
-	input_mt_init_slots(tchkeyptdata->tchkeypt, MAX_NUM_FINGER);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_PRESSURE, 0, 255, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_TOOL_WIDTH, 0, 15, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_MT_POSITION_X, 0, RESOLUTION_X-1, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_MT_POSITION_Y, 0, RESOLUTION_Y-1, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_MT_WIDTH_MAJOR, 0, 15, 0, 0);
+#ifdef MOUSE_MODE
+	err_m = tchkeypt_probe_mouse(client);
+	if(err_m)
+		goto err_exit;
 #endif
 
-#ifdef SINGLE_TOUCH
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_X, 0, RESOLUTION_X-1, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_Y, 0, RESOLUTION_Y-1, 0, 0);
-#ifndef TUNING_POINTER_TEST
-	input_set_abs_params(tchkeyptdata->tchkeypt, ABS_Z, 0, 255, 0, 0);	//for divide back touch device 
-#endif	
-#endif
-
-	error = input_register_device(tchkeyptdata->tchkeypt);
-	if (error) {
-		dbg("[%s] tchkeypt : Failed to register input device\n",__func__);
-		err = -ENOMEM;
-		goto err_exit;	}
-
-	input_set_drvdata(tchkeyptdata->tchkeypt, tchkeyptdata);
-
-	
 	rc = misc_register(&touch_io);
 	if (rc) 
 	{
@@ -2046,7 +2298,6 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 
 	tchkeyptdata->client->irq = TCHKEYPT_PS_IRQ;
 
-	//error = request_irq (tchkeyptdata->client->irq,tchkeypt_irq_handler,IRQF_TRIGGER_FALLING,"tchkeypt_ps_irq", tchkeyptdata);
 	error = request_irq (tchkeyptdata->client->irq,tchkeypt_irq_handler,IRQF_TRIGGER_LOW,"tchkeypt_ps_irq", tchkeyptdata);
 
 	if (error) {
@@ -2068,12 +2319,7 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 	if(tchkeyptdata->check_ver_flag && rc)	//firmware version check success
 	{	
 		printk("[TCHKEYPT]Check Version is Success\n");
-		
 		tchkeypt_compare_fw_fwfile_ver();
-		if(tchkeyptdata->ic_fw_ver[0]==0xFF && tchkeyptdata->ic_fw_ver[1]==0xFF){
-			printk("[TCHKEYPT][%s] Fw ver is FF\n",__func__);
-			tchkeyptdata->need_fw_update = 2; // forced need fw update
-	}
 	}
 	else
 	{	
@@ -2155,10 +2401,6 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	//printk("[TCHKEYPT]CONFIG_HAS_EARLYSUSPEND\n");
-
-//	tchkeyptdata->	pend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1; //front touch
-//	tchkeyptdata->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 2;
 	tchkeyptdata->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN -1;	// 49 
 	tchkeyptdata->early_suspend.suspend = tchkey_early_suspend;
 	tchkeyptdata->early_suspend.resume = tchkey_late_resume;
@@ -2176,10 +2418,22 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 	return err;
 
 err_exit:
-	if (tchkeyptdata->tchkeypt) {
-		input_free_device(tchkeyptdata->tchkeypt);
+	if(err_g)
+	{
+		if (tchkeyptdata->tchkeypt_gesture) {
+			input_free_device(tchkeyptdata->tchkeypt_gesture);
 	}
+	}
+	
+#ifdef MOUSE_MODE
+	else if(err_m)
+	{
+		if (tchkeyptdata->tchkeypt_mouse) {
+			input_free_device(tchkeyptdata->tchkeypt_mouse);
+	}
+#endif
 
+	}
 	if (tchkeyptdata != NULL) {
 		kfree(tchkeyptdata);
 	}
@@ -2187,8 +2441,113 @@ err_exit:
 	return -EIO;
 }
 
-static int __devexit 
-	tchkeypt_remove(struct i2c_client *client)
+static int tchkeypt_probe_gesture(struct i2c_client *client)
+{
+	int ret = 0;
+	int err = 0;
+	
+	tchkeyptdata->tchkeypt_gesture = input_allocate_device();
+	if (!tchkeyptdata->tchkeypt_gesture) {
+		dbg("[%s] err input allocate device\n",__func__);
+		err = -ENOMEM;
+		return err;
+	}
+
+	tchkeyptdata->tchkeypt_gesture = tchkeyptdata->tchkeypt_gesture;
+	tchkeyptdata->tchkeypt_gesture->name = TCHKEYPT_DRV_NAME_GESTURE;
+	tchkeyptdata->tchkeypt_gesture->dev.parent = &client->dev;
+
+	set_bit(EV_KEY, tchkeyptdata->tchkeypt_gesture->evbit);
+	set_bit(EV_ABS, tchkeyptdata->tchkeypt_gesture->evbit);
+    set_bit(EV_SYN, tchkeyptdata->tchkeypt_gesture->evbit);
+
+	set_bit(INPUT_PROP_DIRECT, tchkeyptdata->tchkeypt_gesture->propbit);	//for divide back touch device
+
+	set_bit(BTN_TOUCH, tchkeyptdata->tchkeypt_gesture->keybit);
+
+
+#ifdef MULTI_TOUCH
+	input_mt_init_slots(tchkeyptdata->tchkeypt_gesture, MAX_NUM_FINGER);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_TOOL_WIDTH, 0, 15, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_MT_POSITION_X, 0, RESOLUTION_X_GESTURE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_MT_POSITION_Y, 0, RESOLUTION_Y_GESTURE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_MT_WIDTH_MAJOR, 0, 15, 0, 0);
+#endif
+
+#ifdef SINGLE_TOUCH
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_X, 0, RESOLUTION_X_GESTURE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_Y, 0, RESOLUTION_Y_GESTURE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_Z, 0, 255, 0, 0);	//for divide back touch device 
+#endif
+
+	ret = input_register_device(tchkeyptdata->tchkeypt_gesture);
+	if (ret) {
+		dbg("[%s] tchkeypt : Failed to register input device\n",__func__);
+		err = -ENOMEM;
+		return err;
+	}
+	input_set_drvdata(tchkeyptdata->tchkeypt_gesture, tchkeyptdata);
+
+	return 0;
+}
+
+#ifdef MOUSE_MODE
+static int tchkeypt_probe_mouse(struct i2c_client *client)
+{
+	int ret = 0;
+	int err = 0;
+	
+	tchkeyptdata->tchkeypt_mouse = input_allocate_device();
+	if (!tchkeyptdata->tchkeypt_mouse) {
+		dbg("[%s] err input allocate device\n",__func__);
+		err = -ENOMEM;
+		return err;
+	}
+
+	tchkeyptdata->tchkeypt_mouse = tchkeyptdata->tchkeypt_mouse;
+	tchkeyptdata->tchkeypt_mouse->name = TCHKEYPT_DRV_NAME_MOUSE;
+	tchkeyptdata->tchkeypt_mouse->dev.parent = &client->dev;
+
+	set_bit(EV_KEY, tchkeyptdata->tchkeypt_mouse->evbit);
+	set_bit(EV_ABS, tchkeyptdata->tchkeypt_mouse->evbit);
+    set_bit(EV_SYN, tchkeyptdata->tchkeypt_mouse->evbit);
+	set_bit(BTN_TOUCH, tchkeyptdata->tchkeypt_mouse->keybit);
+#ifdef MOUSE_MODE_DOUBLE_TAP
+	set_bit(BTN_LEFT, tchkeyptdata->tchkeypt_mouse->keybit);
+#endif
+#ifdef MULTI_TOUCH
+	input_mt_init_slots(tchkeyptdata->tchkeypt_mouse, MAX_NUM_FINGER);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_TOOL_WIDTH, 0, 15, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_MT_POSITION_X, 0, RESOLUTION_X_MOUSE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_MT_POSITION_Y, 0, RESOLUTION_Y_MOUSE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_MT_WIDTH_MAJOR, 0, 15, 0, 0);
+#endif
+
+#ifdef SINGLE_TOUCH
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_X, 0, RESOLUTION_X_MOUSE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_Y, 0, RESOLUTION_Y_MOUSE-1, 0, 0);
+	//+US1-CF1
+	input_set_abs_params(tchkeyptdata->tchkeypt_mouse, ABS_Z, 0, 255, 0, 0);	//for divide back touch device 
+	//-US1-CF1
+#endif
+
+	ret = input_register_device(tchkeyptdata->tchkeypt_mouse);
+	if (ret) {
+		dbg("[%s] tchkeypt : Failed to register input device\n",__func__);
+		err = -ENOMEM;
+		return err;
+	}
+	input_set_drvdata(tchkeyptdata->tchkeypt_mouse, tchkeyptdata);
+
+	return 0;
+}
+#endif
+
+static int __devexit tchkeypt_remove(struct i2c_client *client)
 {
 	int rc = 0;
 	dbg_func_in();
@@ -2228,7 +2587,9 @@ typedef enum {
 	
 	BACKTOUCH_IOCTL_TURN_ON = 4011,	
 	BACKTOUCH_IOCTL_TURN_OFF,
-	
+#ifdef MOUSE_MODE
+	BACKTOUCH_IOCTL_TURN_MOUSE_ON,
+#endif	
 	BACKTOUCH_IOCTL_TEST_TURN_ON = 4021,
 	BACKTOUCH_IOCTL_TEST_TURN_OFF,
 	BACKTOUCH_IOCTL_CHECK_FW_IC,
@@ -2255,6 +2616,7 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 {
 	int nBufSize=0;
 	u8 cmd[2] = {0,};
+	u8 data[2] = {0,};
 	if((size_t)(*ppos) > 0) 
 		return 0;
 
@@ -2265,7 +2627,7 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 		{
 			queue_work(tchpad_wq, &tchkeyptdata->work);
 		}
-		if(strncmp(buf, "tchkeypton", 10)==0)	// Normal mode
+		if(strncmp(buf, "tchkeypton", 10)==0)	// Gesture mode
 		{			
 			tchkeypt_status_change_mode(1);
 		}
@@ -2328,7 +2690,6 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 
 		if(strncmp(buf, "disableirq", 10) == 0)
 		{
-			//disable_irq(tchkeyptdata->client->irq);
             
 			disable_irq(tchkeyptdata->client->irq);
 		
@@ -2345,13 +2706,21 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
             tchkey_enable_irq(DISABLE_IRQ);
 		}
 
-		if(strncmp(buf, "active", 6) == 0)
+		if(strncmp(buf, "gflagon", 7) == 0)
 		{
 			//disable_irq(tchkeyptdata->client->irq);
-            		tchkeyptdata->setting_mode = BACK_TOUCH_ON;
+            tchkeyptdata->setting_mode = BACK_TOUCH_ON_GESTURE;
 		}
 
-		if(strncmp(buf, "lcdon", 5)==0)	// Normal mode
+#ifdef MOUSE_MODE		
+		if(strncmp(buf, "mflagon", 7) == 0)
+		{	
+			//disable_irq(tchkeyptdata->client->irq);
+            tchkeyptdata->setting_mode = BACK_TOUCH_ON_MOUSE;
+		}
+#endif
+		
+		if(strncmp(buf, "lcdon", 5)==0)	// Gesture mode
 		{	
 		
 			tchkeypt_hwreset();
@@ -2359,7 +2728,7 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 		}
 
 		
-		if(strncmp(buf, "lcdoff", 6)==0)	// Normal mode
+		if(strncmp(buf, "lcdoff", 6)==0)	// Gesture mode
 		{	
 		
 			tchkeypt_hwreset();
@@ -2367,34 +2736,84 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 		}
 		if(strncmp(buf, "plcdon", 6)==0)	// polling check fw in phone
 		{	
-		
-			//disable_irq(tchkeyptdata->client->irq);
             tchkey_enable_irq(DISABLE_IRQ);
 			tchkeypt_hwreset();
-			tchkeypt_normal_mode_polling();
-			//enable_irq(tchkeyptdata->client->irq);
+			tchkeypt_gesture_mode_polling();
             tchkey_enable_irq(ENABLE_IRQ);
 		}
 		if(strncmp(buf, "ptchkeyptoff", 12)==0)	// polling check fw in phone
 		{	
-			//disable_irq(tchkeyptdata->client->irq);
             tchkey_enable_irq(DISABLE_IRQ);
 			tchkeypt_power_down_mode_polling();
-			//enable_irq(tchkeyptdata->client->irq);
             tchkey_enable_irq(ENABLE_IRQ);
 		}
 
 		
-		if(strncmp(buf, "ptchkeypton", 11)==0)	// polling check fw in phone
+		if(strncmp(buf, "gestureon", 9)==0)	// polling check fw in phone
 		{	
-			//disable_irq(tchkeyptdata->client->irq);
             tchkey_enable_irq(DISABLE_IRQ);
-			
-			tchkeypt_normal_mode_polling();
-			//enable_irq(tchkeyptdata->client->irq);
+			tchkeypt_gesture_mode_polling();
             tchkey_enable_irq(ENABLE_IRQ);
 		}
+			
+		
+		if(strncmp(buf, "iogesture", 9) == 0)
+		{
+		
+			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON_GESTURE)
+			{
+				printk("BACK_TOUCH_ON_GESTURE\n");		
+				
+				tchkey_enable_irq(DISABLE_IRQ);
+				
+				tchkeypt_cancel_input();	
+			
+				tchkeyptdata->setting_mode = BACK_TOUCH_ON_GESTURE;
+				mutex_lock(&tchkeyptdata->i2clock); 
+				tchkeypt_gesture_mode_polling();
+				mutex_unlock(&tchkeyptdata->i2clock);	
+            tchkey_enable_irq(ENABLE_IRQ);
+				
+				tchkey_stop_wd_timer(tchkeyptdata);
+				tchkey_start_wd_timer(tchkeyptdata);
+				tchkey_wd_curr_cnt ++;
+		}
 
+		}
+
+#ifdef MOUSE_MODE		
+		if(strncmp(buf, "mouseon", 7)==0) // polling check fw in phone
+		{	
+			tchkey_enable_irq(DISABLE_IRQ);
+			tchkeypt_mouse_mode_polling();
+			tchkey_enable_irq(ENABLE_IRQ);
+		}
+
+		if(strncmp(buf, "iomouse", 7) == 0)
+		{
+		
+			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON_MOUSE)
+			{
+				printk("BACK_TOUCH_ON_MOUSE\n");		
+							
+				tchkey_enable_irq(DISABLE_IRQ);
+				
+				tchkeypt_cancel_input();	
+			
+				tchkeyptdata->setting_mode = BACK_TOUCH_ON_MOUSE;
+				mutex_lock(&tchkeyptdata->i2clock); 
+				tchkeypt_mouse_mode_polling();
+				mutex_unlock(&tchkeyptdata->i2clock);	
+				tchkey_enable_irq(ENABLE_IRQ);
+				
+				tchkey_stop_wd_timer(tchkeyptdata);
+				tchkey_start_wd_timer(tchkeyptdata);
+				tchkey_wd_curr_cnt ++;
+			}
+
+		}
+
+#endif
 		if(strncmp(buf, "initialstruct", 11)==0)	// polling check fw in phone
 		{	
 			tchkeypt_struct_initial();
@@ -2425,6 +2844,19 @@ static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *p
 		{
 			tchkeyptdata->dbg_op = 3;
 		}
+
+		
+		if(strncmp(buf,"printmode",9) ==0)
+		{
+			
+			tchkey_enable_irq(DISABLE_IRQ);
+			tchkeypt_i2c_read_done(TCHKEYPT_CHECK_MODE,&data[0],1);
+			tchkey_enable_irq(ENABLE_IRQ);
+
+			
+			printk("Setting Flag:[%d],Current Mode:[%d]\n",tchkeyptdata->setting_mode,data[0]);
+			
+	}
 
 	}
 	*ppos +=nBufSize;
@@ -2457,11 +2889,18 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			//disable_irq(tchkeyptdata->client->irq);
 
 			tchkey_enable_irq(DISABLE_IRQ);
-			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON)
-			{	// self test mode -> normal mode
-				printk("Self Test Mode => Normal Mode\n");			
-				ret = tchkeypt_normal_mode_polling();
+			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
+			{	// self test mode -> gesture mode
+				printk("Self Test Mode => Gesture Mode\n");			
+				ret = tchkeypt_gesture_mode_polling();
             }
+#ifdef MOUSE_MODE
+			else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
+			{	// self test mode -> mouse mode
+				printk("Self Test Mode => Mouse Mode\n"); 		
+				ret = tchkeypt_mouse_mode_polling();
+			}
+#endif
 			else
 			{	// self test mode -> power down mode
 				printk("Self Test Mode => Power Down Mode\n");			
@@ -2507,20 +2946,23 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 
 		case BACKTOUCH_IOCTL_TURN_ON:
-			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON)
+			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON_GESTURE)
 			{
-				printk("CMD BackTouch Turn ON\n");			
+				printk("CMD BACKTOUCH_IOCTL_TURN_GESTURE_ON\n");		
 				
 				tchkey_enable_irq(DISABLE_IRQ);
 
-				tchkeyptdata->setting_mode = BACK_TOUCH_ON;
+				tchkeypt_cancel_input();	
+			
+				tchkeyptdata->setting_mode = BACK_TOUCH_ON_GESTURE;
 				mutex_lock(&tchkeyptdata->i2clock); 
-			ret = tchkeypt_normal_mode_polling();
+				tchkeypt_gesture_mode_polling();
 				mutex_unlock(&tchkeyptdata->i2clock); 	
 				tchkey_enable_irq(ENABLE_IRQ);
 				
 				tchkey_stop_wd_timer(tchkeyptdata);
 				tchkey_start_wd_timer(tchkeyptdata);
+				tchkey_wd_curr_cnt ++;
 				tchkey_wd_curr_cnt ++;
             }
 			break;
@@ -2532,7 +2974,7 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				tchkeyptdata->setting_mode = BACK_TOUCH_OFF;
 			
 				tchkey_enable_irq(DISABLE_IRQ);
-			tchkey_cancel_input();	
+				tchkeypt_cancel_input();	
 
 				mutex_lock(&tchkeyptdata->i2clock); 
 			ret = tchkeypt_power_down_mode_polling();
@@ -2544,41 +2986,91 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}		
 			break;
 		
+#ifdef MOUSE_MODE
+		case BACKTOUCH_IOCTL_TURN_MOUSE_ON:
+			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON_MOUSE)
+			{
+				printk("CMD BACKTOUCH_IOCTL_TURN_MOUSE_ON\n");		
+				
+				tchkey_enable_irq(DISABLE_IRQ);
+				
+				tchkeypt_cancel_input();	
+			
+				tchkeyptdata->setting_mode = BACK_TOUCH_ON_MOUSE;
+				mutex_lock(&tchkeyptdata->i2clock); 
+				tchkeypt_mouse_mode_polling();
+				mutex_unlock(&tchkeyptdata->i2clock);	
+				tchkey_enable_irq(ENABLE_IRQ);
+				
+				tchkey_stop_wd_timer(tchkeyptdata);
+				tchkey_start_wd_timer(tchkeyptdata);
+				tchkey_wd_curr_cnt ++;
+			}
+			break;
+#endif		
 		case BACKTOUCH_IOCTL_TEST_TURN_ON:
-        	if(tchkeyptdata->setting_mode != BACK_TOUCH_ON) {
+        	if(tchkeyptdata->setting_mode != BACK_TOUCH_ON_GESTURE) {
 				printk("TEST CMD Turn ON\n");			
-				//disable_irq(tchkeyptdata->client->irq);
                 tchkey_enable_irq(DISABLE_IRQ);
 				mutex_lock(&tchkeyptdata->i2clock); 
-				ret = tchkeypt_normal_mode_polling();
+				ret = tchkeypt_gesture_mode_polling();
             mutex_unlock(&tchkeyptdata->i2clock); 			
-				//enable_irq(tchkeyptdata->client->irq);
                 tchkey_enable_irq(ENABLE_IRQ);
             }		
 			break;
 
 		case BACKTOUCH_IOCTL_TEST_TURN_OFF:
-			if(tchkeyptdata->setting_mode != BACK_TOUCH_ON) 
+			if(tchkeyptdata->setting_mode == BACK_TOUCH_OFF) 
 			{
-				printk("TEST CMD Turn OFF\n");			
-				//disable_irq(tchkeyptdata->client->irq);
+				printk("TEST CMD Turn OFF,BACK_TOUCH_OFF\n");			
 	           	tchkey_enable_irq(DISABLE_IRQ);
 				mutex_lock(&tchkeyptdata->i2clock); 
 				ret = tchkeypt_power_down_mode_polling();
             mutex_unlock(&tchkeyptdata->i2clock); 			
-				//enable_irq(tchkeyptdata->client->irq);
 	           	tchkey_enable_irq(ENABLE_IRQ);
 	        }
+			else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE) 
+			{
+				printk("TEST CMD Turn OFF,BACK_TOUCH_ON_GESTURE\n");	
+				tchkey_enable_irq(DISABLE_IRQ);
+				mutex_lock(&tchkeyptdata->i2clock); 
+				ret = tchkeypt_gesture_mode_polling();
+				mutex_unlock(&tchkeyptdata->i2clock);			
+				tchkey_enable_irq(ENABLE_IRQ);
+				
+	        }
+
+#ifdef MOUSE_MODE
+			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE) 
+			{
+				printk("TEST CMD Turn OFF,BACK_TOUCH_ON_MOUSE\n");			
+				tchkey_enable_irq(DISABLE_IRQ);
+				mutex_lock(&tchkeyptdata->i2clock); 
+				ret = tchkeypt_mouse_mode_polling();
+				mutex_unlock(&tchkeyptdata->i2clock);			
+				tchkey_enable_irq(ENABLE_IRQ);
+			}
+
+#endif
 			break;
 
 		case BACKTOUCH_IOCTL_CHECK_FW_IC:
 			mutex_lock(&tchkeyptdata->i2clock); 
 			printk("Check fw IC\n");			
+
+			INIT_COMPLETION(tchkeyptdata->check_ver_completion);
+			
 			tchkeypt_check_firmware_ver();
+			
+			ret = wait_for_completion_interruptible_timeout(&tchkeyptdata->check_ver_completion, msecs_to_jiffies(3000));
+
+			if(!ret)
+				printk("Check IC FW Failed.[%d]\n",ret);
+			
 			tchkeyptdata->fwfile_ver[0] = rawData[32528];	// Major version
 			tchkeyptdata->fwfile_ver[1] = rawData[32529];	// Minor version
+
 			mutex_unlock(&tchkeyptdata->i2clock); 
-			msleep(50);
 			break;
 
 		case BACKTOUCH_IOCTL_CHECK_IC_FW_MAJOR_VER:
@@ -2628,7 +3120,7 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 			mutex_lock(&tchkeyptdata->i2clock); 
 			printk("FW UPDATE START\n");
-//			tchkeypt_fwupdate_array();
+
 			tchkeypt_interrupt_only_wave();
 			
 			ret = tchkeypt_fwupdate_start_array();
@@ -2644,12 +3136,16 @@ static long ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			//disable_irq(tchkeyptdata->client->irq);
 			tchkey_enable_irq(DISABLE_IRQ);
 			mutex_lock(&tchkeyptdata->i2clock); 
-			ret = tchkeypt_normal_mode_polling();
+			ret = tchkeypt_gesture_mode_polling();
 			mutex_unlock(&tchkeyptdata->i2clock);			
-			//enable_irq(tchkeyptdata->client->irq);
 			tchkey_enable_irq(ENABLE_IRQ);
-			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON) 
+			if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE) 
 				tchkey_start_wd_timer(tchkeyptdata);
+#ifdef MOUSE_MODE
+			else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE) 
+				tchkey_start_wd_timer(tchkeyptdata);
+
+#endif
 			break;
 			
 		case BACKTOUCH_IOCTL_START_KEEPALIVE:

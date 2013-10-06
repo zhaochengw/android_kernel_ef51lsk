@@ -43,7 +43,11 @@
 
 //#define I2C_LOG_PRINT
 //#define ISP_LOGEVENT_PRINT
+#define AF_FLASH
 
+#ifdef AF_FLASH
+static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
+#endif
 #ifdef ISP_LOGEVENT_PRINT
 #include <linux/file.h>
 #include <linux/vmalloc.h>
@@ -70,14 +74,14 @@
 #define CE1502_87_FW_BIN_F			"/CE150F03_87.bin"
 
 #define CE1502_81_FW_MAJOR_VER	81
-#define CE1502_81_FW_MINOR_VER	6
+#define CE1502_81_FW_MINOR_VER	8
 #define CE1502_81_PRM_MAJOR_VER	81
-#define CE1502_81_PRM_MINOR_VER	7
+#define CE1502_81_PRM_MINOR_VER	9
 
 #define CE1502_71_FW_MAJOR_VER	71
-#define CE1502_71_FW_MINOR_VER	14
+#define CE1502_71_FW_MINOR_VER	16
 #define CE1502_71_PRM_MAJOR_VER	71
-#define CE1502_71_PRM_MINOR_VER	17
+#define CE1502_71_PRM_MINOR_VER	19
 
 #define CE1502_83_FW_MAJOR_VER	83
 #define CE1502_83_FW_MINOR_VER	2
@@ -85,9 +89,9 @@
 #define CE1502_83_PRM_MINOR_VER	2
 
 #define CE1502_87_FW_MAJOR_VER	87
-#define CE1502_87_FW_MINOR_VER	236
-#define CE1502_87_PRM_MAJOR_VER	236
-#define CE1502_87_PRM_MINOR_VER	1
+#define CE1502_87_FW_MINOR_VER	230
+#define CE1502_87_PRM_MAJOR_VER	87
+#define CE1502_87_PRM_MINOR_VER	230
 
 #endif
 
@@ -1189,7 +1193,10 @@ int32_t ce1502_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 #if 1 //def F_PANTECH_CAMERA_FIX_CFG_AE_AWB_LOCK
     aec_awb_lock = 0x02;
 #endif
-    
+
+#ifdef AF_FLASH
+    flash_flag =0;
+#endif    
     SKYCDBG("%s X (%d)\n", __func__, rc);
     return rc;
 
@@ -1200,6 +1207,9 @@ int32_t ce1502_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
     int32_t rc = 0;
     SKYCDBG("%s\n", __func__);
 
+#ifdef AF_FLASH
+    flash_flag =0;
+#endif
 //    ce1502_lens_stability(s_ctrl);
     ce1502_set_led_gpio_set(0);
     
@@ -2281,6 +2291,48 @@ static int32_t ce1502_sensor_set_auto_focus(struct msm_sensor_ctrl_t *s_ctrl, in
 #endif	
         return rc;
     }
+    
+#ifdef AF_FLASH
+    SKYCDBG("%s[SD_check] flash_flag = %d / ce1502_lens_stop\n",__func__, flash_flag);
+
+    rc = ce1502_lens_stop(s_ctrl);
+
+    switch(flash_flag)
+    {
+    
+        case 1: //on
+    		data_buf[0] = 0x01;
+    		data_buf[1] = 0x04;//auto //0x03;//on
+    		rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);
+            break;
+        case 2: //auto
+    		data_buf[0] = 0x01;
+    		data_buf[1] = 0x04;
+    		rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);    
+            break;
+        default:// off or other
+#if 0		
+            data_buf[0] = 0x01;
+            data_buf[1] = 0x00; //0x01;  //AF flash off
+            rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);        
+#endif
+            break;
+    }
+#if 1 // temp // AF-T state check  
+        if(continuous_af_mode == 2)
+        {
+            data_buf[0] = 0x01;
+            rc = ce1502_cmd(s_ctrl, 0x2C, data_buf, 1);
+SKYCDBG("%s[SD_check] if(continuous_af_mode == 2)  //resume AF / \n",__func__);            
+            if (rc < 0)
+            {
+                SKYCERR("ERR:%s FAIL!!!rc=%d return~~\n", __func__, rc);
+                return rc;
+            }   
+        }       
+#endif
+
+#endif
     
 #if 1 // AF-T state check
     if(continuous_af_mode != 0)
@@ -3855,6 +3907,10 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
     if(led_mode != 6)
         rc = ce1502_lens_stop(s_ctrl);
 
+#ifdef AF_FLASH
+    if(led_mode)
+        ce1502_set_led_gpio_set(led_mode);
+#endif
     //control ce1502 isp gpio
     switch(led_mode)
     {
@@ -3875,6 +3931,9 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
 	
         mdelay(10);
         rc = ce1502_set_led_gpio_set(led_mode);
+#ifdef AF_FLASH
+        flash_flag = 0;//off
+#endif
         break;
         
     case 1: // auto
@@ -3914,6 +3973,9 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x04, data_buf, 2);
         rc = ce1502_01_command(s_ctrl);
 #endif	
+#ifdef AF_FLASH  
+        flash_flag = 2;//auto
+#endif
     break;	
 
     case 2: // on
@@ -3953,12 +4015,16 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x04, data_buf, 2);
         rc = ce1502_01_command(s_ctrl);
 #endif
+#ifdef AF_FLASH 
+        flash_flag = 1;//on
+#endif
         break;
 
     case 3: // torch
         SKYCDBG("CE1502_CFG_LED_MODE_MOVIE SET\n");
+#ifndef AF_FLASH       
         rc = ce1502_set_led_gpio_set(led_mode);
-
+#endif
         data_buf[0] = 0x01;
         data_buf[1] = 0x00;
         rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);
@@ -3985,15 +4051,18 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
 
         mdelay(10);
+#ifndef AF_FLASH 
         rc = ce1502_set_led_gpio_set(0);
+#endif
         rc = 0;
         
         break;
         
     case 5: // LED_MODE_ZSL_FLASH_ON for ZSL flash
         SKYCDBG("LED_MODE_ZSL_FLASH_ON SET\n");
-
+#ifndef AF_FLASH 
         rc = ce1502_set_led_gpio_set(1);
+#endif
         data_buf[0] = 0x13;
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
 
@@ -4011,8 +4080,9 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
 
     case 7: // LED_MODE_ZSL_TORCH_AUTO for ZSL flash
         SKYCDBG("LED_MODE_ZSL_TORCH_AUTO SET\n");
-
+#ifndef AF_FLASH  
         rc = ce1502_set_led_gpio_set(1);
+#endif
         data_buf[0] = 0x13;
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
 
@@ -4047,15 +4117,18 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
             data_buf[0] = 0x00;
             rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
             mdelay(10);
+#ifndef AF_FLASH 
             rc = ce1502_set_led_gpio_set(0);
+#endif
         }        
         rc = 0;
         break;
         
     case 4: // torch flash for 4648 test mode
         SKYCDBG("CE1502_CFG_LED_MODE_MOVIE SET\n");
+#ifndef AF_FLASH          
         rc = ce1502_set_led_gpio_set(led_mode);
-
+#endif
         data_buf[0] = 0x01;
         data_buf[1] = 0x00;
         rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);
@@ -4116,6 +4189,7 @@ static int ce1502_set_hdr(struct msm_sensor_ctrl_t *s_ctrl)
     else
     {
         rc = ce1502_cmd(s_ctrl, 0x74, 0, 0);
+	    mdelay(50);
     }
 
     SKYCDBG("%s end\n",__func__);

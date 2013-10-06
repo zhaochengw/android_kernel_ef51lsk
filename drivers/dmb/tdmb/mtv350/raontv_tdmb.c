@@ -1478,7 +1478,9 @@ INT rtvTDMB_ScanFrequency(U32 dwChFreqKHz)
 	fail = 0xFFFF;
 
 	while(1)
-	{			
+	{
+		scan_flag = RTV_CHANNEL_NOT_DETECTED;
+
 		if(++nReTryCnt == 10000) /* Up to 400ms */
 		{
 			RTV_DBGMSG0("[rtvTDMB_ScanFrequency] Scan Timeout! \n");
@@ -1674,6 +1676,8 @@ INT rtvTDMB_ScanFrequency(U32 dwChFreqKHz)
 				
 				goto TDMB_SCAN_EXIT;		/* Auto-scan result return */
 			}
+
+			//////debug.. agc, lna gain, gvv,  
 			else if(scan_done == 0x03)	/* DAB signal channel */
 			{
 				RTV_REG_MAP_SEL(OFDM_PAGE); 
@@ -1895,6 +1899,8 @@ INT rtvTDMB_ScanFrequency(U32 dwChFreqKHz)
 	fail = 0xFF0F;	
 	
 TDMB_SCAN_EXIT:
+	RTV_REG_MAP_SEL(RF_PAGE); 
+	RTV_REG_SET(0x6b, 0xC5);
 
 	RTV_GUARD_FREE;
 	
@@ -1902,7 +1908,11 @@ TDMB_SCAN_EXIT:
 
 	g_dwTdmbPrevChFreqKHz = dwChFreqKHz;
 
-	//RTV_DBGMSG1("[rtvTDMB_ScanFrequency] 0x%04X\n", fail);
+#if 1
+	RTV_DBGMSG2("[rtvTDMB_ScanFrequency] RF Freq = %d PreGain = %d ",dwChFreqKHz, PreGain);
+	RTV_DBGMSG3(" 0x%04X SPower= %d CoarseFreq = %d ", fail,SPower, CoarseFreq);
+	RTV_DBGMSG3("   m = %d i = %d j= %d\n",m,i,j);
+#endif
 	
 	return scan_flag;	  /* Auto-scan result return */
 }
@@ -1955,9 +1965,10 @@ INT rtvTDMB_Initialize(E_RTV_COUNTRY_BAND_TYPE eRtvCountryBandType)
 		return nRet;
 
 	RTV_DELAY_MS(100);
+	rtvRF_SetFrequency(RTV_TV_MODE_TDMB, 0, 175280);
 	  
 	RTV_REG_MAP_SEL(RF_PAGE); 
-	RTV_REG_SET( 0x6b,  0xC5);
+	RTV_REG_SET(0x6b, 0xB5);
 
 #ifdef RTV_CIF_MODE_ENABLED
 	RTV_DBGMSG0("[rtvTDMB_Initialize] CIF enabled\n");

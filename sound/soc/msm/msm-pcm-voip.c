@@ -182,6 +182,13 @@ char rx_temp[640] = {0,};
 EXPORT_SYMBOL(rx_temp);
 EXPORT_SYMBOL(record_size);
 
+ //-->20130214 jhsong : volte rec tx buffer too small
+char tx_temp[640] = {0,};
+/*static */int tx_record_size = 0;
+EXPORT_SYMBOL(tx_temp);
+EXPORT_SYMBOL(tx_record_size);
+ //<--20130214 jhsong : volte rec tx buffer too small
+
 bool bUseSKYDirectADSP = false;//kkc 2012.08.15 - change variable name "bUseMVSVoip" to "bUseSKYDirectADSP"
 EXPORT_SYMBOL(bUseSKYDirectADSP);
 #else
@@ -382,6 +389,14 @@ static void voip_process_ul_pkt(uint8_t *voc_pkt,
 			memcpy(&buf_node->frame.voc_pkt[0],
 				voc_pkt,
 				buf_node->frame.len);
+ //-->20130214 jhsong : volte rec tx buffer too small
+#ifdef USE_SKY_DIRECT_ADSP
+			memcpy(tx_temp,
+				&buf_node->frame.voc_pkt[0],
+				buf_node->frame.len);
+                tx_record_size = buf_node->frame.len;
+#endif
+ //<--20130214 jhsong : volte rec tx buffer too small
 			list_add_tail(&buf_node->list, &prtd->out_queue);
 		}
 		}
@@ -860,6 +875,9 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
     //navan - 2012.09.27 - for VoLTE Recording
     memset(rx_temp,0x00,sizeof(rx_temp));
     record_size = 0;
+
+    memset(tx_temp,0x00,sizeof(tx_temp));
+    tx_record_size = 0;
 #endif
 
 	if (substream == NULL) {

@@ -32,6 +32,10 @@ extern char rx_temp[640];
 extern /*static */bool bRecordingFlag;
 extern /*static */int record_size;
 
+//-->20130214 jhsong : volte rec tx buffer too small
+extern char tx_temp[640];
+extern /*static */int tx_record_size;
+//<--20130214 jhsong : volte rec tx buffer too small
 /************************************************************************************************
 ** Variables & Defines
 *************************************************************************************************/
@@ -64,7 +68,9 @@ static ssize_t sky_direct_adsp_read(struct file *filp, char __user *buffer, size
     }
     if(rec_ind == 0xff)
     {
+      int rx_record_size_retVal = 0; // 20130417 jmlee add  volte recording noise fix
       if(length < record_size) return 0;
+      if(record_size == 0) return 0;  // 20130417 jmlee add  volte recording noise fix
 
       spin_lock(&pcm_read_lock);
       if(copy_to_user((void __user *)buffer, rx_temp, record_size))
@@ -75,8 +81,41 @@ static ssize_t sky_direct_adsp_read(struct file *filp, char __user *buffer, size
       memset(rx_temp, 0x0, sizeof(rx_temp));
       //bRecordingFlag = true;
       spin_unlock(&pcm_read_lock);
-      return record_size;
+
+
+	rx_record_size_retVal =  record_size;   // 20130417 jmlee add  volte recording noise fix
+	record_size = 0;
+      //return record_size;
+      return rx_record_size_retVal;  // 20130417 jmlee add  volte recording noise fix
     }
+
+ //-->20130214 jhsong : volte rec tx buffer too small
+     if(rec_ind == 0xfe)
+    {
+    
+       int tx_record_size_retVal = 0; // jmlee add
+       
+      if(length < tx_record_size) return 0;
+      if(tx_record_size == 0) return 0;  // 20130417 jmlee add  volte recording noise fix
+
+      spin_lock(&pcm_read_lock);
+      if(copy_to_user((void __user *)buffer, tx_temp, tx_record_size))
+      {
+        spin_unlock(&pcm_read_lock);
+        return 0;
+      }
+      memset(tx_temp, 0x0, sizeof(tx_temp));
+      //bRecordingFlag = true;
+      
+      tx_record_size_retVal = tx_record_size;  // jmlee add
+      tx_record_size = 0;
+	  
+      spin_unlock(&pcm_read_lock);
+	  
+      //return tx_record_size;
+      return tx_record_size_retVal; // jmlee add modify
+    }
+ //<--20130214 jhsong : volte rec tx buffer too small
 
     if(voip_info.mode == MODE_PCM)
     {

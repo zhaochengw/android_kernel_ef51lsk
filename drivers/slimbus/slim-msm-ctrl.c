@@ -2090,6 +2090,11 @@ static int __devinit msm_slim_probe(struct platform_device *pdev)
 
 	msm_slim_prg_slew(pdev, dev);
 
+#if 1 // 20130320 Jimmy, fix gear number (198606 slimbus debug patch)
+	dev->ctrl.min_cg = 10;
+	dev_err(&pdev->dev, "min clock gear: %d\n", dev->ctrl.min_cg);
+#endif
+
 	/* Register with framework before enabling frame, clock */
 	ret = slim_add_numbered_controller(&dev->ctrl);
 	if (ret) {
