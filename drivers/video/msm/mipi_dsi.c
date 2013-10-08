@@ -152,16 +152,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef PANTECH_LCD_BUG_FIX_MDP_BANDWIDTH_REQUEST
-#define OVERLAY_BUS_SCALE_TABLE_BASE    6
-struct mdp4_overlay_perf {
-	u32 mdp_clk_rate;
-	u32 use_ov0_blt;
-	u32 use_ov1_blt;
-	u32 mdp_bw;
-};
-extern struct mdp4_overlay_perf perf_current;
-#endif
 static int mipi_dsi_on(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -175,9 +165,6 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	u32 ystride, bpp, data;
 	u32 dummy_xres, dummy_yres;
 	int target_type = 0;
-#ifdef PANTECH_LCD_BUG_FIX_MDP_BANDWIDTH_REQUEST
-	struct mdp4_overlay_perf *perf_cur = &perf_current;
-#endif
 
 	pr_debug("%s+:\n", __func__);
 

@@ -743,7 +743,7 @@ void kgsl_pwrctrl_clk(struct kgsl_device *device, int state,
 						clk_prepare(pwr->grp_clks[i]);
 
 				if (pwr->pwrlevels[0].gpu_freq > 0)
-				clk_set_rate(pwr->grp_clks[0],
+					clk_set_rate(pwr->grp_clks[0],
 						pwr->pwrlevels
 						[pwr->active_pwrlevel].
 						gpu_freq);

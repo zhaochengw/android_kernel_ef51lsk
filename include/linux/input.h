@@ -469,9 +469,6 @@ struct input_keymap_entry {
 #define KEY_RFKILL		247	/* Key that controls all radios */
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
-// kmh_sensor 121023 Hallsensor 
-//#define KEY_MR_POUCH_OPEN	249	/* Key that MR sensor open */ //hallsensor delete
-//#define KEY_MR_POUCH_CLOSE	250	/* Key that MR sensor close */ //hallsensor delete
 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 

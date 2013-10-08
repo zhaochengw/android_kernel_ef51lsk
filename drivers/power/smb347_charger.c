@@ -41,7 +41,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #define CHARER_IOCTL_MAGIC 'p'
-#define CHARGER_MONITOR_TEST_SET_SMB	_IOR(CHARER_IOCTL_MAGIC, 1, int[2])//#4648 charging
+#define CHARGER_MONITOR_TEST_SET_SMB	_IOR(CHARER_IOCTL_MAGIC, 1, int[3])//#4648 charging
 #define CHARGER_DISCHARGING_TEST_SET_SMB _IOWR(CHARER_IOCTL_MAGIC, 2, int)//#8378522 Charging/Discharging Test
 #define CHARGER_DISCHARGING_TEST_GET_SMB _IOR(CHARER_IOCTL_MAGIC, 3, int)//#8378522 Charging/Discharging Test
 #define CHARGER_CHARGING_TEST_SET_SMB _IOR(CHARER_IOCTL_MAGIC, 4, int[18])//#8378522 Charging/Discharging Test
@@ -872,6 +872,9 @@ void smb347_otg_power(int on)
 {
 	printk("%s Enter on=%d\n", __func__, on);
 	
+	if (!the_chip)
+		return;
+
 	if (on) {
 		smb347_regs_init();
 		smb347_write_reg(REG_CMD_REG_A, OTG_ENABLE);
@@ -1795,6 +1798,8 @@ static void update_heartbeat(struct work_struct *work)
 #else
 	if(!is_chg_plugged_in(chip) && chip->batt_soc < 5) {	
 		chip->update_time = 5000;	// 5 sec
+	} else {
+		chip->update_time = 60000;	// 60 sec
 	}
 #endif	
 	
@@ -1999,9 +2004,6 @@ static irqreturn_t smb347_chg_status_handler(int irq, void *dev)
 
 	smb347_read_reg(REG_INT_STAT_C, &data);
 //	printk("37H : 0x%x\n", data);
-	if(data&0x8)
-		return IRQ_HANDLED;
-	
 	if(data&0x02) {
 		printk("Termination Charging Current Hit IRQ\n");
 #ifdef SMB347_CHARGER_IC	
@@ -2009,6 +2011,9 @@ static irqreturn_t smb347_chg_status_handler(int irq, void *dev)
 #endif
 	}
 
+	if(data&0x8)
+		return IRQ_HANDLED;
+	
 #ifdef SMB358_CHARGER_IC	
 	if(data&0x20) {
 		printk("Re-Charging Battery Threshold IRQ\n");
@@ -2169,7 +2174,7 @@ static long smb347_charger_test_misc_ioctl(struct file *file,
 	int rc;
 	u8 rdData = 0;
 	int i;
-	int mval[2];
+	int mval[3];
 	int cval[18];
 	int enb=0;
 	switch (cmd) {
@@ -2185,6 +2190,10 @@ static long smb347_charger_test_misc_ioctl(struct file *file,
 				the_chip->charge_output_voltage = 0;
 			
 			mval[1] = the_chip->charge_output_voltage;
+
+			smb347_read_reg((0x3D), &rdData);
+			mval[2] = rdData & 0x48;
+
 			rc = copy_to_user((void *)arg, mval, sizeof(mval));
 			break;
 
