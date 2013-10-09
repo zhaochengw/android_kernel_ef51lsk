@@ -984,7 +984,6 @@ void mipi_dsi_controller_cfg(int enable)
 
 	uint32 dsi_ctrl;
 	uint32 status;
-#ifdef CONFIG_F_SKYDISP_QCBUGFIX_CONTINUOUS_SPLASH_SCREEN
 	u32 sleep_us = 1000;
 	u32 timeout_us = 16000;
 
@@ -1008,32 +1007,6 @@ void mipi_dsi_controller_cfg(int enable)
 			   ((status & 0x08) == 0),
 			       sleep_us, timeout_us))
 		pr_info("%s: DSI status=%x failed\n", __func__, status);
-#else
-	int cnt;
-
-	cnt = 16;
-	while (cnt--) {
-		status = MIPI_INP(MIPI_DSI_BASE + 0x0004);
-		status &= 0x02;		/* CMD_MODE_DMA_BUSY */
-		if (status == 0)
-			break;
-		usleep(1000);
-	}
-	if (cnt == 0)
-		pr_info("%s: DSI status=%x failed\n", __func__, status);
-
-	cnt = 16;
-	while (cnt--) {
-		status = MIPI_INP(MIPI_DSI_BASE + 0x0008);
-		status &= 0x11111000;	/* x_HS_FIFO_EMPTY */
-		if (status == 0x11111000)	/* all empty */
-			break;
-		usleep(1000);
-	}
-
-	if (cnt == 0)
-		pr_info("%s: FIFO status=%x failed\n", __func__, status);
-#endif
 
 	dsi_ctrl = MIPI_INP(MIPI_DSI_BASE + 0x0000);
 	if (enable)
@@ -1562,19 +1535,10 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
 	wmb();
 	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
 
-  /* Pantehc, LCD-timming */
-#if (1) // kkcho_temp def CONFIG_FB_PANTECH_MIPI_DSI_ROHM
-	wait_for_completion_timeout(&dsi_dma_comp, 50UL); // 10 -> 5 flick cursor
-#else
-	wait_for_completion(&dsi_dma_comp);
-#endif
-
-#ifdef FEATURE_SKYDISP_RESET_FIX_SECOND_METHOD	
-	if(tp->dmap == 0){
-		pr_err("%s: tp->dmap is NULL before dma_unmap_single\n", __func__);
-		return 0;
+	if (!wait_for_completion_timeout(&dsi_dma_comp,
+					msecs_to_jiffies(200))) {
+		pr_err("%s: dma timeout error\n", __func__);
 	}
-#endif
 
 	dma_unmap_single(&dsi_dev, tp->dmap, tp->len, DMA_TO_DEVICE);
 	tp->dmap = 0;

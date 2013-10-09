@@ -134,7 +134,9 @@ void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 		else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
 			mdp4_lcdc_free_base_pipe(mfd);
 	} else if (hdmi_prim_display || mfd->index == 1) {
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL  // [LS5], 20121120, kkcho
 		mdp4_dtv_free_base_pipe(mfd);
+#endif
 	}
 }
 
@@ -1757,10 +1759,6 @@ int mdp4_mixer_info(int mixer_num, struct mdp_mixer_info *info)
 		info->pnum = pipe->pipe_num;
 		info->pndx = pipe->pipe_ndx;
 		info->mixer_num = pipe->mixer_num;
-#if 0
-		pr_err("*** %s: info->ptype=%d, info->pnum, info->pndx=%d, info->mixer_num=%d\n"
-				, __func__, info->ptype, info->pnum, info->pndx, info->mixer_num);
-#endif
 		info++;
 		cnt++;
 	}
