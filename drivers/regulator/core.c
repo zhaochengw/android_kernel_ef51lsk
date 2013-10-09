@@ -1990,14 +1990,6 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	int prev_min_uV, prev_max_uV;
 	int ret = 0;
 
-	
-	/*if (!strncmp("8921_s5", rdev_get_name(rdev), 7)) 
-	{
-		pr_err("ALRAN %s, %d, %d\n", __func__, min_uV, max_uV);
-		dump_stack();
-	}*/
-
-
 	mutex_lock(&rdev->mutex);
 
 	/* If we're setting the same range as last time the change

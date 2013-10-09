@@ -3173,11 +3173,11 @@ static struct platform_device *cdp_devices[] __initdata = {
 	#else
 	&apq8064_device_uart_gsbi7,
 	#endif
+	&apq8064_msm_mpd_device,
 	&msm_device_sps_apq8064,
 #ifdef CONFIG_MSM_ROTATOR
 	&msm_rotator_device,
 #endif
-	&apq8064_msm_mpd_device,
 	&msm8064_pc_cntr,
 	&msm8064_cpu_slp_status,
 };
@@ -4111,6 +4111,11 @@ static void __init apq8064_common_init(void)
 		msm_hsic_pdata.log2_irq_thresh = 5,
 		apq8064_device_hsic_host.dev.platform_data = &msm_hsic_pdata;
 		device_initialize(&apq8064_device_hsic_host.dev);
+		if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
+			apq8064_device_ehci_host3.dev.platform_data =
+				&msm_ehci_host_pdata3;
+			device_initialize(&apq8064_device_ehci_host3.dev);
+		}
 	}
 	apq8064_pm8xxx_gpio_mpp_init();
 	apq8064_init_mmc();
@@ -4204,7 +4209,11 @@ static void __init apq8064_cdp_init(void)
 	pr_err("ALRAN:   irq_buf mapped at 0x%08x/size %dKB\n", (unsigned int)temp, ALRANLOGSIZE/4/1024);
 	}
 #endif
-
+#if 0
+	if (machine_is_apq8064_mtp() &&
+		SOCINFO_VERSION_MINOR(socinfo_get_platform_version()) == 1)
+			cyttsp_pdata.sleep_gpio = CYTTSP_TS_GPIO_SLEEP_ALT;
+#endif
 	apq8064_common_init();
 	if (machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
 		machine_is_mpq8064_dtv()) {
