@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,11 @@
 #include "msm_csid_hwreg.h"
 #include "msm.h"
 #include "msm_cam_server.h"
+
+#if 0 //psj_test
+#undef CDBG
+#define CDBG(fmt, args...) printk(KERN_INFO "msm_csid: " fmt, ##args)//pr_debug(fmt, ##args)
+#endif
 
 #define V4L2_IDENT_CSID                            50002
 #define CSID_VERSION_V2                      0x02000011
