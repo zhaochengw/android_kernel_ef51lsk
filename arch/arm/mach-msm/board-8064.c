@@ -3162,6 +3162,7 @@ static struct platform_device *common_devices[] __initdata = {
     &ts5000_i2c_gpio_device,
 #endif //CONFIG_PIEZO_ECO
 #endif /* CONFIG_PIEZO */
+	&apq8064_msm_mpd_device,
 };
 
 static struct platform_device *cdp_devices[] __initdata = {
@@ -3173,7 +3174,6 @@ static struct platform_device *cdp_devices[] __initdata = {
 	#else
 	&apq8064_device_uart_gsbi7,
 	#endif
-	&apq8064_msm_mpd_device,
 	&msm_device_sps_apq8064,
 #ifdef CONFIG_MSM_ROTATOR
 	&msm_rotator_device,
