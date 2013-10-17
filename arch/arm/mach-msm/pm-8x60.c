@@ -629,56 +629,18 @@ static bool __ref msm_pm_spm_power_collapse(
 	return collapsed;
 }
 
-//20120827 choiseulkee add SBA for Qualcomm Case #954342
-static unsigned long acpuclk_power_collapse_standalone(void)
-{
-	unsigned long rate = acpuclk_get_rate(smp_processor_id());
-	acpuclk_set_rate(smp_processor_id(), 384000, SETRATE_PC);
-	return rate;
-}
-
 static bool msm_pm_power_collapse_standalone(bool from_idle)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int avsdscr;
 	unsigned int avscsr;
-	unsigned long saved_acpuclk_rate;
 	bool collapsed;
 
 	avsdscr = avs_get_avsdscr();
 	avscsr = avs_get_avscsr();
 	avs_set_avscsr(0); /* Disable AVS */
 
-	//20120827 choiseulkee add SBA for Qualcomm Case #954342
-	if (cpu_online(cpu))
-		saved_acpuclk_rate = acpuclk_power_collapse_standalone();
-	else
-	saved_acpuclk_rate = 0;
-
 	collapsed = msm_pm_spm_power_collapse(cpu, from_idle, false);
-
-	//20120827 choiseulkee add SBA for Qualcomm Case #954342
-	if (cpu_online(cpu)) {
-		if (MSM_PM_DEBUG_CLOCK & msm_pm_debug_mask)
-			pr_info("CPU%u: %s: restore clock rate to %lu\n",
-				cpu, __func__, saved_acpuclk_rate);
-		if (acpuclk_set_rate(cpu, saved_acpuclk_rate, SETRATE_PC) < 0)
-			pr_err("CPU%u: %s: failed to restore clock rate(%lu)\n",
-				cpu, __func__, saved_acpuclk_rate);
-	} else {
-		unsigned int gic_dist_enabled;
-		unsigned int gic_dist_pending;
-		gic_dist_enabled = readl_relaxed(
-			MSM_QGIC_DIST_BASE + GIC_DIST_ENABLE_CLEAR);
-		gic_dist_pending = readl_relaxed(
-			MSM_QGIC_DIST_BASE + GIC_DIST_PENDING_SET);
-		mb();
-		gic_dist_pending &= gic_dist_enabled;
-
-		if (gic_dist_pending)
-			pr_err("CPU %d interrupted during hotplug.Pending int 0x%x\n",
-				cpu, gic_dist_pending);
-	}
 
 	avs_set_avsdscr(avsdscr);
 	avs_set_avscsr(avscsr);

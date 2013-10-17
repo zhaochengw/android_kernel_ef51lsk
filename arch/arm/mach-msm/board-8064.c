@@ -1495,7 +1495,6 @@ static void __init apq8064_ehci_host_init(void)
 }
 
 #if !defined(CONFIG_MACH_APQ8064_EF48S) && !defined(CONFIG_MACH_APQ8064_EF49K) && !defined(CONFIG_MACH_APQ8064_EF50L) && !defined(CONFIG_MACH_APQ8064_EF51S) && !defined(CONFIG_MACH_APQ8064_EF51K) && !defined(CONFIG_MACH_APQ8064_EF51L) && !defined(CONFIG_MACH_APQ8064_EF52S) && !defined(CONFIG_MACH_APQ8064_EF52K) && !defined(CONFIG_MACH_APQ8064_EF52L)
-#error
 static struct smb349_platform_data smb349_data __initdata = {
 	.en_n_gpio		= PM8921_GPIO_PM_TO_SYS(37),
 	.chg_susp_gpio		= PM8921_GPIO_PM_TO_SYS(30),
@@ -2927,27 +2926,6 @@ static struct platform_device apq8064_device_ext_mpp8_vreg __devinitdata = {
 	},
 };
 
-#if 0
-static struct platform_device apq8064_device_ext_3p3v_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-#if (CONFIG_BOARD_VER <= CONFIG_PT10)
-	.id	= APQ8064_EXT_3P3V_REG_EN_GPIO,
-#endif	
-	.dev	= {
-		.platform_data =
-			&apq8064_gpio_regulator_pdata[GPIO_VREG_ID_EXT_3P3V],
-	},
-};
-
-static struct platform_device apq8064_device_ext_ts_sw_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= PM8921_GPIO_PM_TO_SYS(23),
-	.dev	= {
-		.platform_data
-			= &apq8064_gpio_regulator_pdata[GPIO_VREG_ID_EXT_TS_SW],
-	},
-};
-#endif
 static struct platform_device apq8064_device_rpm_regulator __devinitdata = {
 	.name	= "rpm-regulator",
 	.id	= 0,
@@ -4083,11 +4061,6 @@ static void __init apq8064_common_init(void)
 	else
 		platform_add_devices(pm8917_common_devices,
 					ARRAY_SIZE(pm8917_common_devices));
-#if 0
-	if (!machine_is_apq8064_mtp())
-		platform_device_register(&apq8064_device_ext_ts_sw_vreg);
-#endif
-
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 	if (!(machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
 			machine_is_mpq8064_dtv())) {
