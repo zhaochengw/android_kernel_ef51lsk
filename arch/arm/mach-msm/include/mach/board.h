@@ -479,6 +479,7 @@ struct msm_fb_platform_data {
 	int (*allow_set_offset)(void);
 	char prim_panel_name[PANEL_NAME_MAX_LEN];
 	char ext_panel_name[PANEL_NAME_MAX_LEN];
+	int (*update_lcdc_lut)(void);
 };
 
 struct msm_hdmi_platform_data {
@@ -616,5 +617,20 @@ void msm_snddev_tx_route_deconfig(void);
 
 extern unsigned int msm_shared_ram_phys; /* defined in arch/arm/mach-msm/io.c */
 
+
+
+#ifdef CONFIG_LCD_KCAL
+struct kcal_data {
+	int red;
+	int green;
+	int blue;
+};
+
+struct kcal_platform_data {
+	int (*set_values) (int r, int g, int b);
+	int (*get_values) (int *r, int *g, int *b);
+	int (*refresh_display) (void);
+};
+#endif
 
 #endif

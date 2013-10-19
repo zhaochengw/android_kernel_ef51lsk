@@ -24,6 +24,7 @@
 #include <mach/ion.h>
 #include <mach/msm_bus_board.h>
 #include <mach/socinfo.h>
+#include <msm/mdp.h>
 
 #include "devices.h"
 #include "board-8064.h"
@@ -213,8 +214,42 @@ static int msm_fb_detect_panel(const char *name)
 	return -ENODEV;
 }
 
+#ifdef CONFIG_LCD_KCAL
+struct kcal_data kcal_value;
+#endif
+
+#ifdef CONFIG_UPDATE_LCDC_LUT
+extern unsigned int lcd_color_preset_lut[];
+int update_preset_lcdc_lut(void)
+{
+	struct fb_cmap cmap;
+	int ret = 0;
+
+	cmap.start = 0;
+	cmap.len = 256;
+	cmap.transp = NULL;
+
+#ifdef CONFIG_LCD_KCAL
+	cmap.red = (uint16_t *)&(kcal_value.red);
+	cmap.green = (uint16_t *)&(kcal_value.green);
+	cmap.blue = (uint16_t *)&(kcal_value.blue);
+#else
+	cmap.red = NULL;
+	cmap.green = NULL;
+	cmap.blue = NULL;
+#endif
+
+	ret = mdp_preset_lut_update_lcdc(&cmap, lcd_color_preset_lut);
+	if (ret)
+		pr_err("%s: failed to set lut! %d\n", __func__, ret);
+
+	return ret;
+}
+#endif
+
 static struct msm_fb_platform_data msm_fb_pdata = {
 	.detect_client = msm_fb_detect_panel,
+	.update_lcdc_lut = update_preset_lcdc_lut,
 };
 
 static struct platform_device msm_fb_device = {
@@ -392,6 +427,42 @@ void __init apq8064_mdp_writeback(struct memtype_reserve* reserve_table)
 			mdp_pdata.ov0_wb_size + mdp_pdata.ov1_wb_size);
 #endif
 }
+
+#ifdef CONFIG_LCD_KCAL
+int kcal_set_values(int kcal_r, int kcal_g, int kcal_b)
+{
+	kcal_value.red = kcal_r;
+	kcal_value.green = kcal_g;
+	kcal_value.blue = kcal_b;
+	return 0;
+}
+
+static int kcal_get_values(int *kcal_r, int *kcal_g, int *kcal_b)
+{
+	*kcal_r = kcal_value.red;
+	*kcal_g = kcal_value.green;
+	*kcal_b = kcal_value.blue;
+	return 0;
+}
+
+static int kcal_refresh_values(void)
+{
+	return update_preset_lcdc_lut();
+}
+
+static struct kcal_platform_data kcal_pdata = {
+	.set_values = kcal_set_values,
+	.get_values = kcal_get_values,
+	.refresh_display = kcal_refresh_values
+};
+
+static struct platform_device kcal_platrom_device = {
+	.name   = "kcal_ctrl",
+	.dev = {
+		.platform_data = &kcal_pdata,
+	}
+};
+#endif
 
 static struct resource hdmi_msm_resources[] = {
 	{
@@ -2026,6 +2097,9 @@ static struct platform_device mipi_dsi_rohm_panel_device = {
 
 static struct platform_device * oem_panel_devices[] = {
 	&mipi_dsi_rohm_panel_device,
+#ifdef CONFIG_LCD_KCAL
+	&kcal_platrom_device,
+#endif
 };
 #endif
 
@@ -2037,6 +2111,9 @@ static struct platform_device mipi_dsi_renesas_panel_device = {
 
 static struct platform_device * oem_panel_devices[] = {
 	&mipi_dsi_renesas_panel_device,
+#ifdef CONFIG_LCD_KCAL
+	&kcal_platrom_device,
+#endif
 };
 #endif
 
@@ -2048,6 +2125,9 @@ static struct platform_device mipi_dsi_sony_insell_panel_device = {
 
 static struct platform_device * oem_panel_devices[] = {
 	&mipi_dsi_sony_insell_panel_device,
+#ifdef CONFIG_LCD_KCAL
+	&kcal_platrom_device,
+#endif
 };
 #endif
 #endif

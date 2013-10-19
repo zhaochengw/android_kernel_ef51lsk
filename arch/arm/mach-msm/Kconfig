@@ -2731,4 +2731,19 @@ config MSM_USE_USER_ACCESSIBLE_TIMERS
 	help
 	  Enables MSM-specific user accessible timers via a shared
 	  memory page containing the cycle counter.
+	  
+config UPDATE_LCDC_LUT
+	bool "Set initial Qualcomm LCDC lut"
+	default n
+	depends on ARCH_APQ8064
+	help
+	  Set initial Qualcomm LCDC Look Up Table.
+
+config LCD_KCAL
+	bool "Interface to calibrate LCD color temperature"
+	default n
+	depends on ARCH_APQ8064 && UPDATE_LCDC_LUT
+	help
+	  Interface to calibrate LCD color temperature
+ 
 endif

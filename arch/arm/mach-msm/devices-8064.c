@@ -3647,3 +3647,27 @@ struct platform_device apq8064_cache_dump_device = {
 		.platform_data = &apq8064_cache_dump_pdata,
 	},
 };
+
+#ifdef CONFIG_LCD_KCAL
+extern int kcal_set_values(int kcal_r, int kcal_g, int kcal_b);
+static int __init display_kcal_setup(char *kcal)
+{
+	char vaild_k = 0;
+	int kcal_r = 0;
+	int kcal_g = 0;
+	int kcal_b = 0;
+	
+	sscanf(kcal, "%d|%d|%d|%c", &kcal_r, &kcal_g, &kcal_b, &vaild_k );
+	pr_info("kcal is %d|%d|%d|%c\n", kcal_r, kcal_g, kcal_b, vaild_k);
+
+	if (vaild_k != 'K') {
+		pr_info("kcal not calibrated yet : %d\n", vaild_k);
+		kcal_r = kcal_g = kcal_b = 255;
+		pr_info("set to default : %d\n", kcal_r);
+	}
+
+	kcal_set_values(kcal_r, kcal_g, kcal_b);
+	return 1;
+}
+__setup("sky.kcal=", display_kcal_setup);
+#endif

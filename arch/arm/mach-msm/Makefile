@@ -407,6 +407,11 @@ obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
 
+obj-$(CONFIG_UPDATE_LCDC_LUT) += sky_qc_lcdc_luts.o
+obj-$(CONFIG_LCD_KCAL) += sky_kcal_ctrl.o
+
+CFLAGS_board-8064-display.o += -Idrivers/video
+
 obj-$(CONFIG_PANTECH_ERR_CRASH_LOGGING) += pantech_restart.o pantech_apanic.o
 obj-$(CONFIG_PANTECH_ERR_CRASH_LOGGING) += sky_sys_reset.o
 
