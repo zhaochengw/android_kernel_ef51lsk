@@ -375,7 +375,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(4, "select %d (%s), oom_adj %d score_adj %d, size %d, to kill\n",
 			     p->pid, p->comm, selected_oom_adj, oom_score_adj, tasksize);
 #else
-		lowmem_print(4, "select %d (%s), adj %d, size %d, to kill\n",
+		lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
 			     p->pid, p->comm, oom_score_adj, tasksize);
 #endif
 	}
