@@ -1651,17 +1651,20 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 {
 	struct vcd_frame_data vcd_input_buffer;
 	unsigned long kernel_vaddr, phy_addr, user_vaddr;
+	struct buf_addr_table *buf_addr_table;
 	int pmem_fd;
 	struct file *file;
 	s32 buffer_index = -1;
 	u32 vcd_status = VCD_ERR_FAIL;
 	u32 ion_flag = 0;
+	unsigned long buff_len;
 	struct ion_handle *buff_handle = NULL;
 
 	if (!client_ctx || !input_frame_info)
 		return false;
 
 	user_vaddr = (unsigned long)input_frame_info->bufferaddr;
+	buf_addr_table = client_ctx->input_buf_addr_table;
 
 	if (vidc_lookup_addr_table(client_ctx, BUFFER_TYPE_INPUT,
 				      true, &user_vaddr, &kernel_vaddr,
@@ -1671,6 +1674,17 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 		/* kernel_vaddr  is found. send the frame to VCD */
 		memset((void *)&vcd_input_buffer, 0,
 		       sizeof(struct vcd_frame_data));
+
+		buff_len = buf_addr_table[buffer_index].buff_len;
+		if ((input_frame_info->datalen > buff_len) ||
+					(input_frame_info->offset > buff_len)) {
+			ERR("%s(): offset(%u) or data length(%u) is greater"\
+				" than buffer length(%lu)\n",\
+			__func__, input_frame_info->offset,
+			input_frame_info->datalen, buff_len);
+			return false;
+		}
+
 		vcd_input_buffer.virtual =
 		    (u8 *) (kernel_vaddr + input_frame_info->pmem_offset);
 		vcd_input_buffer.offset = input_frame_info->offset;
@@ -2233,7 +2247,7 @@ static long vid_dec_ioctl(struct file *file,
 			client_ctx->seq_hdr_ion_handle = ion_import_dma_buf(
 				client_ctx->user_ion_client,
 				seq_header.pmem_fd);
-			if (!client_ctx->seq_hdr_ion_handle) {
+			if (IS_ERR_OR_NULL(client_ctx->seq_hdr_ion_handle)) {
 				ERR("%s(): get_ION_handle failed\n", __func__);
 				return false;
 			}
@@ -2250,7 +2264,7 @@ static long vid_dec_ioctl(struct file *file,
 			ker_vaddr = (unsigned long) ion_map_kernel(
 				client_ctx->user_ion_client,
 				client_ctx->seq_hdr_ion_handle);
-			if (!ker_vaddr) {
+			if (IS_ERR_OR_NULL((void *)ker_vaddr)) {
 				ERR("%s():get_ION_kernel virtual addr fail\n",
 							 __func__);
 				ion_free(client_ctx->user_ion_client,
@@ -2293,7 +2307,7 @@ static long vid_dec_ioctl(struct file *file,
 			return -EFAULT;
 		}
 		if (vcd_get_ion_status()) {
-			if (client_ctx->seq_hdr_ion_handle) {
+			if (!IS_ERR_OR_NULL(client_ctx->seq_hdr_ion_handle)) {
 				ion_unmap_kernel(client_ctx->user_ion_client,
 						client_ctx->seq_hdr_ion_handle);
 				ion_free(client_ctx->user_ion_client,
@@ -2863,8 +2877,8 @@ static int __init vid_dec_init(void)
 			goto error_vid_dec_cdev_add;
 		}
 	}
-	vid_dec_vcd_init();
-	return 0;
+	rc = vid_dec_vcd_init();
+	return rc;
 
 error_vid_dec_cdev_add:
 	for (j = i-1; j >= 0; j--)
