@@ -52,6 +52,33 @@
 #define FM_TX_PHY_CFG_MODE   0x3c
 #define FM_TX_PHY_CFG_LEN    0x10
 #define FM_TX_PWR_GAIN_OFFSET 14
+/**RDS CONFIG MODE**/
+#define FM_RDS_CNFG_MODE	0x0f
+#define FM_RDS_CNFG_LEN		0x10
+#define AF_RMSSI_TH_LSB_OFFSET	10
+#define AF_RMSSI_TH_MSB_OFFSET	11
+#define AF_RMSSI_SAMPLES_OFFSET	15
+/**RX CONFIG MODE**/
+#define FM_RX_CONFG_MODE	0x15
+#define FM_RX_CNFG_LEN		0x20
+#define GD_CH_RMSSI_TH_OFFSET	12
+#define MAX_GD_CH_RMSSI_TH	127
+#define SRCH_ALGO_TYPE_OFFSET  25
+#define SINRFIRSTSTAGE_OFFSET  26
+#define RMSSIFIRSTSTAGE_OFFSET 27
+#define CF0TH12_BYTE1_OFFSET   8
+#define CF0TH12_BYTE2_OFFSET   9
+#define CF0TH12_BYTE3_OFFSET   10
+#define CF0TH12_BYTE4_OFFSET   11
+#define MAX_SINR_FIRSTSTAGE	127
+#define MAX_RMSSI_FIRSTSTAGE	127
+#define RDS_PS0_XFR_MODE 0x01
+#define RDS_PS0_LEN 6
+#define RX_REPEATE_BYTE_OFFSET 5
+
+#define FM_AF_LIST_MAX_SIZE   200
+#define AF_LIST_MAX     (FM_AF_LIST_MAX_SIZE / 4) /* Each AF frequency consist
+							of sizeof(int) bytes */
 /* HCI timeouts */
 #define RADIO_HCI_TIMEOUT	(10000)	/* 10 seconds */
 
@@ -363,6 +390,53 @@ struct hci_fm_ch_det_threshold {
 #define HCI_REQ_CANCELED  2
 #define HCI_REQ_STATUS    3
 
+#define MAX_RAW_RDS_GRPS	21
+
+#define RDSGRP_DATA_OFFSET	 0x1
+
+/*RT PLUS*/
+#define DUMMY_CLASS		0
+#define RT_PLUS_LEN_1_TAG	3
+#define RT_ERT_FLAG_BIT		5
+
+/*TAG1*/
+#define TAG1_MSB_OFFSET		3
+#define TAG1_MSB_MASK		7
+#define TAG1_LSB_OFFSET		5
+#define TAG1_POS_MSB_MASK	31
+#define TAG1_POS_MSB_OFFSET	1
+#define TAG1_POS_LSB_OFFSET	7
+#define TAG1_LEN_OFFSET		1
+#define TAG1_LEN_MASK		63
+
+/*TAG2*/
+#define TAG2_MSB_OFFSET		5
+#define TAG2_MSB_MASK		1
+#define TAG2_LSB_OFFSET		3
+#define TAG2_POS_MSB_MASK	7
+#define TAG2_POS_MSB_OFFSET	3
+#define TAG2_POS_LSB_OFFSET	5
+#define TAG2_LEN_MASK		31
+
+#define AGT_MASK		31
+/*Extract 5 left most bits of lsb of 2nd block*/
+#define AGT(x)			(x & AGT_MASK)
+/*16 bits of 4th block*/
+#define AID(lsb, msb)		((msb << 8) | (lsb))
+/*Extract 5 right most bits of msb of 2nd block*/
+#define GTC(blk2msb)		(blk2msb >> 3)
+
+#define GRP_3A			0x6
+#define RT_PLUS_AID		0x4bd7
+
+/*ERT*/
+#define ERT_AID			0x6552
+#define CARRIAGE_RETURN		0x000D
+#define MAX_ERT_SEGMENT		31
+#define ERT_FORMAT_DIR_BIT	1
+
+#define EXTRACT_BIT(data, bit_pos) ((data & (1 << bit_pos)) >> bit_pos)
+
 struct hci_ev_tune_status {
 	__u8    sub_event;
 	__le32  station_freq;
@@ -375,9 +449,19 @@ struct hci_ev_tune_status {
 	__u8	intf_det_th;
 } __packed;
 
+struct rds_blk_data {
+	__u8	rdsMsb;
+	__u8	rdsLsb;
+	__u8	blockStatus;
+} __packed;
+
+struct rds_grp_data {
+	struct rds_blk_data rdsBlk[4];
+} __packed;
+
 struct hci_ev_rds_rx_data {
 	__u8    num_rds_grps;
-	__u8    rds_grp_data[12];
+	struct  rds_grp_data rds_grp_data[MAX_RAW_RDS_GRPS];
 } __packed;
 
 struct hci_ev_prg_service {
@@ -403,7 +487,7 @@ struct hci_ev_af_list {
 	__le32   tune_freq;
 	__le16   pi_code;
 	__u8    af_size;
-	__u8    af_list[25];
+	__u8    af_list[FM_AF_LIST_MAX_SIZE];
 } __packed;
 
 struct hci_ev_cmd_complete {
@@ -533,6 +617,7 @@ struct hci_fm_spur_data {
 #define PI_CODE_OFFSET 4
 #define AF_SIZE_OFFSET 6
 #define AF_LIST_OFFSET 7
+#define RT_A_B_FLAG_OFFSET 4
 /*FM states*/
 
 enum radio_state_t {
@@ -540,7 +625,8 @@ enum radio_state_t {
 	FM_RECV,
 	FM_TRANS,
 	FM_RESET,
-	FM_CALIB
+	FM_CALIB,
+	FM_TURNING_OFF
 };
 
 enum v4l2_cid_private_iris_t {
@@ -601,6 +687,15 @@ enum v4l2_cid_private_iris_t {
 	V4L2_CID_PRIVATE_SPUR_SELECTION,
 	V4L2_CID_PRIVATE_UPDATE_SPUR_TABLE,
 	V4L2_CID_PRIVATE_VALID_CHANNEL,
+	V4L2_CID_PRIVATE_AF_RMSSI_TH,
+	V4L2_CID_PRIVATE_AF_RMSSI_SAMPLES,
+	V4L2_CID_PRIVATE_GOOD_CH_RMSSI_TH,
+	V4L2_CID_PRIVATE_SRCHALGOTYPE,
+	V4L2_CID_PRIVATE_CF0TH12,
+	V4L2_CID_PRIVATE_SINRFIRSTSTAGE,
+	V4L2_CID_PRIVATE_RMSSIFIRSTSTAGE,
+	V4L2_CID_PRIVATE_RXREPEATCOUNT,
+
 
 	/*using private CIDs under userclass*/
 	V4L2_CID_PRIVATE_IRIS_READ_DEFAULT = 0x00980928,
@@ -628,7 +723,10 @@ enum iris_evt_t {
 	IRIS_EVT_NEW_AF_LIST,
 	IRIS_EVT_TXRDSDAT,
 	IRIS_EVT_TXRDSDONE,
-	IRIS_EVT_RADIO_DISABLED
+	IRIS_EVT_RADIO_DISABLED,
+	IRIS_EVT_NEW_ODA,
+	IRIS_EVT_NEW_RT_PLUS,
+	IRIS_EVT_NEW_ERT,
 };
 enum emphasis_type {
 	FM_RX_EMP75 = 0x0,
@@ -660,7 +758,7 @@ enum iris_region_t {
 	IRIS_REGION_OTHER
 };
 
-#define STD_BUF_SIZE        (128)
+#define STD_BUF_SIZE        (256)
 
 enum iris_buf_t {
 	IRIS_BUF_SRCH_LIST,
@@ -674,7 +772,9 @@ enum iris_buf_t {
 	IRIS_BUF_RDS_CNTRS,
 	IRIS_BUF_RD_DEFAULT,
 	IRIS_BUF_CAL_DATA,
-	IRIS_BUF_MAX
+	IRIS_BUF_RT_PLUS,
+	IRIS_BUF_ERT,
+	IRIS_BUF_MAX,
 };
 
 enum iris_xfr_t {

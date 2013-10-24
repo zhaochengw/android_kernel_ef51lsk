@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * Based on videobuf-dma-contig.c,
  * (c) 2008 Magnus Damm
@@ -225,6 +225,10 @@ void videobuf2_pmem_contig_user_put(struct videobuf2_contig_pmem *mem,
 {
 	if (mem->is_userptr) {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	if (IS_ERR_OR_NULL(mem->ion_handle)) {
+		pr_err("%s ION import failed\n", __func__);
+		return;
+	}
 		ion_unmap_iommu(client, mem->ion_handle,
 				domain_num, 0);
 		ion_free(client, mem->ion_handle);
@@ -300,8 +304,8 @@ static int msm_vb2_mem_ops_mmap(void *buf_priv, struct vm_area_struct *vma)
 	vma->vm_private_data = mem;
 
 	D("mmap %p: %08lx-%08lx (%lx) pgoff %08lx\n",
-		map, vma->vm_start, vma->vm_end,
-		(long int)mem->bsize, vma->vm_pgoff);
+		vma, vma->vm_start, vma->vm_end,
+		(long int)mem->size, vma->vm_pgoff);
 	videobuf2_vm_open(vma);
 	return 0;
 error:

@@ -1,5 +1,5 @@
-/* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
- *
+/* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -487,11 +487,11 @@ struct msm_camera_cfg_cmd {
 #define CMD_STATS_AF_ENABLE		13
 #define CMD_STATS_AEC_ENABLE		14
 #define CMD_STATS_AWB_ENABLE		15
-#define CMD_STATS_ENABLE  		16
+#define CMD_STATS_ENABLE		16
 
 #define CMD_STATS_AXI_CFG		17
 #define CMD_STATS_AEC_AXI_CFG		18
-#define CMD_STATS_AF_AXI_CFG 		19
+#define CMD_STATS_AF_AXI_CFG		19
 #define CMD_STATS_AWB_AXI_CFG		20
 #define CMD_STATS_RS_AXI_CFG		21
 #define CMD_STATS_CS_AXI_CFG		22
@@ -1041,7 +1041,7 @@ struct msm_snapshot_pp_status {
 
 #else
 
-#define CFG_MAX                 55
+#define CFG_MAX                       59
 
 #endif
 
@@ -1302,7 +1302,7 @@ struct sensor_3d_exp_cfg {
 	uint16_t gb_gain;
 	uint16_t gain_adjust;
 };
-struct sensor_3d_cali_data_t{
+struct sensor_3d_cali_data_t {
 	unsigned char left_p_matrix[3][4][8];
 	unsigned char right_p_matrix[3][4][8];
 	unsigned char square_len[8];
@@ -1534,7 +1534,7 @@ enum csid_cfg_type_t {
 struct csid_cfg_data {
 	enum csid_cfg_type_t cfgtype;
 	union {
-	uint32_t csid_version;
+		uint32_t csid_version;
 		struct msm_camera_csid_params *csid_params;
 	} cfg;
 };
