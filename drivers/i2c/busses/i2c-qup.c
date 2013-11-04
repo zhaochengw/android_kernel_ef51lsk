@@ -66,6 +66,15 @@ enum {
 
 //IMMR
 enum {
+	QUP_MX_OUTPUT_COUNT           = 0x100,
+	QUP_MX_OUTPUT_COUNT_CURRENT           = 0x104,
+	QUP_OUT_FIFO_WORD_CNT        = 0x10C,
+	QUP_MX_WRITE_COUNT        = 0x150,
+	QUP_MX_WRITE_COUNT_CURRENT        = 0x154,		
+};
+
+/* QUP States and reset values */
+enum {
 	QUP_RESET_STATE         = 0,
 	QUP_RUN_STATE           = 1U,
 	QUP_STATE_MASK          = 3U,
@@ -196,6 +205,7 @@ static irqreturn_t
 qup_i2c_interrupt(int irq, void *devid)
 {
 	struct qup_i2c_dev *dev = devid;
+	uint32_t mx_cnt_cr = 0;	
 	uint32_t status = 0;
 	uint32_t status1 = 0;
 	uint32_t op_flgs = 0;
@@ -203,7 +213,7 @@ qup_i2c_interrupt(int irq, void *devid)
 
 	if (pm_runtime_suspended(dev->dev))
 		return IRQ_NONE;
-
+    mx_cnt_cr = readl_relaxed(dev->base + QUP_MX_OUTPUT_COUNT_CURRENT);
 	status = readl_relaxed(dev->base + QUP_I2C_STATUS);
 	status1 = readl_relaxed(dev->base + QUP_ERROR_FLAGS);
 	op_flgs = readl_relaxed(dev->base + QUP_OPERATIONAL);
@@ -223,6 +233,10 @@ qup_i2c_interrupt(int irq, void *devid)
 		//	status, irq);		
 		
 		//IMMR
+		dev->sent_cnt = mx_cnt_cr;
+		if((status & 0xF0000) == 0x30000) dev->sent_cnt += 1;
+		if(dev->sent_cnt > 6) dev->sent_cnt -= 1;
+	       if(dev->sent_cnt > 13) dev->sent_cnt -= 1;	      
 //		if(dev->sent_cnt > 20) dev->sent_cnt -= 1;
 
 		err = status;
