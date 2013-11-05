@@ -5201,6 +5201,7 @@ void sitar_get_z(struct snd_soc_codec *codec , s16 *dce_z, s16 *sta_z)
 	snd_soc_write(codec, SITAR_A_MBHC_SCALING_MUX_1, 0x81);
 	reg1 = snd_soc_read(codec, SITAR_A_MICB_2_MBHC);
 	snd_soc_update_bits(codec, SITAR_A_MICB_2_MBHC, 1 << 7, 0);
+
 	/* delay 1ms for discharge mic voltage */
 	usleep_range(1000, 1000 + 1000);
 	*sta_z = sitar_codec_sta_dce(codec, 0, false);
@@ -5892,6 +5893,9 @@ static const struct sitar_reg_mask_val sitar_codec_reg_init_val[] = {
 
 	/*enable External clock select*/
 	{SITAR_A_CDC_CLK_MCLK_CTL, 0x01, 0x01},
+
+	/*disabling the cp static overide gain*/
+	{SITAR_A_CP_STATIC, 0x10, 0x00},
 };
 
 static void sitar_i2c_codec_init_reg(struct snd_soc_codec *codec)

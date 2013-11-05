@@ -18,6 +18,7 @@
 #include <linux/msm_ion.h>
 #include <linux/gpio.h>
 #include <linux/coresight.h>
+#include <linux/avtimer.h>
 #include <asm/clkdev.h>
 #include <mach/kgsl.h>
 #include <linux/android_pmem.h>
@@ -110,6 +111,10 @@
 
 #define MSM8960_PC_CNTR_PHYS	(MSM8960_IMEM_PHYS + 0x664)
 #define MSM8960_PC_CNTR_SIZE		0x40
+
+/* avtimer */
+#define AVTIMER_MSW_PHYSICAL_ADDRESS 0x2800900C
+#define AVTIMER_LSW_PHYSICAL_ADDRESS 0x28009008
 
 static struct resource msm8960_resources_pccntr[] = {
 	{
@@ -1495,7 +1500,6 @@ static struct pil_q6v4_pdata msm_8960_q6_mss_sw_data = {
 	.depends = "modem_fw",
 	.pas_id = PAS_MODEM_SW,
 	.bus_port = MSM_BUS_MASTER_MSS_SW_PROC,
-	.fw_bus_port = MSM_BUS_MASTER_MSS_FW_PROC,
 };
 
 struct platform_device msm_8960_q6_mss_sw = {
@@ -4495,6 +4499,11 @@ struct platform_device msm8960_cache_dump_device = {
 	.dev            = {
 		.platform_data = &msm8960_cache_dump_pdata,
 	},
+};
+
+struct dev_avtimer_data dev_avtimer_pdata = {
+	.avtimer_msw_phy_addr = AVTIMER_MSW_PHYSICAL_ADDRESS,
+	.avtimer_lsw_phy_addr = AVTIMER_LSW_PHYSICAL_ADDRESS,
 };
 
 #define MDM2AP_ERRFATAL			40

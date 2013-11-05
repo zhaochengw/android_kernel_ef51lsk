@@ -30,6 +30,8 @@
 #include "mdp.h"
 
 struct external_common_state_type *external_common_state;
+static int number_of_sad;
+
 EXPORT_SYMBOL(external_common_state);
 DEFINE_MUTEX(external_common_state_hpd_mutex);
 EXPORT_SYMBOL(external_common_state_hpd_mutex);
@@ -206,25 +208,25 @@ static ssize_t hdmi_common_rda_edid_modes(struct device *dev,
 		for (i = 0; i < external_common_state->disp_mode_list
 			.num_of_elements; ++i) {
 			if (ret > 0)
-				ret += snprintf(buf+ret, PAGE_SIZE-ret, ",%d",
+				ret += scnprintf(buf+ret, PAGE_SIZE-ret, ",%d",
 					*video_mode++);
 			else
-				ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d",
+				ret += scnprintf(buf+ret, PAGE_SIZE-ret, "%d",
 					*video_mode++);
 		}
 	} else
-		ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d",
+		ret += scnprintf(buf+ret, PAGE_SIZE-ret, "%d",
 			external_common_state->video_resolution+1);
 
 	DEV_DBG("%s: '%s'\n", __func__, buf);
-	ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
+	ret += scnprintf(buf+ret, PAGE_SIZE-ret, "\n");
 	return ret;
 }
 
 static ssize_t hdmi_common_rda_edid_physical_address(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	ssize_t ret = snprintf(buf, PAGE_SIZE, "%d\n",
+	ssize_t ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 		external_common_state->physical_address);
 
 	DEV_DBG("%s: '%d'\n", __func__,
@@ -236,7 +238,7 @@ static ssize_t hdmi_common_rda_edid_physical_address(struct device *dev,
 static ssize_t hdmi_common_rda_edid_scan_info(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	ssize_t ret = snprintf(buf, PAGE_SIZE, "%d, %d, %d\n",
+	ssize_t ret = scnprintf(buf, PAGE_SIZE, "%d, %d, %d\n",
 		external_common_state->pt_scan_info,
 		external_common_state->it_scan_info,
 		external_common_state->ce_scan_info);
@@ -249,11 +251,12 @@ static ssize_t hdmi_common_wta_vendor_name(struct device *dev,
 {
 	uint8 *s = (uint8 *) buf;
 	uint8 *d = external_common_state->spd_vendor_name;
+	ssize_t sz;
 	ssize_t ret = strnlen(buf, PAGE_SIZE);
-	ssize_t nsize = MAX_SPD_VENDER_NAME;
 	ret = (ret > 8) ? 8 : ret;
 
-	memset(external_common_state->spd_vendor_name, 0, nsize);
+	sz = sizeof(external_common_state->spd_vendor_name);
+	memset(external_common_state->spd_vendor_name, 0, sz);
 	while (*s) {
 		if (*s & 0x60 && *s ^ 0x7f) {
 			*d = *s;
@@ -267,7 +270,8 @@ static ssize_t hdmi_common_wta_vendor_name(struct device *dev,
 
 		d++;
 	}
-	external_common_state->spd_vendor_name[nsize - 1] = '\0';
+	external_common_state->spd_vendor_name[sz - 1] = 0;
+
 	DEV_DBG("%s: '%s'\n", __func__,
 			external_common_state->spd_vendor_name);
 
@@ -291,9 +295,11 @@ static ssize_t hdmi_common_wta_product_description(struct device *dev,
 	uint8 *s = (uint8 *) buf;
 	uint8 *d = external_common_state->spd_product_description;
 	ssize_t ret = strnlen(buf, PAGE_SIZE);
-	ssize_t psize = MAX_SPD_PRODUCT_DESCRIPTION;
+	ssize_t sz;
 	ret = (ret > 16) ? 16 : ret;
-	memset(external_common_state->spd_product_description, 0, psize);
+
+	sz = sizeof(external_common_state->spd_product_description);
+	memset(external_common_state->spd_product_description, 0, sz);
 	while (*s) {
 		if (*s & 0x60 && *s ^ 0x7f) {
 			*d = *s;
@@ -307,7 +313,8 @@ static ssize_t hdmi_common_wta_product_description(struct device *dev,
 
 		d++;
 	}
-	external_common_state->spd_product_description[psize - 1] = '\n';
+	external_common_state->spd_product_description[sz - 1] = 0;
+
 	DEV_DBG("%s: '%s'\n", __func__,
 			external_common_state->spd_product_description);
 
@@ -340,22 +347,22 @@ static ssize_t hdmi_common_rda_edid_3d_modes(struct device *dev,
 			.disp_3d_mode_list;
 		for (i = 0; i < external_common_state->disp_mode_list
 			.num_of_elements; ++i) {
-			video_3d_format_2string(*video_3d_mode++, buff_3d);
+			video_3d_format_2string(*video_3d_mode++, buff_3d, sizeof(buff_3d));
 			if (ret > 0)
-				ret += snprintf(buf+ret, PAGE_SIZE-ret,
+				ret += scnprintf(buf+ret, PAGE_SIZE-ret,
 					",%d=%s",
 					*video_mode++ + 1, buff_3d);
 			else
-				ret += snprintf(buf+ret, PAGE_SIZE-ret,
+				ret += scnprintf(buf+ret, PAGE_SIZE-ret,
 					"%d=%s",
 					*video_mode++ + 1, buff_3d);
 		}
 	} else
-		ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d",
+		ret += scnprintf(buf+ret, PAGE_SIZE-ret, "%d",
 			external_common_state->video_resolution+1);
 
 	DEV_DBG("%s: '%s'\n", __func__, buf);
-	ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
+	ret += scnprintf(buf+ret, PAGE_SIZE-ret, "\n");
 	return ret;
 }
 
@@ -772,6 +779,255 @@ static ssize_t hdmi_common_rda_spkr_alloc_data_block(struct device *dev,
 
 	return ret;
 }
+static ssize_t hdmi_common_wta_audio_caps(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	ssize_t ret = strnlen(buf, PAGE_SIZE);
+	number_of_sad = atoi(buf);
+	return ret;
+}
+
+
+int hdmi_common_get_audio_capabilities(
+		uint8 *channels, uint8 *formats,
+		uint8 *freq,     uint8 *bitrate,
+		uint8 *spkr_allocation)
+{
+	uint8 *adb = external_common_state->audio_data_block;
+	int count  = external_common_state->adb_size/3;
+
+	while (count--) {
+		*channels++ = (*adb & 0x07) + 1;
+		*formats++  = (*adb & 0x78) >> 3;
+		*freq++     = *(adb + 1) & 0xFF;
+		*bitrate++  = *(adb + 2) & 0xFF;
+
+		adb += 3;
+	}
+
+	*spkr_allocation = external_common_state->spkr_alloc_data_block[0];
+
+	return external_common_state->adb_size/3;
+}
+
+static ssize_t hdmi_common_rda_audio_caps(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	uint8 channels[16];
+	uint8 formats[16];
+	uint8 frequency[16];
+	uint8 bitrate[16];
+	uint8 spkr_allocation;
+	int count, i;
+	char str[512];
+	int str_size = 512;
+	boolean comma = FALSE;
+
+	if (number_of_sad == 0) {
+		count = external_common_state->adb_size/3;
+		return snprintf(buf, sizeof(int)+1, "%d\n", count);
+	}
+
+	count = hdmi_common_get_audio_capabilities(channels, formats,
+						   frequency, bitrate,
+						   &spkr_allocation);
+
+	strlcpy(str, "\n", str_size);
+	i = number_of_sad - 1;
+	{
+		char t[3];
+		snprintf(t, 3, "%d", i + 1);
+
+		strlcat(str, "\tSHORT AUDIO DESCRIPTOR # ", str_size);
+		strlcat(str, t, str_size);
+		strlcat(str, "\n", str_size);
+		strlcat(str, "Number of channels \t= ", str_size);
+
+		snprintf(t, 3, "%d", channels[i]);
+		strlcat(str, t, str_size);
+
+		strlcat(str, "\n", str_size);
+
+		strlcat(str, "Formats supported \t= ", str_size);
+		switch (formats[i]) {
+		case 1:
+			strlcat(str, "LPCM", str_size);
+			break;
+		case 2:
+			strlcat(str, "AC-3", str_size);
+			break;
+		case 3:
+			strlcat(str, "MPEG1 (Layers 1 & 2)", str_size);
+			break;
+		case 4:
+			strlcat(str, "MP3 (MPEG1 Layer 3)", str_size);
+			break;
+		case 5:
+			strlcat(str, "MPEG2 (multichannel)", str_size);
+			break;
+		case 6:
+			strlcat(str, "AAC", str_size);
+			break;
+		case 7:
+			strlcat(str, "DTS", str_size);
+			break;
+		case 8:
+			strlcat(str, "ATRAC", str_size);
+			break;
+		case 9:
+			strlcat(str, "One-bit audio aka SACD", str_size);
+			break;
+		case 10:
+			strlcat(str, "Dolby Digital +", str_size);
+			break;
+		case 11:
+			strlcat(str, "DTS-HD", str_size);
+			break;
+		case 12:
+			strlcat(str, "MAT (MLP)", str_size);
+			break;
+		case 13:
+			strlcat(str, "DST", str_size);
+			break;
+		case 14:
+			strlcat(str, "WMA Pro", str_size);
+			break;
+		default:
+			break;
+		}
+
+		strlcat(str, "\n", str_size);
+
+		strlcat(str, "Frequency supported \t= ", str_size);
+		comma = FALSE;
+		if (frequency[i] & BIT(0)) {
+			strlcat(str, "32kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(1)) {
+			if (comma)
+				strlcat(str, ", 44kHz", str_size);
+			else
+				strlcat(str, "44kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(2)) {
+			if (comma)
+				strlcat(str, ", 48kHz", str_size);
+			else
+				strlcat(str, "48kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(3)) {
+			if (comma)
+				strlcat(str, ", 88kHz", str_size);
+			else
+				strlcat(str, "88kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(4)) {
+			if (comma)
+				strlcat(str, ", 96kHz", str_size);
+			else
+				strlcat(str, "96kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(5)) {
+			if (comma)
+				strlcat(str, ", 176kHz", str_size);
+			else
+				strlcat(str, "176kHz", str_size);
+			comma = TRUE;
+		}
+		if (frequency[i] & BIT(6)) {
+			if (comma)
+				strlcat(str, ", 192kHz", str_size);
+			else
+				strlcat(str, "192kHz", str_size);
+		}
+
+		strlcat(str, "\n", str_size);
+
+		strlcat(str, "bitrate supported \t= ", str_size);
+		comma = FALSE;
+		if (formats[i] == 1) {
+			if (bitrate[i] & BIT(0)) {
+				strlcat(str, "16bit", str_size);
+				comma = TRUE;
+			}
+			if (bitrate[i] & BIT(1)) {
+				if (comma)
+					strlcat(str, ", 20bit", str_size);
+				else
+					strlcat(str, "20bit", str_size);
+				comma = TRUE;
+			}
+			if (bitrate[i] & BIT(2)) {
+				if (comma)
+					strlcat(str, ", 24bit", str_size);
+				else
+					strlcat(str, "24bit", str_size);
+			}
+		} else {
+			char t[20];
+			snprintf(t, 20, "%d", bitrate[i] * 8);
+			strlcat(str, t, str_size);
+			strlcat(str, "Kbit/s", str_size);
+		}
+
+		strlcat(str, "\n\n", str_size);
+	}
+
+	strlcat(str, "Speaker Allocation \t= ", str_size);
+	comma = FALSE;
+	if (spkr_allocation & BIT(0)) {
+		strlcat(str, "FL/FR", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(1)) {
+		if (comma)
+			strlcat(str, ", LFE", str_size);
+		else
+			strlcat(str, "LFE", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(2)) {
+		if (comma)
+			strlcat(str, ", FC", str_size);
+		else
+			strlcat(str, "FC", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(3)) {
+		if (comma)
+			strlcat(str, ", RL/RR", str_size);
+		else
+			strlcat(str, "RL/RR", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(4)) {
+		if (comma)
+			strlcat(str, ", RC", str_size);
+		else
+			strlcat(str, "RC", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(5)) {
+		if (comma)
+			strlcat(str, ", FLC/FRC", str_size);
+		else
+			strlcat(str, "FLC/FRC", str_size);
+		comma = TRUE;
+	}
+	if (spkr_allocation & BIT(6)) {
+		if (comma)
+			strlcat(str, ", RLC/RRC", str_size);
+		else
+			strlcat(str, "RLC/RRC", str_size);
+	}
+
+	return snprintf(buf, str_size, "%s\n", str);
+}
 
 static DEVICE_ATTR(video_mode, S_IRUGO | S_IWUSR | S_IWGRP,
 	external_common_rda_video_mode, external_common_wta_video_mode);
@@ -807,6 +1063,8 @@ static DEVICE_ATTR(audio_data_block, S_IRUGO, hdmi_common_rda_audio_data_block,
 	NULL);
 static DEVICE_ATTR(spkr_alloc_data_block, S_IRUGO,
 	hdmi_common_rda_spkr_alloc_data_block, NULL);
+static DEVICE_ATTR(audio_caps, S_IRUGO | S_IWUSR, hdmi_common_rda_audio_caps,
+	hdmi_common_wta_audio_caps);
 
 static struct attribute *external_common_fs_attrs[] = {
 	&dev_attr_video_mode.attr,
@@ -837,6 +1095,7 @@ static struct attribute *external_common_fs_attrs[] = {
 	&dev_attr_hdmi_primary.attr,
 	&dev_attr_audio_data_block.attr,
 	&dev_attr_spkr_alloc_data_block.attr,
+	&dev_attr_audio_caps.attr,
 	NULL,
 };
 static struct attribute_group external_common_fs_attr_group = {
@@ -1104,7 +1363,7 @@ static uint32 hdmi_edid_extract_ieee_reg_id(const uint8 *in_buf)
 	const uint8 *vsd = hdmi_edid_find_block(in_buf, DBC_START_OFFSET, 3,
 			&len);
 
-	if (vsd == NULL || len < 8)
+	if (vsd == NULL)
 		return 0;
 
 	DEV_DBG("EDID: VSD PhyAddr=%04x, MaxTMDS=%dMHz\n",
@@ -1427,29 +1686,29 @@ const char *single_video_3d_format_2string(uint32 format)
 	return "";
 }
 
-ssize_t video_3d_format_2string(uint32 format, char *buf)
+ssize_t video_3d_format_2string(uint32 format, char *buf, u32 size)
 {
 	ssize_t ret, len = 0;
-	ret = snprintf(buf, PAGE_SIZE, "%s",
+	ret = scnprintf(buf, size, "%s",
 		single_video_3d_format_2string(format & FRAME_PACKING));
 	len += ret;
 
 	if (len && (format & TOP_AND_BOTTOM))
-		ret = snprintf(buf + len, PAGE_SIZE - len, ":%s",
+		ret = scnprintf(buf + len, size - len, ":%s",
 			single_video_3d_format_2string(
 				format & TOP_AND_BOTTOM));
 	else
-		ret = snprintf(buf + len, PAGE_SIZE - len, "%s",
+		ret = scnprintf(buf + len, size - len, "%s",
 			single_video_3d_format_2string(
 				format & TOP_AND_BOTTOM));
 	len += ret;
 
 	if (len && (format & SIDE_BY_SIDE_HALF))
-		ret = snprintf(buf + len, PAGE_SIZE - len, ":%s",
+		ret = scnprintf(buf + len, size - len, ":%s",
 			single_video_3d_format_2string(
 				format & SIDE_BY_SIDE_HALF));
 	else
-		ret = snprintf(buf + len, PAGE_SIZE - len, "%s",
+		ret = scnprintf(buf + len, size - len, "%s",
 			single_video_3d_format_2string(
 				format & SIDE_BY_SIDE_HALF));
 	len += ret;
@@ -1473,7 +1732,7 @@ static void add_supported_3d_format(
 			break;
 		}
 	}
-	video_3d_format_2string(video_3d_format, string);
+	video_3d_format_2string(video_3d_format, string, sizeof(string));
 	DEV_DBG("EDID[3D]: format: %d [%s], %s %s\n",
 		video_format, msm_hdmi_mode_2string(video_format),
 		string, added ? "added" : "NOT added");

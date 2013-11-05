@@ -1,0 +1,18 @@
+--- net/bluetooth/l2cap_core.c	2013-10-21 21:14:33.000000000 +0800
++++ net/bluetooth/l2cap_core.c	2013-10-29 23:38:18.000000000 +0800
+@@ -813,15 +813,12 @@
+ void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err)
+ {
+ 	struct l2cap_disconn_req req;
+-	u8 ident;
+ 
+ 	if (!conn)
+ 		return;
+ 
+ 	sk->sk_send_head = NULL;
+ 	skb_queue_purge(TX_QUEUE(sk));
+-	ident = l2cap_get_ident(conn);
+-	spin_lock_bh(&conn->lock);
+ 
+ 	if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM) {
+ 		skb_queue_purge(SREJ_QUEUE(sk));

@@ -395,7 +395,7 @@ static struct pm8xxx_misc_platform_data apq8064_pm8921_misc_pdata = {
 
 #ifdef ORIGIN
 
-#define PM8921_LC_LED_MAX_CURRENT	4	/* I = 4mA */
+#define PM8921_LC_LED_MAX_CURRENT	12	/* I = 12mA */
 #else
 #define PM8921_LC_LED_MAX_CURRENT	255	/* level 255 mean 40 mA */
 #endif

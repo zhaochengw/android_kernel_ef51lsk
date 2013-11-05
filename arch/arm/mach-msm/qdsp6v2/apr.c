@@ -110,12 +110,6 @@ static const struct apr_svc_table svc_tbl_audio[] = {
 		.id = APR_SVC_USM,
 		.client_id = APR_CLIENT_AUDIO,
 	},
-	{
-		.name = "ROUTER",
-		.idx = 9,
-		.id = APR_SVC_ROUTER,
-		.client_id = APR_CLIENT_AUDIO,
-	},
 };
 
 static struct apr_svc_table svc_tbl_voice[] = {
@@ -388,8 +382,7 @@ void apr_cb_func(void *buf, int len, void *priv)
 		    svc == APR_SVC_ADM || svc == APR_SVC_ADSP_CORE ||
 		    svc == APR_SVC_USM ||
 		    svc == APR_SVC_TEST_CLIENT || svc == APR_SVC_ADSP_MVM ||
-		    svc == APR_SVC_ADSP_CVS || svc == APR_SVC_ADSP_CVP ||
-		    svc == APR_SVC_ROUTER)
+		    svc == APR_SVC_ADSP_CVS || svc == APR_SVC_ADSP_CVP)
 			clnt = APR_CLIENT_AUDIO;
 		else {
 			pr_err("APR: Wrong svc :%d\n", svc);
