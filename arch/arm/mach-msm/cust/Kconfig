@@ -529,6 +529,14 @@ config F_SKYDISP_QCBUGFIX_BLOCK_BLT_MODE_AND_TUNE_ROTATER_RATIO
 	bool
 	default y
 
+# 20131030 p16603
+# QC CASE #01300306 Lockup case with LG TV
+config PANTECH_LCD_FIX_LOCKUP_WHEN_CONNECT_LGE_TV_WITH_WFD
+	depends on (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool
+	default y
+	
+
 ##################################################################################
 # SKYDISP_LCD END
 ##################################################################################
@@ -618,7 +626,10 @@ config PIEZO_ECO
       default y
                   
 
-
+config SKY_SND_QVOICE
+      bool 
+      default y
+      depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD ||SKY_EF51L_BOARD) )
 endmenu
 
 endif

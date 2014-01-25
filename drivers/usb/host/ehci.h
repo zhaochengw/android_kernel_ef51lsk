@@ -133,6 +133,9 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
+// P12125 for device not accepting error (-71), ktime_get.patch -->
+	ktime_t			last_susp_resume;
+// P12125 for device not accepting error (-71), ktime_get.patch --<
 	u32			command;
 
 	unsigned		log2_irq_thresh;

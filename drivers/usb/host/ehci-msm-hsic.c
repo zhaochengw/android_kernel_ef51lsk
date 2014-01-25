@@ -1209,6 +1209,10 @@ static int msm_hsic_resume_thread(void *data)
 	int			tight_count = 0;
 	struct msm_hsic_host_platform_data *pdata = mehci->dev->platform_data;
 	s32 next_latency = 0;
+	// P12125 for device not accepting error (-71), ktime_get.patch -->
+	ktime_t now;
+	s64 mdiff;
+	// P12125 for device not accepting error (-71), ktime_get.patch --<
 
 	dbg_log_event(NULL, "Resume RH", 0);
 
@@ -1219,8 +1223,13 @@ static int msm_hsic_resume_thread(void *data)
 	}
 
 	/* keep delay between bus states */
-	if (time_before_eq(jiffies, ehci->next_statechange))
+	// P12125 for device not accepting error (-71), ktime_get.patch -->
+	now = ktime_get();
+	mdiff = ktime_to_us(ktime_sub(now,ehci->last_susp_resume));
+	//if (time_before(jiffies, ehci->next_statechange))
+	if (mdiff < 10000)
 		usleep_range(10000, 10000);
+	// P12125 for device not accepting error (-71), ktime_get.patch --<
 
 	spin_lock_irq(&ehci->lock);
 	if (!HCD_HW_ACCESSIBLE(hcd)) {

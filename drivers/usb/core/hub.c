@@ -3297,6 +3297,11 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 				dev_err(&udev->dev,
 					"device not accepting address %d, error %d\n",
 					devnum, retval);
+// P12125 for device not accepting error (-71), ktime_get.patch -->
+				if(retval == -71){
+					panic("System error\n");
+				}
+// P12125 for device not accepting error (-71), ktime_get.patch --<
 				goto fail;
 			}
 			if (udev->speed == USB_SPEED_SUPER) {
