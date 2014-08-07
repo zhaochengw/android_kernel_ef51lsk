@@ -36,6 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_i2c.h>
+#include <linux/ti_drv2665.h>
 
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.2");
@@ -64,7 +65,7 @@ enum {
 	QUP_I2C_STATUS          = 0x404,
 };
 
-//IMMR
+//p16619 piezo
 enum {
 	QUP_MX_OUTPUT_COUNT           = 0x100,
 	QUP_MX_OUTPUT_COUNT_CURRENT           = 0x104,
@@ -179,9 +180,15 @@ struct qup_i2c_dev {
 	struct mutex                 mlock;
 	void                         *complete;
 	int                          i2c_gpios[ARRAY_SIZE(i2c_rsrcs)];
-	// IMMR
-	int				sent_cnt;
+	//p16619 piezo
+	//int				sent_cnt;
 };
+static int sent_cnt=0;
+//p16619 piezo
+int get_lastPacket(void){
+    return sent_cnt;
+}
+EXPORT_SYMBOL(get_lastPacket);
 
 #ifdef DEBUG
 static void
@@ -205,7 +212,8 @@ static irqreturn_t
 qup_i2c_interrupt(int irq, void *devid)
 {
 	struct qup_i2c_dev *dev = devid;
-	uint32_t mx_cnt_cr = 0;	
+	//p16619 piezo
+	uint32_t mx_cnt_cr = 0;
 	uint32_t status = 0;
 	uint32_t status1 = 0;
 	uint32_t op_flgs = 0;
@@ -213,7 +221,7 @@ qup_i2c_interrupt(int irq, void *devid)
 
 	if (pm_runtime_suspended(dev->dev))
 		return IRQ_NONE;
-    mx_cnt_cr = readl_relaxed(dev->base + QUP_MX_OUTPUT_COUNT_CURRENT);
+
 	status = readl_relaxed(dev->base + QUP_I2C_STATUS);
 	status1 = readl_relaxed(dev->base + QUP_ERROR_FLAGS);
 	op_flgs = readl_relaxed(dev->base + QUP_OPERATIONAL);
@@ -232,12 +240,13 @@ qup_i2c_interrupt(int irq, void *devid)
 		//dev_err(dev->dev, "QUP: I2C status flags :0x%x, irq:%d\n",
 		//	status, irq);		
 		
-		//IMMR
-		dev->sent_cnt = mx_cnt_cr;
-		if((status & 0xF0000) == 0x30000) dev->sent_cnt += 1;
-		if(dev->sent_cnt > 6) dev->sent_cnt -= 1;
-	       if(dev->sent_cnt > 13) dev->sent_cnt -= 1;	      
-//		if(dev->sent_cnt > 20) dev->sent_cnt -= 1;
+		//p16619 piezo
+        mx_cnt_cr = readl_relaxed(dev->base + QUP_MX_OUTPUT_COUNT_CURRENT);	
+		sent_cnt = mx_cnt_cr;
+		if((status & 0xF0000) == 0x30000) sent_cnt += 1;
+		if(sent_cnt > 6) sent_cnt -= 1;
+	       if(sent_cnt > 13) sent_cnt -= 1;	      
+//		if(sent_cnt > 20) sent_cnt -= 1;
 
 		err = status;
 		/* Clear Error interrupt if it's a level triggered interrupt*/
@@ -796,8 +805,8 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	pm_runtime_get_sync(dev->dev);
 	mutex_lock(&dev->mlock);
 
-// IMMR
-	dev->sent_cnt = 0;
+//p16619 piezo
+	sent_cnt = 0;
 	
 	if (dev->suspended) {
 		mutex_unlock(&dev->mlock);
