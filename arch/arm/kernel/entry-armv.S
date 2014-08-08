@@ -244,19 +244,6 @@ svc_preempt:
 	b	1b
 #endif
 
-__und_fault:
-	@ Correct the PC such that it is pointing at the instruction
-	@ which caused the fault.  If the faulting instruction was ARM
-	@ the PC will be pointing at the next instruction, and have to
-	@ subtract 4.  Otherwise, it is Thumb, and the PC will be
-	@ pointing at the second half of the Thumb instruction.  We
-	@ have to subtract 2.
-	ldr	r2, [r0, #S_PC]
-	sub	r2, r2, r1
-	str	r2, [r0, #S_PC]
-	b	do_undefinstr
-ENDPROC(__und_fault)
-
 	.align	5
 __und_svc:
 #ifdef CONFIG_KPROBES
@@ -274,32 +261,25 @@ __und_svc:
 	@
 	@  r0 - instruction
 	@
-#ifndef CONFIG_THUMB2_KERNEL
+#ifndef	CONFIG_THUMB2_KERNEL
 	ldr	r0, [r4, #-4]
 #else
-	mov	r1, #2
 	ldrh	r0, [r4, #-2]			@ Thumb instruction at LR - 2
 	cmp	r0, #0xe800			@ 32-bit instruction if xx >= 0
-	blo	__und_svc_fault
-	ldrh	r9, [r4]			@ bottom 16 bits
-	add	r4, r4, #2
-	str	r4, [sp, #S_PC]
-	orr	r0, r9, r0, lsl #16
+	ldrhhs	r9, [r4]			@ bottom 16 bits
+	orrhs	r0, r9, r0, lsl #16
 #endif
-	adr	r9, BSYM(__und_svc_finish)
+	adr	r9, BSYM(1f)
 	mov	r2, r4
 	bl	call_fpe
 
-	mov	r1, #4				@ PC correction to apply
-__und_svc_fault:
 	mov	r0, sp				@ struct pt_regs *regs
-	bl	__und_fault
+	bl	do_undefinstr
 
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-__und_svc_finish:
-	disable_irq_notrace
+1:	disable_irq_notrace
 
 	@
 	@ restore SPSR and restart the instruction
@@ -443,33 +423,25 @@ __und_usr:
 	mov	r2, r4
 	mov	r3, r5
 
-	@ r2 = regs->ARM_pc, which is either 2 or 4 bytes ahead of the
-	@      faulting instruction depending on Thumb mode.
-	@ r3 = regs->ARM_cpsr
 	@
-	@ The emulation code returns using r9 if it has emulated the
-	@ instruction, or the more conventional lr if we are to treat
-	@ this as a real undefined instruction
+	@ fall through to the emulation code, which returns using r9 if
+	@ it has emulated the instruction, or the more conventional lr
+	@ if we are to treat this as a real undefined instruction
+	@
+	@  r0 - instruction
 	@
 	adr	r9, BSYM(ret_from_exception)
-
+	adr	lr, BSYM(__und_usr_unknown)
 	tst	r3, #PSR_T_BIT			@ Thumb mode?
-	bne	__und_usr_thumb
-	sub	r4, r2, #4			@ ARM instr at LR - 4
-1:	ldrt	r0, [r4]
+	itet	eq				@ explicit IT needed for the 1f label
+	subeq	r4, r2, #4			@ ARM instr at LR - 4
+	subne	r4, r2, #2			@ Thumb instr at LR - 2
+1:	ldreqt	r0, [r4]
 #ifdef CONFIG_CPU_ENDIAN_BE8
-	rev	r0, r0				@ little endian instruction
+	reveq	r0, r0				@ little endian instruction
 #endif
-	@ r0 = 32-bit ARM instruction which caused the exception
-	@ r2 = PC value for the following instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the faulting instruction
-	@ lr = 32-bit undefined instruction function
-	adr	lr, BSYM(__und_usr_fault_32)
-	b	call_fpe
-
-__und_usr_thumb:
+	beq	call_fpe
 	@ Thumb instruction
-	sub	r4, r2, #2			@ First half of thumb instr at LR - 2
 #if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
 /*
  * Thumb-2 instruction handling.  Note that because pre-v6 and >= v6 platforms
@@ -483,7 +455,7 @@ __und_usr_thumb:
 	ldr	r5, .LCcpu_architecture
 	ldr	r5, [r5]
 	cmp	r5, #CPU_ARCH_ARMv7
-	blo	__und_usr_fault_16		@ 16bit undefined instruction
+	blo	__und_usr_unknown
 /*
  * The following code won't get run unless the running CPU really is v7, so
  * coding round the lack of ldrht on older arches is pointless.  Temporarily
@@ -491,18 +463,15 @@ __und_usr_thumb:
  */
 	.arch	armv6t2
 #endif
-2:	ldrht	r5, [r4]
+2:
+ ARM(	ldrht	r5, [r4], #2	)
+ THUMB(	ldrht	r5, [r4]	)
+ THUMB(	add	r4, r4, #2	)
 	cmp	r5, #0xe800			@ 32bit instruction if xx != 0
-	blo	__und_usr_fault_16		@ 16bit undefined instruction
-3:	ldrht	r0, [r2]
+	blo	__und_usr_unknown
+3:	ldrht	r0, [r4]
 	add	r2, r2, #2			@ r2 is PC + 2, make it PC + 4
-	str	r2, [sp, #S_PC]			@ it's a 2x16bit instr, update
 	orr	r0, r0, r5, lsl #16
-	adr	lr, BSYM(__und_usr_fault_32)
-	@ r0 = the two 16-bit Thumb instructions which caused the exception
-	@ r2 = PC value for the following Thumb instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the first 16-bit Thumb instruction
-	@ lr = 32bit undefined instruction function
 
 #if __LINUX_ARM_ARCH__ < 7
 /* If the target arch was overridden, change it back: */
@@ -513,16 +482,19 @@ __und_usr_thumb:
 #endif
 #endif /* __LINUX_ARM_ARCH__ < 7 */
 #else /* !(CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7) */
-	b	__und_usr_fault_16
+	b	__und_usr_unknown
 #endif
- UNWIND(.fnend)
+ UNWIND(.fnend		)
 ENDPROC(__und_usr)
 
+	@
+	@ fallthrough to call_fpe
+	@
+
 /*
- * The out of line fixup for the ldrt instructions above.
+ * The out of line fixup for the ldrt above.
  */
 	.pushsection .fixup, "ax"
-	.align	2
 4:	mov	pc, r9
 	.popsection
 	.pushsection __ex_table,"a"
@@ -551,12 +523,11 @@ ENDPROC(__und_usr)
  * NEON handler code.
  *
  * Emulators may wish to make use of the following registers:
- *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
- *  r2  = PC value to resume execution after successful emulation
+ *  r0  = instruction opcode.
+ *  r2  = PC+4
  *  r9  = normal "successful" return address
- *  r10 = this threads thread_info structure
+ *  r10 = this threads thread_info structure.
  *  lr  = unrecognised instruction return address
- * IRQs disabled, FIQs enabled.
  */
 	@
 	@ Fall-through from Thumb-2 __und_usr
@@ -691,17 +662,12 @@ ENTRY(no_fp)
 	mov	pc, lr
 ENDPROC(no_fp)
 
-__und_usr_fault_32:
-	mov	r1, #4
-	b	1f
-__und_usr_fault_16:
-	mov	r1, #2
-1:	enable_irq
+__und_usr_unknown:
+	enable_irq
 	mov	r0, sp
 	adr	lr, BSYM(ret_from_exception)
-	b	__und_fault
-ENDPROC(__und_usr_fault_32)
-ENDPROC(__und_usr_fault_16)
+	b	do_undefinstr
+ENDPROC(__und_usr_unknown)
 
 	.align	5
 __pabt_usr:
@@ -795,9 +761,112 @@ ENDPROC(__switch_to)
 #endif
 	.endm
 
+	.macro	kuser_pad, sym, size
+	.if	(. - \sym) & 3
+	.rept	4 - (. - \sym) & 3
+	.byte	0
+	.endr
+	.endif
+	.rept	(\size - (. - \sym)) / 4
+	.word	0xe7fddef1
+	.endr
+	.endm
+
+#ifdef CONFIG_KUSER_HELPERS
 	.align	5
 	.globl	__kuser_helper_start
 __kuser_helper_start:
+#ifdef GENERIC_TIME_VSYSCALL
+/*
+ * Reference declaration:
+ *
+ *      extern struct timezone __kernel_helper_gtod_timezone
+ *      extern unsigned int __kernel_helper_gtod_seqnum
+ *
+ *  Definition and user space usage example:
+ *
+ *      #define __kernel_helper_gtod_timezone (*(unsigned int*)0xffff0f20)
+ *      #define __kernel_helper_gtod_seqnum   (*(unsigned int*)0xffff0f28)
+ *
+ *      unsigned int prelock, postlock ;
+ *      do {
+ *          prelock = __kernel_helper_gtod_seqnum;
+ *          memcpy(&tz, (void*)&(__kernel_helper_gtod_timezone),
+ *                     sizeof(struct timezone)) ;
+ *          postlock = __kernel_helper_gtod_seqnum;
+ *      } while (prelock != postlock);
+ *
+ * 0xffff0f20-3: tz_minuteswest
+ * 0xffff0f24-7: tz_dsttime
+ * 0xffff0f28-b: sequence #.
+ * 0xffff0f30-3: offset into CONFIG_USER_ACCESSIBLE_TIMER_BASE to get the timer.
+ * 0xffff0f34-7: Feature flag
+ * 0xffff0f38-b: wall-to-mononic: tv_sec
+ * 0xffff0f3c-f: wall-to-mononic: tv_nsec
+ */
+	.globl  __kuser_gtod_timezone
+__kuser_gtod_timezone: @0xffff0f20
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	/* This offset is where the flag to enable the
+	 * user accessible timers is located.
+	 */
+	.word	0
+	.word	0
+	.word	0
+	.align	5
+
+/*
+ * Reference declaration:
+ *
+ *      extern struct timeval __kernel_helper_gtod_timeval
+ *      extern unsigned int __kernel_helper_gtod_seqnum
+ *
+ *  Definition and user space usage example:
+ *
+ *      #define __kernel_helper_gtod_timeval (*(unsigned int*)0xffff0f40)
+ *      #define __kernel_helper_gtod_seqnum   (*(unsigned int*)0xffff0f48)
+ *
+ *      unsigned int prelock, postlock ;
+ *      struct gtod {
+ *          uint64_t  cycle_last;
+ *          uint64_t  mask;
+ *          uint32_t  mult;
+ *          uint32_t  shift;
+ *          uint32_t  tv_sec;
+ *          uint32_t  tv_nsec;
+ *      };
+ *      struct gtod gdtod;
+ *
+ *      do {
+ *          prelock = __kernel_helper_gtod_seqnum;
+ *          memcpy(&gdtod, (void*)&(__kernel_helper_gtod_timeval),
+ *                     sizeof(struct gtod)) ;
+ *          postlock = __kernel_helper_gtod_seqnum;
+ *      } while (prelock != postlock);
+ *
+ * 0xffff0f40-7: cycle_last
+ * 0xffff0f48-f: mask
+ * 0xffff0f50-3: mult
+ * 0xffff0f54-7: shift
+ * 0xffff0f58-b: tv_sec
+ * 0xffff0f5c-f: tv_nsec
+ */
+	.globl  __kuser_gtod_timeval
+__kuser_gtod_timeval:  @0xffff0f40
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.word	0
+	.align	5
+#endif
 
 /*
  * Due to the length of some sequences, __kuser_cmpxchg64 spans 2 regular
@@ -885,18 +954,13 @@ kuser_cmpxchg64_fixup:
 #error "incoherent kernel configuration"
 #endif
 
-	/* pad to next slot */
-	.rept	(16 - (. - __kuser_cmpxchg64)/4)
-	.word	0
-	.endr
-
-	.align	5
+	kuser_pad __kuser_cmpxchg64, 64
 
 __kuser_memory_barrier:				@ 0xffff0fa0
 	smp_dmb	arm
 	usr_ret	lr
 
-	.align	5
+	kuser_pad __kuser_memory_barrier, 32
 
 __kuser_cmpxchg:				@ 0xffff0fc0
 
@@ -969,13 +1033,14 @@ kuser_cmpxchg32_fixup:
 
 #endif
 
-	.align	5
+	kuser_pad __kuser_cmpxchg, 32
 
 __kuser_get_tls:				@ 0xffff0fe0
 	ldr	r0, [pc, #(16 - 8)]	@ read TLS, set in kuser_get_tls_init
 	usr_ret	lr
 	mrc	p15, 0, r0, c13, c0, 3	@ 0xffff0fe8 hardware TLS code
-	.rep	4
+	kuser_pad __kuser_get_tls, 16
+	.rep	3
 	.word	0			@ 0xffff0ff0 software TLS value, then
 	.endr				@ pad up to __kuser_helper_version
 
@@ -985,14 +1050,16 @@ __kuser_helper_version:				@ 0xffff0ffc
 	.globl	__kuser_helper_end
 __kuser_helper_end:
 
+#endif
+
  THUMB(	.thumb	)
 
 /*
  * Vector stubs.
  *
- * This code is copied to 0xffff0200 so we can use branches in the
- * vectors, rather than ldr's.  Note that this code must not
- * exceed 0x300 bytes.
+ * This code is copied to 0xffff1000 so we can use branches in the
+ * vectors, rather than ldr's.  Note that this code must not exceed
+ * a page size.
  *
  * Common stub entry macro:
  *   Enter in IRQ mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
@@ -1051,8 +1118,17 @@ ENDPROC(vector_\name)
 1:
 	.endm
 
-	.globl	__stubs_start
+	.section .stubs, "ax", %progbits
 __stubs_start:
+	@ This must be the first word
+	.word	vector_swi
+
+vector_rst:
+ ARM(	swi	SYS_ERROR0	)
+ THUMB(	svc	#0		)
+ THUMB(	nop			)
+	b	vector_und
+
 /*
  * Interrupt dispatcher
  */
@@ -1147,6 +1223,16 @@ __stubs_start:
 	.align	5
 
 /*=============================================================================
+ * Address exception handler
+ *-----------------------------------------------------------------------------
+ * These aren't too critical.
+ * (they're not supposed to happen, and won't happen in 32-bit data mode).
+ */
+
+vector_addrexcptn:
+	b	vector_addrexcptn
+
+/*=============================================================================
  * Undefined FIQs
  *-----------------------------------------------------------------------------
  * Enter in FIQ mode, spsr = ANY CPSR, lr = ANY PC
@@ -1159,47 +1245,22 @@ __stubs_start:
 vector_fiq:
 	subs	pc, lr, #4
 
-/*=============================================================================
- * Address exception handler
- *-----------------------------------------------------------------------------
- * These aren't too critical.
- * (they're not supposed to happen, and won't happen in 32-bit data mode).
- */
-
-vector_addrexcptn:
-	b	vector_addrexcptn
-
-/*
- * We group all the following data together to optimise
- * for CPUs with separate I & D caches.
- */
-	.align	5
-
-.LCvswi:
-	.word	vector_swi
 .krait_fixup:
 	.word	msm_krait_need_wfe_fixup
 
-	.globl	__stubs_end
-__stubs_end:
+	.globl	vector_fiq_offset
+	.equ	vector_fiq_offset, vector_fiq
 
-	.equ	stubs_offset, __vectors_start + 0x200 - __stubs_start
-
-	.globl	__vectors_start
+	.section .vectors, "ax", %progbits
 __vectors_start:
- ARM(	swi	SYS_ERROR0	)
- THUMB(	svc	#0		)
- THUMB(	nop			)
-	W(b)	vector_und + stubs_offset
-	W(ldr)	pc, .LCvswi + stubs_offset
-	W(b)	vector_pabt + stubs_offset
-	W(b)	vector_dabt + stubs_offset
-	W(b)	vector_addrexcptn + stubs_offset
-	W(b)	vector_irq + stubs_offset
-	W(b)	vector_fiq + stubs_offset
-
-	.globl	__vectors_end
-__vectors_end:
+	W(b)	vector_rst
+	W(b)	vector_und
+	W(ldr)	pc, __vectors_start + 0x1000
+	W(b)	vector_pabt
+	W(b)	vector_dabt
+	W(b)	vector_addrexcptn
+	W(b)	vector_irq
+	W(b)	vector_fiq
 
 	.data
 

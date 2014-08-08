@@ -30,19 +30,6 @@
 #include "msm-pcm-routing.h"
 #include "qdsp6/q6voice.h"
 
-#if 0 //def CONFIG_SKY_SND_MODIFIER //20120810 jhsong : kernel voip dump
-#define FEATURE_PANTECH_SND_PCM_KERNEL_DUMP 1
-#endif
-
-#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
-#include <linux/kernel.h>
-#include <linux/syscalls.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/fcntl.h>
-#include <asm/uaccess.h>
-#endif
-
 #define VOIP_MAX_Q_LEN 10
 #define VOIP_MAX_VOC_PKT_SIZE 640
 #define VOIP_MIN_VOC_PKT_SIZE 320
@@ -58,11 +45,6 @@
 #define MODE_AMR		0x5
 #define MODE_AMR_WB		0xD
 #define MODE_PCM		0xC
-
-#if 1 //20120625 jhsong : qct patch
-#define QCT_PATCH_127900 1
-#define QCT_PATCH_142525 1
-#endif
 
 enum format {
 	FORMAT_S16_LE = 2,
@@ -126,17 +108,9 @@ struct voip_drv_info {
 	wait_queue_head_t in_wait;
 
 	struct mutex lock;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-	struct mutex in_lock;
-	struct mutex out_lock;
-#endif
 
 	spinlock_t dsp_lock;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	spinlock_t dsp_ul_lock;
-#endif
 
 	uint32_t mode;
 	uint32_t rate_type;
@@ -338,11 +312,7 @@ static void voip_process_ul_pkt(uint8_t *voc_pkt,
 		return;
 
 	/* Copy up-link packet into out_queue. */
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	spin_lock_irqsave(&prtd->dsp_ul_lock, dsp_flags);
-#else
-	spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
-#endif
 
 	/* discarding UL packets till start is received */
 	if (!list_empty(&prtd->free_out_queue) && prtd->capture_start) {
@@ -403,20 +373,10 @@ static void voip_process_ul_pkt(uint8_t *voc_pkt,
 		pr_debug("ul_pkt: pkt_len =%d, frame.len=%d\n", pkt_len,
 			buf_node->frame.len);
 		prtd->pcm_capture_irq_pos += prtd->pcm_capture_count;
-
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 		spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
-#else
-		spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
-#endif
 		snd_pcm_period_elapsed(prtd->capture_substream);
 	} else {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 		spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
-#else
-		spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
-#endif
-
 #if !defined(CONFIG_SKY_SND_MODIFIER) //  2012-03-17 p11157@LS1_SND : EF45K CSVT reset occurs due to too many log
 		pr_err("UL data dropped\n");
 #endif
@@ -433,6 +393,7 @@ static void voip_process_dl_pkt(uint8_t *voc_pkt,
 	struct voip_buf_node *buf_node = NULL;
 	struct voip_drv_info *prtd = private_data;
 	unsigned long dsp_flags;
+	int size;
 
 
 	if (prtd->playback_substream == NULL)
@@ -614,34 +575,6 @@ err:
 	return ret;
 }
 
-#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
-static void voip_write_file(char *filename, void __user *buffer, int buff_cnt){
-	struct file *filp;
-	loff_t pos = 0;
-	int fd;
-
-	mm_segment_t old_fs = get_fs();	
-	set_fs(KERNEL_DS);
-
-	fd = sys_open (filename, O_WRONLY | O_APPEND, 0644);
-
-	if (fd >= 0){
-		filp = fget (fd);
-		if (filp){
-			vfs_write (filp, buffer, buff_cnt, &pos);
-			fput (filp);
-		}else{
-			pr_err("%s: @#@#@#@#@# sys_open fail !!! : %d  filename : %s\n", __func__, fd, filename);
-		}
-	}else{
-		pr_err("%s: @#@#@#@#@# file name : %s   fget  fail !!! \n", __func__, filename);
-	}
-
-	sys_close(fd);
-	set_fs(old_fs);
-	
-}
-#endif
 
 #ifdef USE_SKY_DIRECT_ADSP
 /*static*/ int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
@@ -655,9 +588,7 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	struct voip_buf_node *buf_node = NULL;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct voip_drv_info *prtd = runtime->private_data;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	unsigned long dsp_flags;
-#endif
 
 	int count = frames_to_bytes(runtime, frames);
 	pr_debug("%s: count = %d, frames=%d\n", __func__, count, (int)frames);
@@ -675,22 +606,13 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 #endif
 
 	if (ret > 0) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-		mutex_lock(&prtd->in_lock);
-#endif
 		if (count <= VOIP_MAX_VOC_PKT_SIZE) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
-#endif
 			buf_node =
 				list_first_entry(&prtd->free_in_queue,
 						struct voip_buf_node, list);
 			list_del(&buf_node->list);
-#ifdef QCT_PATCH_142525 //20120725 jhsong : qct patch 142525
 			spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
-#endif
 			if (prtd->mode == MODE_PCM) {
 				ret = copy_from_user(&buf_node->frame.voc_pkt,
 							buf, count);
@@ -698,29 +620,15 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 			} else
 				ret = copy_from_user(&buf_node->frame,
 							buf, count);
-
-#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
-			voip_write_file("/data/rx_dump_kernel.pcm", &buf_node->frame.voc_pkt, count);
-#endif
-
-#ifdef QCT_PATCH_142525 //20120725 jhsong : qct patch 142525
 			spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
-#endif
 			list_add_tail(&buf_node->list, &prtd->in_queue);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
-#endif
 		} else {
 			pr_err("%s: Write cnt %d is > VOIP_MAX_VOC_PKT_SIZE\n",
 				__func__, count);
 			ret = -ENOMEM;
 		}
 
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-		mutex_unlock(&prtd->in_lock);
-#endif
 	} else if (ret == 0) {
 		pr_err("%s: No free DL buffs\n", __func__);
 		ret = -ETIMEDOUT;
@@ -747,9 +655,8 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	struct voip_buf_node *buf_node = NULL;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct voip_drv_info *prtd = runtime->private_data;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	unsigned long dsp_flags;
-#endif
+	int size;
 
 	count = frames_to_bytes(runtime, frames);
 
@@ -766,58 +673,42 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 				1 * HZ);
 #endif
 	if (ret > 0) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-		mutex_lock(&prtd->out_lock);
-#endif
 
 		if (count <= VOIP_MAX_VOC_PKT_SIZE) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_lock_irqsave(&prtd->dsp_ul_lock, dsp_flags);
-#endif
 			buf_node = list_first_entry(&prtd->out_queue,
 					struct voip_buf_node, list);
 			list_del(&buf_node->list);
-#ifdef QCT_PATCH_142525 //20120725 jhsong : qct patch 142525
 			spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
-#endif
-			if (prtd->mode == MODE_PCM)
+			if (prtd->mode == MODE_PCM) {
 				ret = copy_to_user(buf,
 						   &buf_node->frame.voc_pkt,
-						   count);
-			else
+						   buf_node->frame.len);
+			} else {
+				size = sizeof(buf_node->frame.header) +
+				       sizeof(buf_node->frame.len) +
+				       buf_node->frame.len;
+
 				ret = copy_to_user(buf,
 						   &buf_node->frame,
-						   count);
-
-#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
-			voip_write_file("/data/tx_dump_kernel.pcm", &buf_node->frame, count);
-#endif
+						   size);
+			}
 			if (ret) {
 				pr_err("%s: Copy to user retuned %d\n",
 					__func__, ret);
 				ret = -EFAULT;
 			}
-#ifdef QCT_PATCH_142525 //20120725 jhsong : qct patch 142525
 			spin_lock_irqsave(&prtd->dsp_ul_lock, dsp_flags);
-#endif
 			list_add_tail(&buf_node->list,
 						&prtd->free_out_queue);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
-#endif
+
 		} else {
 			pr_err("%s: Read count %d > VOIP_MAX_VOC_PKT_SIZE\n",
 				__func__, count);
 			ret = -ENOMEM;
 		}
 
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-		mutex_unlock(&prtd->out_lock);
-#endif
 
 	} else if (ret == 0) {
 		//pr_err("%s: No UL data available\n", __func__);  // LS6 kim.kicheol request --> jmlee remove this log
@@ -866,9 +757,7 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_substream *p_substream, *c_substream;
 	struct snd_pcm_runtime *runtime;
 	struct voip_drv_info *prtd;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	unsigned long dsp_flags;
-#endif
 
 #ifdef USE_SKY_DIRECT_ADSP//kkc 2012.08.15 - change the flag disable timing for closing process
     bUseSKYDirectADSP = false;
@@ -905,11 +794,7 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 		}
 		/* release all buffer */
 		/* release in_queue and free_in_queue */
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-		pr_info("release all buffer\n");
-#else
 		pr_debug("release all buffer\n");
-#endif
 		p_substream = prtd->playback_substream;
 		if (p_substream == NULL) {
 			pr_debug("p_substream is NULL\n");
@@ -921,11 +806,7 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 			goto capt;
 		}
 		if (p_dma_buf->area != NULL) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
-#else
-			mutex_lock(&prtd->in_lock);
-#endif
 			list_for_each_safe(ptr, next, &prtd->in_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
@@ -936,18 +817,11 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 						struct voip_buf_node, list);
 				list_del(&buf_node->list);
 			}
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
-#endif
 			dma_free_coherent(p_substream->pcm->card->dev,
 				runtime->hw.buffer_bytes_max, p_dma_buf->area,
 				p_dma_buf->addr);
 			p_dma_buf->area = NULL;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_unlock(&prtd->in_lock);
-#endif
 		}
 		/* release out_queue and free_out_queue */
 capt:		c_substream = prtd->capture_substream;
@@ -961,11 +835,7 @@ capt:		c_substream = prtd->capture_substream;
 			goto done;
 		}
 		if (c_dma_buf->area != NULL) {
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_lock_irqsave(&prtd->dsp_ul_lock, dsp_flags);
-#else
-			mutex_lock(&prtd->out_lock);
-#endif
 			list_for_each_safe(ptr, next, &prtd->out_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
@@ -976,18 +846,11 @@ capt:		c_substream = prtd->capture_substream;
 						struct voip_buf_node, list);
 				list_del(&buf_node->list);
 			}
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 			spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
-#endif
 			dma_free_coherent(c_substream->pcm->card->dev,
 				runtime->hw.buffer_bytes_max, c_dma_buf->area,
 				c_dma_buf->addr);
 			c_dma_buf->area = NULL;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_unlock(&prtd->out_lock);
-#endif
 		}
 done:
 		prtd->capture_substream = NULL;
@@ -1157,35 +1020,15 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 		for (i = 0; i < VOIP_MAX_Q_LEN; i++) {
 			buf_node = (void *)dma_buf->area + offset;
 
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_lock(&voip_info.in_lock);
-#endif
 			list_add_tail(&buf_node->list,
 					&voip_info.free_in_queue);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_unlock(&voip_info.in_lock);
-#endif
 			offset = offset + sizeof(struct voip_buf_node);
 		}
 	} else {
 		for (i = 0; i < VOIP_MAX_Q_LEN; i++) {
 			buf_node = (void *) dma_buf->area + offset;
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_lock(&voip_info.out_lock);
-#endif
 			list_add_tail(&buf_node->list,
 					&voip_info.free_out_queue);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-			mutex_unlock(&voip_info.out_lock);
-#endif
 			offset = offset + sizeof(struct voip_buf_node);
 		}
 	}
@@ -1427,17 +1270,9 @@ static int __init msm_soc_platform_init(void)
 	memset(&voip_info, 0, sizeof(voip_info));
 	voip_info.mode = MODE_PCM;
 	mutex_init(&voip_info.lock);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
-//remove mutex
-#else
-	mutex_init(&voip_info.in_lock);
-	mutex_init(&voip_info.out_lock);
-#endif
 
 	spin_lock_init(&voip_info.dsp_lock);
-#ifdef QCT_PATCH_127900 //20120625 jhsong : qct patch 127900
 	spin_lock_init(&voip_info.dsp_ul_lock);
-#endif
 
 	init_waitqueue_head(&voip_info.out_wait);
 	init_waitqueue_head(&voip_info.in_wait);

@@ -292,7 +292,6 @@ static int msm_timer_set_next_event(unsigned long cycles,
 
 	clock = clockevent_to_clock(evt);
 	clock_state = &__get_cpu_var(msm_clocks_percpu)[clock->index];
-
 	now = msm_read_timer_count(clock, LOCAL_TIMER);
 	alarm = now + (cycles << clock->shift);
 	if (clock->flags & MSM_CLOCK_FLAGS_ODD_MATCH_WRITE)
@@ -944,12 +943,11 @@ static u32 notrace msm_read_sched_clock(void)
 	return cs->read(NULL);
 }
 
-static struct delay_timer msm_delay_timer;
-
-static unsigned long msm_read_current_timer(void)
+int read_current_timer(unsigned long *timer_val)
 {
 	struct msm_clock *dgt = &msm_clocks[MSM_CLOCK_DGT];
-	return msm_read_timer_count(dgt, GLOBAL_TIMER);
+	*timer_val = msm_read_timer_count(dgt, GLOBAL_TIMER);
+	return 0;
 }
 
 static void __init msm_sched_clock_init(void)
@@ -1169,8 +1167,7 @@ static void __init msm_timer_init(void)
 	msm_sched_clock_init();
 
 	if (use_user_accessible_timers()) {
-		if (soc_class_is_msm8960() || soc_class_is_apq8064() ||
-		    soc_class_is_msm8930()) {
+		if (cpu_is_msm8960() || cpu_is_msm8930() || cpu_is_apq8064()) {
 			struct msm_clock *gtclock = &msm_clocks[MSM_CLOCK_GPT];
 			void __iomem *addr = gtclock->regbase +
 				TIMER_COUNT_VAL + global_timer_offset;
@@ -1179,13 +1176,13 @@ static void __init msm_timer_init(void)
 		}
 	}
 
+#ifdef ARCH_HAS_READ_CURRENT_TIMER
 	if (is_smp()) {
 		__raw_writel(1,
 			msm_clocks[MSM_CLOCK_DGT].regbase + TIMER_ENABLE);
-		msm_delay_timer.freq = dgt->freq;
-		msm_delay_timer.read_current_timer = &msm_read_current_timer;
-		register_current_timer_delay(&msm_delay_timer);
+		set_delay_fn(read_current_timer_delay_loop);
 	}
+#endif
 
 #ifdef CONFIG_LOCAL_TIMERS
 	local_timer_register(&msm_lt_ops);
