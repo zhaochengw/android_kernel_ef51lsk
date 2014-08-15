@@ -3,13 +3,21 @@ if CUST_PANTECH_H
 #
 # CUST PANTECH CONFIG SECTION
 #
+
+source "arch/arm/mach-msm/cust/lcd/Kconfig" #pantech_lcd
+
+source "arch/arm/mach-msm/cust/SIO/Kconfig" #pantech_usb
+
 menu "CUST PANTECH CONFIG SECTION"
 
 config PANTECH
 	bool "PANTECH Common Configuration"
 	default y
-	select PANTECH_ERR_CRASH_LOGGING
+    	select PANTECH_ERR_CRASH_LOGGING
+    	select PANTECH_FS_AUTO_REPAIR
 	select PANTECH_PMIC_PWRKEY
+# JINHO.PARK.LS4.2013.01.10
+	select PANTECH_SOC_HW_REVISION_NUMBER	
 	select QC_ABNORMAL_DEBUG_CODE
 # (+) p15060, 2012-05-17
 	select INPUT_KEYCHORD
@@ -67,7 +75,7 @@ config SKY_EF48S_BOARD
 	select SKY_SND_AUTOANSWER
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select NLS_UTF8
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
 #	select SKY_SND_SPK_DEBUG_LOG
@@ -84,7 +92,7 @@ config SKY_EF49K_BOARD
 	select SKY_SND_AUTOANSWER
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select NLS_UTF8
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
 #	select SKY_SND_SPK_DEBUG_LOG
@@ -101,7 +109,7 @@ config SKY_EF50L_BOARD
 	select SKY_SND_AUTOANSWER
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select NLS_UTF8
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
 #	select SKY_SND_SPK_DEBUG_LOG
@@ -119,7 +127,7 @@ config SKY_EF51S_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -138,7 +146,7 @@ config SKY_EF51K_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -157,7 +165,7 @@ config SKY_EF51L_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -176,7 +184,7 @@ config SKY_EF52S_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -195,7 +203,7 @@ config SKY_EF52K_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -214,7 +222,7 @@ config SKY_EF52L_BOARD
 	select KSKY_RAWDATA
 	select SKY_SND_MODIFIER
 	select NLS_UTF8
-	select SKY_SND_QSOUND_OPEN_DSP
+	select PANTECH_SND_QSOUND
 	select SKY_SND_DOCKING_CRADLE
 	select SKY_SND_HEADSET_BUTTON_ADC
 	select PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
@@ -297,7 +305,7 @@ config SKY_SND_MODIFIER
 config SKY_SND_DOCKING_CRADLE
 	bool
 
-config SKY_SND_QSOUND_OPEN_DSP
+config PANTECH_SND_QSOUND
 	bool
 
 #config SKY_SND_SPK_DEBUG_LOG
@@ -554,29 +562,79 @@ config PANTECH_LCD_FIX_LOCKUP_WHEN_CONNECT_LGE_TV_WITH_WFD
 ##################################################################################
 # PANTECH_SENSOR END
 ##################################################################################
+# JINHO.PARK.LS4.2013.01.10	
+config PANTECH_SOC_HW_REVISION_NUMBER
+	bool
+	default y
+
+##################################################################################
+# PANTECH ERR LOGGING &DUMP START
+##################################################################################
+
+#############
+# ALLWAYS ON #
+#############
 
 config PANTECH_ERR_CRASH_LOGGING
 	bool
 	default y
 
+################
+# SELECTIVELY ON #
+################
+
+# if you want to change DEBUG-MODE when environment are user-build-mode,
+# you just change the value which described default section. (y -> n)
+
 config QC_ABNORMAL_DEBUG_CODE
-	bool
-	default y
-	
+    bool
+    default n
+
+config PANTECH_ERR_CRASH_LOGGING
+  bool
+
+config PANTECH_DEBUG_ON
+  bool 
+  default y
+  select PANTECH_DEBUG
+
+config PANTECH_DEBUG
+  bool 
+  default n  
+  select PANTECH_DEBUG_SCHED_LOG
+  select PANTECH_DEBUG_IRQ_LOG
+  select PANTECH_DEBUG_DCVS_LOG
+  select PANTECH_DEBUG_RPM_LOG
+  
 config PANTECH_DEBUG_SCHED_LOG
-	bool
-	depends on PANTECH_DEBUG
-	default y	
+  bool 
+  default n  
 
 config PANTECH_DEBUG_IRQ_LOG
-	bool
-	depends on PANTECH_DEBUG
-	default y	
+  bool 
+  default n  
 
 config PANTECH_DEBUG_DCVS_LOG
-	bool
-	depends on PANTECH_DEBUG
-	default y	
+  bool 
+  default n  
+
+config PANTECH_DEBUG_RPM_LOG
+  bool 
+  default n  
+
+#LS1-SHPARK-TEMP 
+config PANTECH_BLOCK
+	bool     
+	default y
+
+config FEATURE_PANTECH_SAMSUNG_EMMC_BUG_FIX
+	bool     
+	default y
+#
+
+##################################################################################
+# PANTECH ERR LOGGING &DUMP END
+##################################################################################
 
 config PANTECH_MORE_DEBUGGING_INFO_ON_KERNEL
         bool
@@ -622,14 +680,53 @@ config PANTECH_EXTERNAL_SDCARD
 
 config PIEZO_ECO
       bool "piezo_eco"
-      depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && (BOARD_VER=TP10 || BOARD_VER=TP20 || BOARD_VER=TP25) )
       default y
+      depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && (BOARD_VER=TP10 || BOARD_VER=TP20 || BOARD_VER=TP25) )
                   
 
-config SKY_SND_QVOICE
-      bool 
+##################################################################################
+# PANTECH_WLAN START
+##################################################################################
+
+config PANTECH_WLAN_QCOM_PATCH
+	bool     
       default y
-      depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD ||SKY_EF51L_BOARD) )
+      
+config PANTECH_WLAN_802_11_AC_DATA_RATE_DISPLAY
+	bool     
+      default y
+                  
+##################################################################################
+# PANTECH_WLAN END
+##################################################################################
+
+##################################################################################
+# FEATURE_PANTECH_RESET_DSPS_CORE
+##################################################################################
+
+config FEATURE_PANTECH_RESET_DSPS_CORE
+	bool     
+      default y
+                  
+##################################################################################
+# FEATURE_PANTECH_RESET_DSPS_CORE
+##################################################################################
+
+
+
+
+#P11536-SHPARK-SELinux 
+if MACH_APQ8064_EF48S || MACH_APQ8064_EF49K || MACH_APQ8064_EF50L || MACH_APQ8064_EF51S || MACH_APQ8064_EF51K || MACH_APQ8064_EF51L || MACH_APQ8064_EF52S || MACH_APQ8064_EF52K || MACH_APQ8064_EF52L
+config PANTECH_SELINUX_DENIAL_LOG
+	bool     
+	default y
+endif
+
 endmenu
 
+config PANTECH_PS_WIFI_COM_PREF_LOGGING
+	depends on WCNSS_CORE
+       bool "PANTECH PS WIFI COM PREF LOGGING"
+       default y
+       
 endif

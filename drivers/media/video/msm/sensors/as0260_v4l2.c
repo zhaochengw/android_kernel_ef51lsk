@@ -19,7 +19,11 @@
 #define AS0260_MIPI_2_LANE
 
 #ifdef AS0260_MIPI_2_LANE
+#if (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
+#include "as0260_v4l2_cfg_EF52.h"
+#else
 #include "as0260_v4l2_cfg.h"
+#endif
 #else
 #include "as0260_v4l2_cfg_1080.h"
 #endif
@@ -133,6 +137,10 @@ static struct msm_camera_i2c_conf_array as0260_confs[] = {
 	ARRAY_SIZE(as0260_1088_settings), 0, MSM_CAMERA_I2C_WORD_DATA},
 	{as0260_1088_settings,
 	ARRAY_SIZE(as0260_1088_settings), 0, MSM_CAMERA_I2C_WORD_DATA},
+#if 0//[SD_check_mode_set]//mode set 
+    {as0260_1088_settings,
+    ARRAY_SIZE(as0260_1088_settings), 0, MSM_CAMERA_I2C_WORD_DATA},
+#endif
 };
 #endif
 
@@ -222,6 +230,22 @@ static struct msm_sensor_output_info_t as0260_dimensions[] = {
 #endif
 		.binning_factor = 1,
 	},
+#if 0//[SD_check_mode_set]//mode set 
+	{
+		.x_output = AS0260_FULL_SIZE_WIDTH,//0x1070,
+		.y_output = AS0260_FULL_SIZE_HEIGHT,
+		.line_length_pclk = AS0260_FULL_SIZE_WIDTH + AS0260_HRZ_FULL_BLK_PIXELS ,
+		.frame_length_lines = AS0260_FULL_SIZE_HEIGHT+ AS0260_VER_FULL_BLK_LINES ,
+#ifdef AS0260_MIPI_2_LANE
+		.vt_pixel_clk = 62668800,//48000000,//50000000,
+		.op_pixel_clk = 192000000,//128000000,//150000000,
+#else
+		.vt_pixel_clk = 41472000,//48000000,//50000000,
+		.op_pixel_clk = 96000000,//128000000,//150000000,
+#endif
+		.binning_factor = 1,
+	},
+#endif
 };
 
 #if 0

@@ -24,6 +24,10 @@ extern int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 extern int msm_pcm_capture_copy(struct snd_pcm_substream *substream, int a,
                     	snd_pcm_uframes_t hwoff, void __user *buf, snd_pcm_uframes_t frames);
 
+// 20130619 hdj add Volte rec mode
+extern int voip_get_rec_mode(void);
+// 20130619 hdj add Volte rec mode_end
+
 extern struct voip_drv_info voip_info;
 extern bool bUseSKYDirectADSP;
 
@@ -44,6 +48,9 @@ static int voip_get_rate_type(uint32_t mode, uint32_t rate, uint32_t *rate_type)
 static uint32_t MVS_MODE = MODE_PCM;
 static spinlock_t pcm_read_lock;
 
+#ifndef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+#define FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 /************************************************************************************************
 ** Functions
 *************************************************************************************************/
@@ -61,6 +68,7 @@ static ssize_t sky_direct_adsp_read(struct file *filp, char __user *buffer, size
     if(voip_info.capture_start != 1)
         return -3;
 
+    if(voip_get_rec_mode()) { // 20130619 hdj add Volte rec mode
     //navan - 2012.09.27 - for VoLTE Recording
     if(copy_from_user(&rec_ind, (void __user *)buffer, 1))
     {
@@ -116,6 +124,7 @@ static ssize_t sky_direct_adsp_read(struct file *filp, char __user *buffer, size
       return tx_record_size_retVal; // jmlee add modify
     }
  //<--20130214 jhsong : volte rec tx buffer too small
+    }// 20130619 hdj add Volte rec mode end if
 
     if(voip_info.mode == MODE_PCM)
     {
@@ -141,6 +150,11 @@ static ssize_t sky_direct_adsp_read(struct file *filp, char __user *buffer, size
 static ssize_t sky_direct_adsp_write(struct file *filp, const char __user *buffer, size_t length, loff_t *offset)
 {
     int ret = 0;
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+	int nMax = 0;
+    int index = 0;
+	short* tmpVal = (short *)buffer;
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 
     if(!bUseSKYDirectADSP)
         return -1;
@@ -153,8 +167,16 @@ static ssize_t sky_direct_adsp_write(struct file *filp, const char __user *buffe
 
     if(voip_info.mode == MODE_PCM)
     {
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+		for(index = 0; index < length/2; index++) 
+		{
+			nMax = (((nMax) > (tmpVal[index])) ? (nMax) : (tmpVal[index]));
+			if (nMax > 256) break;
+		}
+        ret = msm_pcm_playback_copy(voip_info.playback_substream, ((nMax < 256) ? (-1):(0)), 0, (void __user *)buffer, length/2);
+#else //FEATURE_RV_VEGA_VOLTE_TICK_NOISE
         ret = msm_pcm_playback_copy(voip_info.playback_substream, 0, 0, (void __user *)buffer, length/2);
-
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
         //navan - 2012.09.27 - for VoLTE Recording
 /*        if (bRecordingFlag)
         {

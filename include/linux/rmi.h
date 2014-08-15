@@ -46,8 +46,8 @@
  * we only need to change them here.
  */
 #define RMI_RO_ATTR S_IRUGO
-#define RMI_RW_ATTR (S_IRUGO | S_IWUGO)
-#define RMI_WO_ATTR S_IWUGO
+#define RMI_RW_ATTR (S_IRUGO | S_IWUSR | S_IWGRP) //(S_IRUGO | S_IWUGO)
+#define RMI_WO_ATTR (S_IWUSR | S_IWGRP) //S_IWUGO
 
 enum rmi_attn_polarity {
 	RMI_ATTN_ACTIVE_LOW = 0,

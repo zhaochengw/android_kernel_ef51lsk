@@ -31,6 +31,7 @@ static struct gpiomux_setting gpio_eth_config = {
 	.drv = GPIOMUX_DRV_8MA,
 	.func = GPIOMUX_FUNC_GPIO,
 };
+#endif
 
 /* The SPI configurations apply to GSBI 5*/
 static struct gpiomux_setting gpio_spi_config = {
@@ -46,7 +47,7 @@ static struct gpiomux_setting gpio_spi_cs2_config = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
-
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 struct msm_gpiomux_config apq8064_ethernet_configs[] = {
 	{
 		.gpio = 43,
@@ -154,7 +155,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[1],
 		}
 	},
-#if !(defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD))	
+#if !(defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD) || defined(CONFIG_SKY_EF52W_BOARD))	
 	{
 		.gpio = 23,
 		.settings = {
@@ -162,7 +163,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[2],
 		}
 	},
-#endif	
+#endif
 	{
 		.gpio = 19,
 		.settings = {
@@ -227,7 +228,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[1],
 		}
 	},
-#endif	
+#endif
 	{
 		.gpio = 8,
 		.settings = {
@@ -258,6 +259,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[2],
 		}
 	},
+#ifndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio = 86,
 		.settings = {
@@ -265,7 +267,9 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[1],
 		}
 	},
+#endif
 #ifndef CONFIG_SKY_DMB_SPI_IF
+#ifndef CONFIG_SKY_DMB_I2C_CMD
 	{
 		.gpio = 85,
 		.settings = {
@@ -273,6 +277,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[4],
 		}
 	},
+#endif
 	{
 		.gpio = 84,
 		.settings = {
@@ -280,7 +285,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[3],
 		}
 	},
-#endif
+#endif /* CONFIG_SKY_DMB_SPI_IF */
 	{
 		.gpio = 5,
 		.settings = {
@@ -310,6 +315,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 		}
 	},
 #ifndef CONFIG_SKY_DMB_SPI_IF
+#if !defined(CONFIG_FB_PANTECH_MIPI_ROHM_VIDEO_HD_PANEL) && !defined(CONFIG_FB_PANTECH_MIPI_RENESAS_VIDEO_FHD_PANEL)
 	{
 		.gpio = 82,
 		.settings = {
@@ -317,6 +323,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[4],
 		}
 	},
+#endif
 	{
 		.gpio = 83,
 		.settings = {
@@ -324,7 +331,7 @@ struct msm_gpiomux_config vcap_configs[] = {
 			[GPIOMUX_ACTIVE] =		&gpio_vcap_config[4],
 		}
 	},
-#endif
+#endif  /* CONFIG_SKY_DMB_SPI_IF */
 	{
 		.gpio = 87,
 		.settings = {
@@ -426,7 +433,9 @@ static struct gpiomux_setting gsbi5_func2_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 };
 #else
-#ifndef CONFIG_SKY_DMB_SPI_IF
+#endif
+
+#ifdef CONFIG_SKY_DMB_SPI_HW
 static struct gpiomux_setting gsbi7_func1_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
@@ -438,35 +447,32 @@ static struct gpiomux_setting gsbi7_func2_cfg = {
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
-#endif
-#endif
-
-#ifdef CONFIG_SKY_DMB_SPI_HW
-static struct gpiomux_setting gsbi7_func1_cfg = { 
-  .func = GPIOMUX_FUNC_1, 
-  .drv = GPIOMUX_DRV_8MA, 
-  .pull = GPIOMUX_PULL_NONE, 
-}; 
-
-static struct gpiomux_setting gsbi7_func2_cfg = { 
-  .func = GPIOMUX_FUNC_2, 
-  .drv = GPIOMUX_DRV_8MA, 
-  .pull = GPIOMUX_PULL_NONE, 
-}; 
 
 static struct gpiomux_setting gsbi7_func3_cfg = { 
-  .func = GPIOMUX_FUNC_3, 
-  .drv = GPIOMUX_DRV_8MA, 
-  .pull = GPIOMUX_PULL_NONE, 
+	.func = GPIOMUX_FUNC_3, 
+	.drv = GPIOMUX_DRV_8MA, 
+	.pull = GPIOMUX_PULL_NONE, 
 }; 
+#else /* CONFIG_SKY_DMB_SPI_HW */
+static struct gpiomux_setting gsbi7_func1_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+#if !defined(CONFIG_FB_PANTECH_MIPI_ROHM_VIDEO_HD_PANEL) && !defined(CONFIG_FB_PANTECH_MIPI_RENESAS_VIDEO_FHD_PANEL)
+static struct gpiomux_setting gsbi7_func2_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
 #endif
-
-
+#endif /* CONFIG_SKY_DMB_SPI_HW */
 static struct gpiomux_setting gsbi3_suspended_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_2MA,
 #if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	.pull = GPIOMUX_PULL_UP,
+    .pull = GPIOMUX_PULL_UP,
 #else
 	.pull = GPIOMUX_PULL_KEEPER,
 #endif
@@ -476,7 +482,7 @@ static struct gpiomux_setting gsbi3_active_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
 #if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	.pull = GPIOMUX_PULL_UP,
+    .pull = GPIOMUX_PULL_UP,
 #else
 	.pull = GPIOMUX_PULL_NONE,
 #endif
@@ -524,8 +530,9 @@ static struct gpiomux_setting sx150x_active_cfg = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
-#if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
+#ifdef CONFIG_USB_EHCI_MSM_HSIC
 
+#if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
 static struct gpiomux_setting cyts_sleep_sus_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_6MA,
@@ -566,9 +573,24 @@ static struct msm_gpiomux_config cyts_gpio_configs[] __initdata = {
 		},
 	},
 };
+static struct msm_gpiomux_config cyts_gpio_alt_config[] __initdata = {
+	{	/* TS INTERRUPT */
+		.gpio = 6,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cyts_int_act_cfg,
+			[GPIOMUX_SUSPENDED] = &cyts_int_sus_cfg,
+		},
+	},
+	{	/* TS SLEEP */
+		.gpio = 12,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cyts_sleep_act_cfg,
+			[GPIOMUX_SUSPENDED] = &cyts_sleep_sus_cfg,
+		},
+	},
+};
 #endif
 
-#ifdef CONFIG_USB_EHCI_MSM_HSIC
 static struct gpiomux_setting hsic_act_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
@@ -648,7 +670,6 @@ static struct gpiomux_setting mxt_int_act_cfg = {
 #endif
 
 static struct msm_gpiomux_config apq8064_hdmi_configs[] __initdata = {
-#if !(defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD))	
 	{
 		.gpio = 69,
 		.settings = {
@@ -656,7 +677,6 @@ static struct msm_gpiomux_config apq8064_hdmi_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
 		},
 	},
-#endif	
 	{
 		.gpio = 70,
 		.settings = {
@@ -671,45 +691,42 @@ static struct msm_gpiomux_config apq8064_hdmi_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
 		},
 	},
-	
 #if defined(CONFIG_SKY_EF51S_BOARD)|| defined(CONFIG_SKY_EF51K_BOARD) || defined(CONFIG_SKY_EF51L_BOARD)||defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD)
 	{
-		.gpio = 33, // 72 use backtouch interrupt pin - EF51S, EF51K, EF51L
+        .gpio = 33, // 72 use backtouch interrupt pin - EF51S, EF51K, EF51L
+        .settings = {
+            [GPIOMUX_ACTIVE]    = &hdmi_active_2_cfg,
+            [GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
+        },
+    },
+#else	
+    {
+		.gpio = 72,
 		.settings = {
 			[GPIOMUX_ACTIVE]    = &hdmi_active_2_cfg,
 			[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
 		},
 	},
-#else	
-{
-	.gpio = 72,	
-	.settings = {
-		[GPIOMUX_ACTIVE]	= &hdmi_active_2_cfg,
-		[GPIOMUX_SUSPENDED] = &hdmi_suspend_cfg,
-	},
-},
-
-
 #endif
 };
 
 static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
-#ifdef CONFIG_PIEZO_ECO
+#ifdef CONFIG_PIEZO
     {
-		.gpio      = 53,			/* GSBI5 I2C QUP SDA */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
-			[GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
-		},
-	},
-	{
-		.gpio      = 54,			/* GSBI5 I2C QUP SCL */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
-			[GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
-		},
-	},
-#endif //CONFIG_PIEZO_ECO
+        .gpio      = 53,
+        .settings = {
+            [GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
+            [GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
+        },
+    },
+    {
+        .gpio      = 54,
+        .settings = {
+            [GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
+            [GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
+        },
+    },
+#endif
 	{
 		.gpio      = 8,			/* GSBI3 I2C QUP SDA */
 		.settings = {
@@ -738,8 +755,7 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gsbi1_uart_config,
 		},
 	},
-#endif
-#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
+#endif	// CONFIG_PN544
 #ifdef CONFIG_PANTECH_GSBI5_UART_CONSOLE
 	{
 		.gpio      = 51,		/* GSBI5 QUP SPI_DATA_MOSI */
@@ -753,22 +769,32 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gpio_spi_config,
 		},
 	},
-#endif
-#ifndef CONFIG_SKY_DMB_I2C_CMD
-	{
-		.gpio      = 53,		/* Funny CS0 */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gpio_spi_config,
-		},
-	},
-#endif
 	{
 		.gpio      = 31,		/* GSBI5 QUP SPI_CS2_N */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gpio_spi_cs2_config,
 		},
 	},
-#ifndef CONFIG_SKY_DMB_I2C_CMD
+#else
+#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
+	{
+		.gpio      = 51,		/* GSBI5 QUP SPI_DATA_MOSI */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gpio_spi_config,
+		},
+	},
+	{
+		.gpio      = 52,		/* GSBI5 QUP SPI_DATA_MISO */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gpio_spi_config,
+		},
+	},
+	{
+		.gpio      = 31,		/* GSBI5 QUP SPI_CS2_N */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gpio_spi_cs2_config,
+		},
+	},
 	{
 		.gpio      = 54,		/* GSBI5 QUP SPI_CLK */
 		.settings = {
@@ -777,29 +803,18 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 	},
 #endif
 #endif
-#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
 	{
 		.gpio      = 30,		/* FP CS */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gpio_spi_cs_config,
 		},
 	},
-
 	{
 		.gpio      = 32,		/* EPM CS */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gpio_epm_spi_cs_config,
 		},
 	},
-#endif
-#if 0//ndef CONFIG_SKY_DMB_I2C_CMD
-	{
-		.gpio      = 53,		/* NOR CS */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gpio_spi_cs_config,
-		},
-	},
-#endif
 #ifdef CONFIG_PANTECH_GSBI5_UART_CONSOLE
 	{
 		.gpio = 51,
@@ -814,22 +829,7 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 	}
 	},
 #else
-#ifndef CONFIG_SKY_DMB_SPI_IF
-	{
-		.gpio      = 82,	/* GSBI7 UART2 TX */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi7_func2_cfg,
-		},
-	},
-	{
-		.gpio      = 83,	/* GSBI7 UART2 RX */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi7_func1_cfg,
-		},
-	},
-#endif
-#endif
-
+#endif	// CONFIG_PANTECH_GSBI5_UART_CONSOLE
 #ifdef CONFIG_SKY_DMB_SPI_HW
 	{
 		.gpio      = 82, // GSBI7 SPI MOSI
@@ -843,7 +843,7 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &gsbi7_func1_cfg,
 		},
 	},
-		{
+	{
 		.gpio      = 84, // GSBI7 SPI CS
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gsbi7_func2_cfg,
@@ -853,6 +853,21 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 		.gpio      = 85, // GSBI7 SPI CLK
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gsbi7_func3_cfg,
+		},
+	},
+#else  /* CONFIG_SKY_DMB_SPI_HW */
+#if !defined(CONFIG_FB_PANTECH_MIPI_ROHM_VIDEO_HD_PANEL) && !defined(CONFIG_FB_PANTECH_MIPI_RENESAS_VIDEO_FHD_PANEL)
+	{
+		.gpio      = 82,	/* GSBI7 UART2 TX */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi7_func2_cfg,
+		},
+	},
+#endif
+	{
+		.gpio      = 83,	/* GSBI7 UART2 RX */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi7_func1_cfg,
 		},
 	},
 #endif /* CONFIG_SKY_DMB_SPI_HW */
@@ -871,7 +886,13 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_ACTIVE] = &gpio_i2c_config,
 		},
 	},
-#else
+#endif
+
+
+};
+
+#ifdef CONFIG_PN544
+static struct msm_gpiomux_config apq8064_gsbi1_i2c_2ma_configs[] __initdata = {
 	{
 		.gpio      = 21,		/* GSBI1 QUP I2C_CLK */
 		.settings = {
@@ -886,8 +907,8 @@ static struct msm_gpiomux_config apq8064_gsbi_configs[] __initdata = {
 			[GPIOMUX_ACTIVE] = &gsbi1_active_cfg,
 		},
 	},
-#endif
 };
+#endif
 
 static struct msm_gpiomux_config apq8064_slimbus_config[] __initdata = {
 	{
@@ -1246,7 +1267,6 @@ static struct msm_gpiomux_config mpq8064_mi2s_configs[] __initdata = {
 			[GPIOMUX_SUSPENDED] = &mi2s_sus_cfg,
 		},
 	},
-
 	{
 		.gpio	= 31,		/* mi2s dout1 */
 		.settings = {
@@ -1291,86 +1311,85 @@ static struct msm_gpiomux_config apq8064_mxt_configs[] __initdata = {
 
 #if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
 static struct gpiomux_setting gpio_touch_act_config = {
-	.pull = GPIOMUX_PULL_UP,
-	.drv = GPIOMUX_DRV_8MA,
-	.func = GPIOMUX_FUNC_GPIO,
+    .pull = GPIOMUX_PULL_UP,
+    .drv = GPIOMUX_DRV_8MA,
+    .func = GPIOMUX_FUNC_GPIO,
 };
 
 static struct gpiomux_setting gpio_touch_sus_config = {
 #if defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	.pull = GPIOMUX_PULL_UP,
+    .pull = GPIOMUX_PULL_UP,
 #else
-	.pull = GPIOMUX_PULL_NONE,
+    .pull = GPIOMUX_PULL_NONE,
 #endif
-	.drv = GPIOMUX_DRV_2MA,
-	.func = GPIOMUX_FUNC_GPIO,
+    .drv = GPIOMUX_DRV_2MA,
+    .func = GPIOMUX_FUNC_GPIO,
 };
 
 struct msm_gpiomux_config apq8064_touch_config[] = {
-	{  /* TS INT */
-		.gpio = 6,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_touch_act_config,
-			[GPIOMUX_SUSPENDED] = &gpio_touch_sus_config,
-		}
-	},
-	{	/* TS RESET */
+    {  /* TS INT */
+        .gpio = 6,
+        .settings = {
+            [GPIOMUX_ACTIVE] = &gpio_touch_act_config,
+            [GPIOMUX_SUSPENDED] = &gpio_touch_sus_config,
+        }
+    },
+    {	/* TS RESET */
 #if CONFIG_BOARD_VER >= CONFIG_PT10 && !(defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L))
-		.gpio = 43,
+        .gpio = 43,
 #elif CONFIG_BOARD_VER >= CONFIG_WS10
-		.gpio = 43,
+        .gpio = 43,
 #else
-		.gpio = 33,
+        .gpio = 33,
 #endif
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_touch_act_config,
-			[GPIOMUX_SUSPENDED] = &gpio_touch_sus_config,
-		},
-	},
+        .settings = {
+            [GPIOMUX_ACTIVE] = &gpio_touch_act_config,
+            [GPIOMUX_SUSPENDED] = &gpio_touch_sus_config,
+        },
+    },
 };
 #endif
-
 #if defined(CONFIG_TOUCHSCREEN_PP8360) && (defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K))
 static struct gpiomux_setting gpio_up_back_touch_act_config = {
-	.pull = GPIOMUX_PULL_UP,
-	.drv = GPIOMUX_DRV_8MA,
-	.func = GPIOMUX_FUNC_GPIO,
+    .pull = GPIOMUX_PULL_UP,
+    .drv = GPIOMUX_DRV_8MA,
+    .func = GPIOMUX_FUNC_GPIO,
 };
 
 static struct gpiomux_setting gpio_up_back_touch_sus_config = {
-	.pull = GPIOMUX_PULL_UP,
-	.drv = GPIOMUX_DRV_2MA,
-	.func = GPIOMUX_FUNC_GPIO,
+    .pull = GPIOMUX_PULL_UP,
+    .drv = GPIOMUX_DRV_2MA,
+    .func = GPIOMUX_FUNC_GPIO,
 };
 
 /*static struct gpiomux_setting gpio_none_back_touch_act_config = {
-	.pull = GPIOMUX_PULL_NONE,
-	.drv = GPIOMUX_DRV_8MA,
-	.func = GPIOMUX_FUNC_GPIO,
-};
+  .pull = GPIOMUX_PULL_NONE,
+  .drv = GPIOMUX_DRV_8MA,
+  .func = GPIOMUX_FUNC_GPIO,
+  };
 
-static struct gpiomux_setting gpio_none_back_touch_sus_config = {
-	.pull = GPIOMUX_PULL_NONE,
-	.drv = GPIOMUX_DRV_2MA,
-	.func = GPIOMUX_FUNC_GPIO,
-};*/
+  static struct gpiomux_setting gpio_none_back_touch_sus_config = {
+  .pull = GPIOMUX_PULL_NONE,
+  .drv = GPIOMUX_DRV_2MA,
+  .func = GPIOMUX_FUNC_GPIO,
+  };*/
 
 
 struct msm_gpiomux_config apq8064_back_touch_config[] = {
-	{  /*BACK_TOUCH INT */
-		.gpio = 72,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_up_back_touch_act_config,
-			[GPIOMUX_SUSPENDED] = &gpio_up_back_touch_sus_config,
-		}
-	},
-	{	/* BACK_TOUCH RESET */
-		.gpio = 62,
-		.settings = {
-			[GPIOMUX_ACTIVE] = &gpio_up_back_touch_act_config,
-			[GPIOMUX_SUSPENDED] = &gpio_up_back_touch_sus_config,
-		},
-	},
+    {  /*BACK_TOUCH INT */
+        .gpio = 72,
+        .settings = {
+            [GPIOMUX_ACTIVE] = &gpio_up_back_touch_act_config,
+            [GPIOMUX_SUSPENDED] = &gpio_up_back_touch_sus_config,
+        }
+    },
+    {	/* BACK_TOUCH RESET */
+        .gpio = 62,
+        .settings = {
+            [GPIOMUX_ACTIVE] = &gpio_up_back_touch_act_config,
+            [GPIOMUX_SUSPENDED] = &gpio_up_back_touch_sus_config,
+        },
+    },
 };
 #endif /* Setting back_touch_gpio */
 
@@ -1461,117 +1480,7 @@ static struct msm_gpiomux_config sx150x_int_configs[] __initdata = {
 	},
 };
 
-#if CONFIG_BOARD_VER >= CONFIG_WS20 && defined(CONFIG_UNUSED_GPIO_MPP_SETTING)
-static struct gpiomux_setting unused_gpio_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-	.dir = GPIOMUX_IN,
-};
-
-static struct msm_gpiomux_config apq8064_unused_gpio_configs[] __initdata = {
-	{
-		.gpio      = 33,			
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-
-	},
-
-#if (defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L))
-
-/*
-	//p13795
-	todo : ef52 series unused gpio setting
-
-*/
-
-#else
-#if (defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L))
-	{
-		.gpio      = 59,			
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-#endif
-
-#if (defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L))
-	{
-		.gpio      = 13,			
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-
-	{
-		.gpio      = 34,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-	{
-		.gpio      = 45,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-	{
-		.gpio      = 62,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-#ifndef CONFIG_SKY_DMB_SPI_IF
-	{
-		.gpio      = 85,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-#endif
-	{
-		.gpio      = 86,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-
-#endif
-	//p13795 BOOT_CONFIG_0 and BOOT_CONFIG_1 are only unsed when booting time
-    {
-		.gpio      = 50,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-
-    {
-		.gpio      = 87,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-
-#if defined(CONFIG_SKY_EF50L_BOARD)
-    {
-		.gpio      = 37,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-
-	{
-		.gpio      = 72,			/* unused gpio pin */
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
-		},
-	},
-#endif
-#endif
-};
-#endif
-#if 0
+#ifndef CONFIG_PANTECH_BLOCK
 #ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
 static struct gpiomux_setting sdc2_clk_active_cfg = {
 	.func = GPIOMUX_FUNC_2,
@@ -1734,7 +1643,132 @@ static struct msm_gpiomux_config apq8064_sdc3_configs[] __initdata = {
 };
 #endif
 
-#if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD)				// p14682
+#if CONFIG_BOARD_VER >= CONFIG_WS20 && defined(CONFIG_UNUSED_GPIO_MPP_SETTING)
+static struct gpiomux_setting unused_gpio_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+
+static struct msm_gpiomux_config apq8064_unused_gpio_configs[] __initdata = {
+	{
+		.gpio      = 33,			
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+
+	},
+
+#if (defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L))
+
+/*
+	//p13795
+	todo : ef52 series unused gpio setting
+
+*/
+
+#else
+#if (defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L))
+	{
+		.gpio      = 59,			
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+#endif
+
+#if (defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L))
+	{
+		.gpio      = 13,			
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+
+	{
+		.gpio      = 34,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+	{
+		.gpio      = 45,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+	{
+		.gpio      = 62,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+	{
+		.gpio      = 85,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+	{
+		.gpio      = 86,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+#endif
+	//p13795 BOOT_CONFIG_0 and BOOT_CONFIG_1 are only unsed when booting time
+    {
+		.gpio      = 50,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+
+    {
+		.gpio      = 87,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+
+#if defined(CONFIG_SKY_EF50L_BOARD)
+    {
+		.gpio      = 37,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+
+	{
+		.gpio      = 72,			/* unused gpio pin */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &unused_gpio_cfg,
+		},
+	},
+#endif
+#endif
+};
+#endif
+
+static struct msm_gpiomux_config sglte2_qsc_configs[] __initdata = {
+	/* MDM2AP_STATUS */
+	{
+		.gpio = 51,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &mdm2ap_status_cfg,
+		}
+	},
+	/* MDM2AP_ERRFATAL */
+	{
+		.gpio = 52,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &mdm2ap_errfatal_cfg,
+		}
+	},
+};
+
+#if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD) || defined(CONFIG_SKY_EF52W_BOARD)	// p14682
 static struct gpiomux_setting mdp_vsync_suspend_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -1777,27 +1811,10 @@ static struct msm_gpiomux_config msm8064_mdp_vsync_configs[] __initdata = {
 		},
 	}
 #endif 
-
 };
-
 #endif
 
-static struct msm_gpiomux_config sglte2_qsc_configs[] __initdata = {
-	/* MDM2AP_STATUS */
-	{
-		.gpio = 51,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &mdm2ap_status_cfg,
-		}
-	},
-	/* MDM2AP_ERRFATAL */
-	{
-		.gpio = 52,
-		.settings = {
-			[GPIOMUX_SUSPENDED] = &mdm2ap_errfatal_cfg,
-		}
-	},
-};
+
 
 static struct gpiomux_setting gsbi4_uartdm_active = {
 	.func = GPIOMUX_FUNC_1,
@@ -1917,6 +1934,11 @@ void __init apq8064_init_gpiomux(void)
 
 		msm_gpiomux_install(apq8064_gsbi_configs,
 				ARRAY_SIZE(apq8064_gsbi_configs));
+
+		#ifdef CONFIG_PN544
+		msm_gpiomux_install(apq8064_gsbi1_i2c_2ma_configs,
+				ARRAY_SIZE(apq8064_gsbi1_i2c_2ma_configs));
+		#endif
 	}
 
 	msm_gpiomux_install(apq8064_slimbus_config,
@@ -1945,10 +1967,9 @@ void __init apq8064_init_gpiomux(void)
 
 	if (machine_is_apq8064_mtp()
 #if defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
-	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l() || machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() || machine_is_apq8064_ef52k() || machine_is_apq8064_ef52l())
+	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l() || machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() ||  machine_is_apq8064_ef52k() ||  machine_is_apq8064_ef52l())
 #endif
-	)
-	{
+	) {
 		if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_DSDA2) {
 			msm_gpiomux_install(amdm_configs,
 					ARRAY_SIZE(amdm_configs));
@@ -1972,12 +1993,13 @@ void __init apq8064_init_gpiomux(void)
 					ARRAY_SIZE(mdm_configs));
 		}
 	}
+
 #if !defined(CONFIG_TOUCHSCREEN_QT602240) && !defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
 	if (machine_is_apq8064_mtp()
 #if defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
-	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l()|| machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() || machine_is_apq8064_ef52k() || machine_is_apq8064_ef52l())
+	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l() || machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() ||  machine_is_apq8064_ef52k() ||  machine_is_apq8064_ef52l())
 #endif
-	){
+	) {
 		if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
 			msm_gpiomux_install(cyts_gpio_alt_config,
 					ARRAY_SIZE(cyts_gpio_alt_config));
@@ -1991,27 +2013,25 @@ void __init apq8064_init_gpiomux(void)
 #ifdef CONFIG_USB_EHCI_MSM_HSIC
 	if (machine_is_apq8064_mtp()
 #if defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
-	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l() || machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() || machine_is_apq8064_ef52k() || machine_is_apq8064_ef52l())
+	  || (machine_is_apq8064_ef48s() || machine_is_apq8064_ef49k() || machine_is_apq8064_ef50l() || machine_is_apq8064_ef51s() || machine_is_apq8064_ef51k() || machine_is_apq8064_ef51l() || machine_is_apq8064_ef52s() ||  machine_is_apq8064_ef52k() ||  machine_is_apq8064_ef52l())
 #endif
-	)
+	)   
 		msm_gpiomux_install(apq8064_hsic_configs,
 				ARRAY_SIZE(apq8064_hsic_configs));
 #endif
 
 #if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	msm_gpiomux_install(apq8064_touch_config,
-			ARRAY_SIZE(apq8064_touch_config));
+    msm_gpiomux_install(apq8064_touch_config,
+                        ARRAY_SIZE(apq8064_touch_config));
 #else
 	if (machine_is_apq8064_cdp() || machine_is_apq8064_liquid())
 		msm_gpiomux_install(apq8064_mxt_configs,
 			ARRAY_SIZE(apq8064_mxt_configs));
 #endif
-
 	msm_gpiomux_install(apq8064_hdmi_configs,
 			ARRAY_SIZE(apq8064_hdmi_configs));
 
-
-#if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD)				// p14682
+#if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD) || defined(CONFIG_SKY_EF52W_BOARD)	// p14682
 	
 		msm_gpiomux_install(msm8064_mdp_vsync_configs,
 				ARRAY_SIZE(msm8064_mdp_vsync_configs));
@@ -2023,7 +2043,6 @@ void __init apq8064_init_gpiomux(void)
 		 msm_gpiomux_install(apq8064_back_touch_config,
 			 ARRAY_SIZE(apq8064_back_touch_config));
 #endif
-
 
 	 if (machine_is_mpq8064_cdp())
 		msm_gpiomux_install(mpq8064_ir_configs,

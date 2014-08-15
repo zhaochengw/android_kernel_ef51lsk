@@ -20,6 +20,12 @@
 #include <mach/qdsp6v2/audio_acdb.h>
 #include <linux/slab.h>
 
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+#include <sound/q6afe.h>
+#include <sound/q6adm.h>
+#include "../../../../sound/soc/msm/qdsp6/q6voice.h"
+#endif
+
 #define MAX_NETWORKS		15
 #define MAX_HW_DELAY_ENTRIES	25
 
@@ -737,6 +743,39 @@ static int acdb_open(struct inode *inode, struct file *f)
 
 }
 
+
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+static int unmap_cal_tables(void)
+{
+	int	result = 0;
+	int     result2 = 0;
+
+	pr_debug("%s\n", __func__);
+	result2 = adm_unmap_cal_blocks();
+	if (result2 < 0) {
+		pr_err("%s: adm_unmap_cal_blocks failed, err = %d\n",
+				__func__, result2);
+		result = result2;
+	}
+
+	result2 = afe_unmap_cal_blocks();
+	if (result2 < 0) {
+		pr_err("%s: afe_unmap_cal_blocks failed, err = %d\n",
+				__func__, result2);
+		result = result2;
+	}
+
+	result2 = voice_unmap_cal_blocks();
+	if (result2 < 0) {
+		pr_err("%s: voice_unmap_cal_blocks failed, err = %d\n",
+				__func__, result2);
+		result = result2;
+	}
+	pr_debug("%s going out after freeign memory\n", __func__);
+	return result;
+}
+#endif
+
 static void allocate_hw_delay_entries(void)
 {
 
@@ -766,6 +805,10 @@ static void allocate_hw_delay_entries(void)
 
 static int deregister_memory(void)
 {
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+	int result = 0;
+	pr_debug("%s\n", __func__);
+#endif
 	mutex_lock(&acdb_data.acdb_mutex);
 	kfree(acdb_data.hw_delay_tx.delay_info);
 	kfree(acdb_data.hw_delay_rx.delay_info);
@@ -773,6 +816,12 @@ static int deregister_memory(void)
 
 	if (atomic64_read(&acdb_data.mem_len)) {
 		mutex_lock(&acdb_data.acdb_mutex);
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+		result = unmap_cal_tables();
+		if (result < 0)
+			pr_err("%s: unmap_cal_tables failed, err = %d\n",
+				__func__, result);
+#endif
 		atomic_set(&acdb_data.vocstrm_total_cal_size, 0);
 		atomic_set(&acdb_data.vocproc_total_cal_size, 0);
 		atomic_set(&acdb_data.vocvol_total_cal_size, 0);
@@ -782,7 +831,11 @@ static int deregister_memory(void)
 		ion_client_destroy(acdb_data.ion_client);
 		mutex_unlock(&acdb_data.acdb_mutex);
 	}
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+	return result;
+#else	
 	return 0;
+#endif
 }
 
 static int register_memory(void)

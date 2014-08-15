@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -129,14 +129,25 @@ static int msm_csid_config(struct csid_device *csid_dev,
 static irqreturn_t msm_csid_irq(int irq_num, void *data)
 {
 	uint32_t irq;
+#ifdef CONFIG_PANTECH_CAMERA //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+	uint32_t unmapped_header; 
+#endif
 	struct csid_device *csid_dev = data;
-	if (!csid_dev) {
+	if (!csid_dev||!csid_dev->base) {
 		pr_err("%s:%d csid_dev NULL\n", __func__, __LINE__);
 		return IRQ_HANDLED;
 	}
 	irq = msm_camera_io_r(csid_dev->base + CSID_IRQ_STATUS_ADDR);
 	CDBG("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
 		 __func__, csid_dev->pdev->id, irq);
+	
+#ifdef CONFIG_PANTECH_CAMERA //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+       //if (irq & 0x08000000){ //CSID_CAPTURED_UNMAPPED_LONG_PKT_HDR_ADDR error 
+            unmapped_header = msm_camera_io_r(csid_dev->base + CSID_CAPTURED_UNMAPPED_LONG_PKT_HDR_ADDR); 
+            CDBG("%s CSID_CAPTURED_UNMAPPED_LONG_PKT_HDR_ADDR = 0x%x\n",__func__, unmapped_header); 
+       //} 
+#endif
+
 	if (irq & (0x1 << CSID_RST_DONE_IRQ_BITSHIFT))
 			complete(&csid_dev->reset_complete);
 	msm_camera_io_w(irq, csid_dev->base + CSID_IRQ_CLEAR_CMD_ADDR);
@@ -451,6 +462,13 @@ static long msm_csid_cmd(struct csid_device *csid_dev, void *arg)
 			rc = -EFAULT;
 			break;
 		}
+		if (csid_params.lut_params.num_cid < 1 ||
+			csid_params.lut_params.num_cid > 16) {
+			pr_err("%s: %d num_cid outside range\n",
+				__func__, __LINE__);
+			rc = -EINVAL;
+			break;
+		}
 		vc_cfg = kzalloc(csid_params.lut_params.num_cid *
 			sizeof(struct msm_camera_csid_vc_cfg),
 			GFP_KERNEL);
@@ -619,7 +637,7 @@ static int __devinit csid_probe(struct platform_device *pdev)
 csid_no_resource:
 	mutex_destroy(&new_csid_dev->mutex);
 	kfree(new_csid_dev);
-	return 0;
+	return rc;
 }
 
 static const struct of_device_id msm_csid_dt_match[] = {

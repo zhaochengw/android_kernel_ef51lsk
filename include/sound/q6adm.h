@@ -34,7 +34,9 @@ int adm_memory_map_regions(uint32_t *buf_add, uint32_t mempool_id,
 
 int adm_memory_unmap_regions(uint32_t *buf_add, uint32_t *bufsz,
 						uint32_t bufcnt);
-
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+int adm_unmap_cal_blocks(void);
+#endif
 int adm_close(int port);
 
 int adm_matrix_map(int session_id, int path, int num_copps,

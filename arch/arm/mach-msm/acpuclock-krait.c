@@ -55,6 +55,13 @@
 
 #define SECCLKAGD		BIT(4)
 
+#define PANTECH_ACPUPVS
+#if defined(PANTECH_ACPUPVS)
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+//#include <soc/qcom/socinfo.h>
+#endif
+
 static DEFINE_MUTEX(driver_lock);
 static DEFINE_SPINLOCK(l2_lock);
 
@@ -1227,6 +1234,35 @@ static int __init get_pvs_bin(u32 pte_efuse)
 	return pvs_bin;
 }
 
+
+
+
+#if defined(PANTECH_ACPUPVS)
+	int proc_speed, proc_pvs, soc_ver;
+	static int acpupvs_proc_show(struct seq_file *m, void *v)
+	{
+		seq_printf(m, "SPEED BIN : 0x%x , PVS : 0x%x , SOC VER : 0x%x\n",\
+			proc_speed, proc_pvs, soc_ver);
+		return 0;
+	}
+
+	static int acpupvs_proc_open(struct inode *inode, struct file *file)
+	{
+		return single_open(file, acpupvs_proc_show, NULL);
+	}
+
+	static const struct file_operations acpupvs_proc_fops = {
+		.open		= acpupvs_proc_open,
+		.read		= seq_read,
+		.llseek		= seq_lseek,
+		.release	= single_release,
+	};	
+#endif
+
+
+
+
+
 static struct pvs_table * __init select_freq_plan(u32 pte_efuse_phys,
 			struct pvs_table (*pvs_tables)[NUM_PVS])
 {
@@ -1245,6 +1281,24 @@ static struct pvs_table * __init select_freq_plan(u32 pte_efuse_phys,
 	/* Select frequency tables. */
 	bin_idx = get_speed_bin(pte_efuse_val);
 	tbl_idx = get_pvs_bin(pte_efuse_val);
+
+
+#if defined(PANTECH_ACPUPVS)
+//struct device *dev = &pdev->dev;
+//	int proc_speed, proc_pvs, soc_ver;
+
+	if(!proc_create("acpu_pvs_info", 0, NULL, &acpupvs_proc_fops))
+  	{
+	//	dev_info(dev, "Unable to create acpupvs proc.\n");
+	}
+	else
+	{
+		proc_speed = bin_idx;
+		proc_pvs = tbl_idx;
+		soc_ver = socinfo_get_version();
+	}	
+#endif
+
 
 	return &pvs_tables[bin_idx][tbl_idx];
 }

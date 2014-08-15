@@ -60,11 +60,6 @@ static int srs_alsa_ctrl_ever_called;
 #define INT_RX_VOL_MAX_STEPS 0x2000
 #define INT_RX_VOL_GAIN 0x2000
 #define INT_RX_LR_VOL_MAX_STEPS 0x20002000
-
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-static int lpa_audio_session_activate = 0;
-#endif
-
 static int msm_route_fm_vol_control;
 static const DECLARE_TLV_DB_LINEAR(fm_rx_vol_gain, 0,
 			INT_RX_VOL_MAX_STEPS);
@@ -234,78 +229,18 @@ static struct msm_pcm_routing_fdai_data
 	{0, INVALID_SESSION, {NULL, NULL} } },
 };
 
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-int get_lpa_active(void){
-	return lpa_audio_session_activate;
+
+#ifdef CONFIG_PANTECH_SND_QSOUND 
+int* get_fe_dsp_stream_ids(int index) {
+	if (index < 0 || index >= MSM_FRONTEND_DAI_MM_SIZE) return NULL;
+	return &fe_dai_map[index][0].strm_id;
 }
 
-int get_dai_mm(void){
-	int aud_session = 0;
-
-	for(aud_session=0; aud_session<MSM_FRONTEND_DAI_MM_SIZE; aud_session++){
-		if(fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id>0){
-			break;
-		}
-	}
-		
-	return aud_session;
+struct msm_pcm_routing_bdai_data* get_be_entry(int index) {
+	if (index < 0 || index >= MSM_BACKEND_DAI_MAX) return NULL;
+	return &msm_bedais[index];
 }
-
-int get_aud_non_lpa_session_id(void){
-	int aud_session = 0;
-	int aud_session_id = 0;
-
-	for(aud_session=0; aud_session<MSM_FRONTEND_DAI_MM_SIZE; aud_session++){
-		if(fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id>0){
-			aud_session_id = fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id;
-			break;
-		}
-	}
-	
-	return aud_session_id;
-}
-
-int get_aud_lpa_session_id(void){
-	int aud_session_id = 0;
-
-	if(lpa_audio_session_activate && (fe_dai_map[2/*MULTIMEDIA3*/][SESSION_TYPE_RX].strm_id>0)){
-		aud_session_id = fe_dai_map[2/*MULTIMEDIA3*/][SESSION_TYPE_RX].strm_id;		
-	}
-
-	return aud_session_id;
-}
-
-int get_aud_session_id(void)
-{
-#if 1 //20120727 jhsong
-	int aud_session = 0;
-	int aud_session_id = 0;
-
-	if(lpa_audio_session_activate && (fe_dai_map[2/*MULTIMEDIA3*/][SESSION_TYPE_RX].strm_id>0)){
-		aud_session_id = fe_dai_map[2/*MULTIMEDIA3*/][SESSION_TYPE_RX].strm_id;		
-	}else{
-		for(aud_session=0; aud_session<MSM_FRONTEND_DAI_MM_SIZE; aud_session++){
-			if(fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id>0){
-				aud_session_id = fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id;
-				break;
-			}
-		}
-	}
-//	pr_err("@#@#@#@#%s: 1  aud_session : %d, fe_dai_map[aud_session][SESSION_TYPE_RX] : %d  <--non-LPA\n", __func__, aud_session, fe_dai_map[aud_session][SESSION_TYPE_RX]);
-//	pr_err("@#@#@#@#%s: 2  aud_session : %d, fe_dai_map[2][SESSION_TYPE_RX] : %d <-- LPA\n", __func__, aud_session, fe_dai_map[2/*MULTIMEDIA3*/][SESSION_TYPE_RX]);
-	return aud_session_id;
-#else
-	int aud_session = 0;
-	for(aud_session=0; aud_session<4; aud_session++){
-		if(fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id>0)
-			break;
-	}
-//	pr_err("\n@#@#@#@#%s: aud_session : %d, fe_dai_map[aud_session][SESSION_TYPE_RX] : %d\n", __func__, aud_session, fe_dai_map[aud_session][SESSION_TYPE_RX]);
-	return fe_dai_map[aud_session][SESSION_TYPE_RX].strm_id;
 #endif
-}
-#endif  //SKY_SND_QSOUND_OPEN_DSP
-
 
 static uint8_t is_be_dai_extproc(int be_dai)
 {
@@ -548,10 +483,6 @@ static void msm_pcm_routing_process_audio(u16 reg, u16 val, int set)
 		path_type = ADM_PATH_LIVE_REC;
 	}
 
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-	if(val == 2)
-		lpa_audio_session_activate = set;
-#endif
 
 	mutex_lock(&routing_lock);
 

@@ -177,7 +177,6 @@ retry:
 	if (level > 0) {
 		level = ((level*70) / 100) + 6 + 11; //1.7v~3.1v
 		}
-    printk("[VIB]level=%d / timeoutms=%ld\n", level, timeoutms);
 
 	vib->level = level;
 	

@@ -30,10 +30,22 @@
 #include "msm-pcm-routing.h"
 #include "qdsp6/q6voice.h"
 
+#if 0 //def CONFIG_SKY_SND_MODIFIER //20120810 jhsong : kernel voip dump
+#define FEATURE_PANTECH_SND_PCM_KERNEL_DUMP 1
+#endif
+
+#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
+#include <linux/kernel.h>
+#include <linux/syscalls.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/fcntl.h>
+#include <asm/uaccess.h>
+#endif
+
 #define VOIP_MAX_Q_LEN 10
 #define VOIP_MAX_VOC_PKT_SIZE 640
 #define VOIP_MIN_VOC_PKT_SIZE 320
-
 #define USE_SKY_DIRECT_ADSP //kkc - add for SKY MVS dummy driver
 
 /* Length of the DSP frame info header added to the voc packet. */
@@ -146,10 +158,23 @@ static int msm_voip_mode_rate_config_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
 static int msm_voip_mode_rate_config_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
+
+// 20130619 hdj add Volte rec mode
+void voip_set_rec_mode(int mode);
+int voip_get_rec_mode(void);
+static int rec_mode;
+// 20130619 hdj add Volte rec mode_end
+
 #ifdef USE_SKY_DIRECT_ADSP
 /*static*/ struct voip_drv_info voip_info;
 EXPORT_SYMBOL(voip_info);
 
+#ifndef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+#define FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+#endif
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+int q_cnt = 0; //p11276 - 2013.10.17 - for VoLTE fix delay
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 //navan - 2012.09.27 - for VoLTE Recording
 char rx_temp[640] = {0,};
 /*static */int record_size = 0;
@@ -361,10 +386,12 @@ static void voip_process_ul_pkt(uint8_t *voc_pkt,
 				buf_node->frame.len);
  //-->20130214 jhsong : volte rec tx buffer too small
 #ifdef USE_SKY_DIRECT_ADSP
-			memcpy(tx_temp,
-				&buf_node->frame.voc_pkt[0],
-				buf_node->frame.len);
+            if(voip_get_rec_mode()){// 20130619 hdj add Volte rec mode
+			    memcpy(tx_temp,
+				    &buf_node->frame.voc_pkt[0],
+				    buf_node->frame.len);
                 tx_record_size = buf_node->frame.len;
+            }// 20130619 hdj add Volte rec mode end if
 #endif
  //<--20130214 jhsong : volte rec tx buffer too small
 			list_add_tail(&buf_node->list, &prtd->out_queue);
@@ -393,7 +420,6 @@ static void voip_process_dl_pkt(uint8_t *voc_pkt,
 	struct voip_buf_node *buf_node = NULL;
 	struct voip_drv_info *prtd = private_data;
 	unsigned long dsp_flags;
-	int size;
 
 
 	if (prtd->playback_substream == NULL)
@@ -442,16 +468,21 @@ static void voip_process_dl_pkt(uint8_t *voc_pkt,
 		default: {
 			*pkt_len = buf_node->frame.len;
 
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+			q_cnt--;	//p11276 - 2013.10.17 - for VoLTE fix delay
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 			memcpy(voc_pkt,
 				&buf_node->frame.voc_pkt[0],
 				buf_node->frame.len);
 
 //navan - 2012.09.27 - for VoLTE Recording
 #ifdef USE_SKY_DIRECT_ADSP
-			memcpy(rx_temp,
-				&buf_node->frame.voc_pkt[0],
-				buf_node->frame.len);
+            if(voip_get_rec_mode()){ // 20130619 hdj add Volte rec mode
+			    memcpy(rx_temp,
+				    &buf_node->frame.voc_pkt[0],
+				    buf_node->frame.len);
                 record_size = buf_node->frame.len;
+            }// 20130619 hdj add Volte rec mode_end if
 #endif
 
 			list_add_tail(&buf_node->list, &prtd->free_in_queue);
@@ -575,6 +606,34 @@ err:
 	return ret;
 }
 
+#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
+static void voip_write_file(char *filename, void __user *buffer, int buff_cnt){
+	struct file *filp;
+	loff_t pos = 0;
+	int fd;
+
+	mm_segment_t old_fs = get_fs();	
+	set_fs(KERNEL_DS);
+
+	fd = sys_open (filename, O_WRONLY | O_APPEND, 0644);
+
+	if (fd >= 0){
+		filp = fget (fd);
+		if (filp){
+			vfs_write (filp, buffer, buff_cnt, &pos);
+			fput (filp);
+		}else{
+			pr_err("%s: @#@#@#@#@# sys_open fail !!! : %d  filename : %s\n", __func__, fd, filename);
+		}
+	}else{
+		pr_err("%s: @#@#@#@#@# file name : %s   fget  fail !!! \n", __func__, filename);
+	}
+
+	sys_close(fd);
+	set_fs(old_fs);
+	
+}
+#endif
 
 #ifdef USE_SKY_DIRECT_ADSP
 /*static*/ int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
@@ -593,20 +652,19 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	int count = frames_to_bytes(runtime, frames);
 	pr_debug("%s: count = %d, frames=%d\n", __func__, count, (int)frames);
 
-#ifdef USE_SKY_DIRECT_ADSP
-	ret = wait_event_interruptible_timeout(prtd->in_wait,
-				(!list_empty(&prtd->free_in_queue) ||
-				prtd->state == VOIP_STOPPED),
-   				(1 * HZ)/50);
-#else
 	ret = wait_event_interruptible_timeout(prtd->in_wait,
 				(!list_empty(&prtd->free_in_queue) ||
 				prtd->state == VOIP_STOPPED),
 				1 * HZ);
-#endif
-
 	if (ret > 0) {
 		if (count <= VOIP_MAX_VOC_PKT_SIZE) {
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+			if (bUseSKYDirectADSP && q_cnt > 1 && a == -1)
+			{
+				pr_err("VoLTE dl q_cnt %d", q_cnt);
+				return  -EFAULT;
+			}
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 			spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
 			buf_node =
 				list_first_entry(&prtd->free_in_queue,
@@ -620,9 +678,18 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 			} else
 				ret = copy_from_user(&buf_node->frame,
 							buf, count);
+
+#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
+			voip_write_file("/data/rx_dump_kernel.pcm", &buf_node->frame.voc_pkt, count);
+#endif
+
 			spin_lock_irqsave(&prtd->dsp_lock, dsp_flags);
 			list_add_tail(&buf_node->list, &prtd->in_queue);
 			spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+			if (bUseSKYDirectADSP)
+				q_cnt++; 
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 		} else {
 			pr_err("%s: Write cnt %d is > VOIP_MAX_VOC_PKT_SIZE\n",
 				__func__, count);
@@ -661,17 +728,12 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	count = frames_to_bytes(runtime, frames);
 
 	pr_debug("%s: count = %d\n", __func__, count);
-#ifdef USE_SKY_DIRECT_ADSP
-	ret = wait_event_interruptible_timeout(prtd->out_wait,
-				(!list_empty(&prtd->out_queue) ||
-				prtd->state == VOIP_STOPPED),
-				(1 * HZ)/50);
-#else
+
 	ret = wait_event_interruptible_timeout(prtd->out_wait,
 				(!list_empty(&prtd->out_queue) ||
 				prtd->state == VOIP_STOPPED),
 				1 * HZ);
-#endif
+
 	if (ret > 0) {
 
 		if (count <= VOIP_MAX_VOC_PKT_SIZE) {
@@ -693,6 +755,9 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 						   &buf_node->frame,
 						   size);
 			}
+#ifdef FEATURE_PANTECH_SND_PCM_KERNEL_DUMP //20120810 jhsong : kernel voip dump
+			voip_write_file("/data/tx_dump_kernel.pcm", &buf_node->frame, count);
+#endif
 			if (ret) {
 				pr_err("%s: Copy to user retuned %d\n",
 					__func__, ret);
@@ -762,11 +827,17 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 #ifdef USE_SKY_DIRECT_ADSP//kkc 2012.08.15 - change the flag disable timing for closing process
     bUseSKYDirectADSP = false;
     //navan - 2012.09.27 - for VoLTE Recording
-    memset(rx_temp,0x00,sizeof(rx_temp));
-    record_size = 0;
+   if(voip_get_rec_mode()){ // 20130619 hdj add Volte rec mode
+        memset(rx_temp,0x00,sizeof(rx_temp));
+        record_size = 0;
 
-    memset(tx_temp,0x00,sizeof(tx_temp));
-    tx_record_size = 0;
+        memset(tx_temp,0x00,sizeof(tx_temp));
+        tx_record_size = 0;
+    } // 20130619 hdj add Volte rec mode end if
+
+#ifdef FEATURE_RV_VEGA_VOLTE_TICK_NOISE
+    q_cnt = 0; //p11276 - 2013.10.17 - for VoLTE fix delay
+#endif//FEATURE_RV_VEGA_VOLTE_TICK_NOISE
 #endif
 
 	if (substream == NULL) {
@@ -810,12 +881,25 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 			list_for_each_safe(ptr, next, &prtd->in_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
+//20130325 hdj Qpatch case1122222                  
+                //list_del(&buf_node->list);				
+                if( !(&buf_node->list == NULL) ) 
+                { 
 				list_del(&buf_node->list);
+			}
+//20130325 hdj Qpatch case1122222_END 
+
 			}
 			list_for_each_safe(ptr, next, &prtd->free_in_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
+//20130325 hdj Qpatch case1122222                  
+                //list_del(&buf_node->list);				
+                if( !(&buf_node->list == NULL) ) 
+                { 
 				list_del(&buf_node->list);
+			}
+//20130325 hdj Qpatch case1122222_END
 			}
 			spin_unlock_irqrestore(&prtd->dsp_lock, dsp_flags);
 			dma_free_coherent(p_substream->pcm->card->dev,
@@ -839,12 +923,24 @@ capt:		c_substream = prtd->capture_substream;
 			list_for_each_safe(ptr, next, &prtd->out_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
+//20130325 hdj Qpatch case1122222                  
+                //list_del(&buf_node->list);				
+                if( !(&buf_node->list == NULL) ) 
+                { 
 				list_del(&buf_node->list);
+			}
+//20130325 hdj Qpatch case1122222_END
 			}
 			list_for_each_safe(ptr, next, &prtd->free_out_queue) {
 				buf_node = list_entry(ptr,
 						struct voip_buf_node, list);
+//20130325 hdj Qpatch case1122222                  
+                //list_del(&buf_node->list);				
+                if( !(&buf_node->list == NULL) ) 
+                { 
 				list_del(&buf_node->list);
+			}
+//20130325 hdj Qpatch case1122222_END
 			}
 			spin_unlock_irqrestore(&prtd->dsp_ul_lock, dsp_flags);
 			dma_free_coherent(c_substream->pcm->card->dev,
@@ -1291,6 +1387,17 @@ static void __exit msm_soc_platform_exit(void)
 	platform_driver_unregister(&msm_pcm_driver);
 }
 module_exit(msm_soc_platform_exit);
+// 20130619 hdj add Volte rec mode
+void voip_set_rec_mode(int mode)
+{
+    rec_mode = mode;
+    pr_err("[SND] voip rec mode : %d\n",rec_mode);
+}
 
+int voip_get_rec_mode()
+{
+    return rec_mode;
+}
+// 20130619 hdj add Volte rec mode_end
 MODULE_DESCRIPTION("PCM module platform driver");
 MODULE_LICENSE("GPL v2");

@@ -142,12 +142,11 @@ int multi_ch_pcm_set_volume(unsigned volume);
 
 int compressed_set_volume(unsigned volume);
 
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-int get_aud_non_lpa_session_id(void);
-int get_dai_mm(void);
-int get_aud_lpa_session_id(void);
-int get_aud_session_id(void);
-int get_lpa_active(void);
-#endif  //SKY_SND_QSOUND_OPEN_DSP
+#ifdef CONFIG_PANTECH_SND_QSOUND
+struct msm_pcm_routing_bdai_data;
+
+int* get_fe_dsp_stream_ids(int fe_index);
+struct msm_pcm_routing_bdai_data* get_be_entry(int be_index);
+#endif
 
 #endif /*_MSM_PCM_H*/

@@ -1,0 +1,68 @@
+if CUST_PANTECH_H
+
+###################################################
+#           PANTECH USB part Feature              #
+###################################################
+
+config PANTECH_ANDROID_USB
+  bool "pantech function drivers"
+  default y
+  help
+    Support Pantech USB
+
+config PANTECH_ANDROID_OTG
+  bool "support OTG Functionality"
+  default y
+  help
+    Support Pantech USB OTG
+
+config PANTECH_ANDROID_MTP
+  bool "support USB MTP Functionality"
+  default y
+  help
+    Support Pantech MTP
+
+config PANTECH_ANDROID_OBEX
+  bool "support USB OBEX Functionality"
+  default y
+  help
+    Support Pantech OBEX
+
+config PANTECH_ANDROID_FACTORY_MODE
+  bool
+  default y
+  help
+    Support Pantech factory mode.    
+
+config PANTECH_FACTORY_COMMAND
+  bool "Pantech Factory Command"
+  default y
+  help
+    Support Pantech factory test command. We use the "FEATURE_PANTECH_FACTORY_COMMAND" feature in System area. There is in "vendor/pantech/build/CUST_PANTECH_SIO.h". 
+    
+config ANDROID_PANTECH_USB_CDFREE
+  depends on (SKY_EF52S_BOARD || SKY_EF52K_BOARD || SKY_EF52L_BOARD || SKY_EF52W_BOARD)
+  bool "support USB CD Free"
+  default y
+  help
+    Support Pantech CD Free.    
+   
+config PANTECH_USB_TUNE_SIGNALING_PARAM
+  bool "support USB tuning"
+  default y
+  help
+    Support USB tuning.    
+
+config ANDROID_PANTECH_USB_OTG_INTENT
+  depends on PANTECH_ANDROID_OTG
+  bool "PANTECH USB OTG Intent"
+  default y
+	 help
+     Support Pantech USB OTG Intent
+
+config PANTECH_USB_BLOCKING_MDMSTATE 
+  bool "Mobile Device Management code feature"
+  default y
+
+
+endif

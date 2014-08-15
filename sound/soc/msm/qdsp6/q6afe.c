@@ -1393,6 +1393,31 @@ int afe_cmd_memory_unmap_nowait(u32 dma_addr_p)
 	return 0;
 }
 
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+int afe_unmap_cal_blocks(void)
+{
+	int i = 0;
+	int result = 0;
+	int result2 = 0;
+
+	pr_debug("%s:\n", __func__);
+	for (i = 0; i < MAX_AUDPROC_TYPES; i++) {
+		if (afe_cal_addr[i].cal_paddr != 0) {
+			result2 = afe_cmd_memory_unmap(
+					afe_cal_addr[i].cal_paddr);
+			if (result2 < 0) {
+				pr_err("%s: unmap failed, err %d ite %d\n",
+						__func__, result2, i);
+				result = result2;
+			}
+			afe_cal_addr[i].cal_paddr = 0;
+			afe_cal_addr[i].cal_size = 0;
+		}
+	}
+	return result;
+}
+#endif
+
 int afe_register_get_events(u16 port_id,
 		void (*cb) (uint32_t opcode,
 		uint32_t token, uint32_t *payload, void *priv),

@@ -369,6 +369,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks
+		   
+LINUXINCLUDE += -I$(srctree)/include/pantech
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -380,7 +383,8 @@ KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 ######################################################################
 # PANTECH_KERNEL_FLAGS
 ######################################################################
-KBUILD_CFLAGS += -DMODEL_NAME=\"IM-A860L\"
+
+PANTECH_BUILD_SYSTEM := $(srctree)/include/pantech
 KBUILD_CFLAGS += -DPANTECH_BUILD_VER=\"S0838147\"
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)

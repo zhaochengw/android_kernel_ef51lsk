@@ -89,11 +89,8 @@ static int msm_dai_q6_hdmi_hw_params(struct snd_pcm_substream *substream,
 {
 	struct msm_dai_q6_hdmi_dai_data *dai_data = dev_get_drvdata(dai->dev);
 	u32 channel_allocation = 0;
-/* hdj hdmi audio out disable*/
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL        
 	u32 level_shift  = 0; /* 0dB */
 	bool down_mix = FALSE;
-#endif
 	int sample_rate = 48000;
 
 	dai_data->channels = params_channels(params);
@@ -111,37 +108,27 @@ static int msm_dai_q6_hdmi_hw_params(struct snd_pcm_substream *substream,
 		sample_rate = HDMI_SAMPLE_RATE_32KHZ;
 		break;
 	}
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL  // [LS5], 20121120, kkcho	
 	hdmi_msm_audio_sample_rate_reset(sample_rate);
-#endif
 
 	switch (dai_data->channels) {
 	case 2:
 		channel_allocation  = 0;
-/* hdj hdmi audio out disable*/
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 		hdmi_msm_audio_info_setup(1, MSM_HDMI_AUDIO_CHANNEL_2,
 				channel_allocation, level_shift, down_mix);
-#endif
 		dai_data->port_config.hdmi_multi_ch.channel_allocation =
 			channel_allocation;
 		break;
 	case 6:
 		channel_allocation  = 0x0B;
-/* hdj hdmi audio out disable*/
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 		hdmi_msm_audio_info_setup(1, MSM_HDMI_AUDIO_CHANNEL_6,
 				channel_allocation, level_shift, down_mix);
-#endif
 		dai_data->port_config.hdmi_multi_ch.channel_allocation =
 				channel_allocation;
 		break;
 	case 8:
 		channel_allocation  = 0x1F;
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL  // [LS5], 20121120, kkcho		
 		hdmi_msm_audio_info_setup(1, MSM_HDMI_AUDIO_CHANNEL_8,
 				channel_allocation, level_shift, down_mix);
-#endif
 		dai_data->port_config.hdmi_multi_ch.channel_allocation =
 				channel_allocation;
 		break;

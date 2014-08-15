@@ -43,11 +43,27 @@
 
 //#define I2C_LOG_PRINT
 //#define ISP_LOGEVENT_PRINT
-#define AF_FLASH
 
-#ifdef AF_FLASH
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#define F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST
+#define  F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+#define F_PANTECH_CAMERA_ADD_CFG_SZOOM
+#endif
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD
+static int8_t asd_flag = 0;// 0:off , 1:on , 2:idle in AF
+static int8_t fd_flag = 0;
+static int8_t test_flag = 0;
+static int ce1502_sensor_set_asd_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t asd_flag);
+#endif
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+static int8_t szoom_value = 0;
+static int8_t pre_szoom_value = 0;
+static int ce1502_sensor_set_szoom(struct msm_sensor_ctrl_t *s_ctrl ,int8_t szoom);
+#endif
+#if 1//for_flashtest
 static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
 #endif
+
 #ifdef ISP_LOGEVENT_PRINT
 #include <linux/file.h>
 #include <linux/vmalloc.h>
@@ -68,10 +84,17 @@ static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
 #define CE1502_81_FW_BIN_F			"/CE150F03_81.bin"
 #define CE1502_71_FW_INFO_F			"/CE150F02_71.bin"
 #define CE1502_71_FW_BIN_F			"/CE150F03_71.bin"
-#define CE1502_83_FW_INFO_F			"/CE150F02_83.bin"
-#define CE1502_83_FW_BIN_F			"/CE150F03_83.bin"
-#define CE1502_87_FW_INFO_F			"/CE150F02_87.bin"
-#define CE1502_87_FW_BIN_F			"/CE150F03_87.bin"
+#define CE1502_83_FW_INFO_F			"/CE150F02_83.bin"//SUNNY_JPEG
+#define CE1502_83_FW_BIN_F			"/CE150F03_83.bin"//SUNNY_JPEG
+#if 0 //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+#define CE1502_100_FW_INFO_F		"/CE150F02_100.bin"
+#define CE1502_100_FW_BIN_F			"/CE150F03_100.bin"
+#else
+#define CE1502_87_FW_INFO_F			"/CE150F02_87.bin"//SEMCO_YUV//JPEG
+#define CE1502_87_FW_BIN_F			"/CE150F03_87.bin"//SEMCO_YUV//JPEG
+#endif
+#define CE1502_89_FW_INFO_F			"/CE150F02_89.bin"//SEMCO_JPEG
+#define CE1502_89_FW_BIN_F			"/CE150F03_89.bin"//SEMCO_JPEG
 
 #define CE1502_81_FW_MAJOR_VER	81
 #define CE1502_81_FW_MINOR_VER	8
@@ -84,14 +107,25 @@ static int8_t flash_flag = 0; //0:off or other , 1:on , 2:auto
 #define CE1502_71_PRM_MINOR_VER	19
 
 #define CE1502_83_FW_MAJOR_VER	83
-#define CE1502_83_FW_MINOR_VER	2
-#define CE1502_83_PRM_MAJOR_VER	83
-#define CE1502_83_PRM_MINOR_VER	2
+#define CE1502_83_FW_MINOR_VER	11//10//9//8//7//240//5//4// 2
+#define CE1502_83_PRM_MAJOR_VER	83//9//83//4//83
+#define CE1502_83_PRM_MINOR_VER	11//10//1//9//8//7//240//5//1//4// 2
 
+#if 0 //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+#define CE1502_100_FW_MAJOR_VER	87//100
+#define CE1502_100_FW_MINOR_VER	02//01//17
+#define CE1502_100_PRM_MAJOR_VER 87//100
+#define CE1502_100_PRM_MINOR_VER 02//01//18//17
+#else
 #define CE1502_87_FW_MAJOR_VER	87
 #define CE1502_87_FW_MINOR_VER	230
 #define CE1502_87_PRM_MAJOR_VER	87
 #define CE1502_87_PRM_MINOR_VER	230
+#endif
+#define CE1502_89_FW_MAJOR_VER	89
+#define CE1502_89_FW_MINOR_VER	7//6//5//233//4//236//2//1
+#define CE1502_89_PRM_MAJOR_VER	89//6//89//1//89
+#define CE1502_89_PRM_MINOR_VER	7//1//6//5//233//4//236//2//1
 
 #endif
 
@@ -118,7 +152,7 @@ static struct ce1502_ver_t ce1502_ver = {0, };
 
 //wsyang_temp
 #define F_CE1502_POWER
-#if (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
+#if 0//(defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 #define F_AS0260_POWER
 #endif
 
@@ -218,7 +252,7 @@ static bool burstshot_mode = false;
 static int8_t caf_b_ojt = 0;   // 0: no caf, 1: af-c, 2: af-t
 static int8_t current_ojt = 0;   // 0: off, 1: on
 #endif
-static int8_t sensor_mode = -1;   // 0: full size,  1: qtr size, 2: fullhd size , 3: ZSL
+static int8_t sensor_mode = -1;   // 0: full size,  1: qtr size, 2: fullhd size , 3: ZSL //SD_check_mode_set 4:JPEG_ZSL
 static int32_t x1 = 0, y1=0, x2=0, y2=0;   // 0: full size,  1: qtr size, 2: fullhd size
 static int32_t current_fps = 31;
 #if 1 //def F_PANTECH_CAMERA_FIX_CFG_AE_AWB_LOCK
@@ -230,6 +264,10 @@ static int g_update_type = MSM_SENSOR_REG_INIT;
 
 #if 1 // F_PANTECH_CAMERA_CFG_HDR
 static int8_t ev_sft_mode = 0;   // 0:normal capture , 1: ev shift capture
+#endif
+
+#if 1 // F_PANTECH_CAMERA//test_for_ce1502
+int8_t release_flag = 0;   // 0:false, 1:true
 #endif
 
 static struct v4l2_subdev_info ce1502_subdev_info[] = {
@@ -263,8 +301,13 @@ static struct msm_camera_i2c_conf_array ce1502_confs[] = {
 #define CE1502_FULL_SIZE_DUMMY_PIXELS     1
 #define CE1502_FULL_SIZE_DUMMY_LINES    1
 #ifdef FULLSIZE_13P0
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)	
+#define CE1502_FULL_SIZE_WIDTH    4160
+#define CE1502_FULL_SIZE_HEIGHT   3120
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
 #define CE1502_FULL_SIZE_WIDTH    4192 // 4136
 #define CE1502_FULL_SIZE_HEIGHT   3104 // 3102
+#endif
 #else
 #define CE1502_FULL_SIZE_WIDTH    4096 // 4160 // 4136
 #define CE1502_FULL_SIZE_HEIGHT   3072 // 3120 // 3102
@@ -292,6 +335,16 @@ static struct msm_camera_i2c_conf_array ce1502_confs[] = {
 #define CE1502_ZSL_SIZE_WIDTH    3264 
 #define CE1502_ZSL_SIZE_HEIGHT   2448 
 
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+//#define ZSL_JPEG_STREAM_640X480
+#ifdef ZSL_JPEG_STREAM_640X480
+#define CE1502_JPEG_ZSL_SIZE_WIDTH    640 
+#define CE1502_JPEG_ZSL_SIZE_HEIGHT   480
+#else
+#define CE1502_JPEG_ZSL_SIZE_WIDTH    1280 
+#define CE1502_JPEG_ZSL_SIZE_HEIGHT   960
+#endif
+#endif
 
 static struct msm_sensor_output_info_t ce1502_dimensions[] = {
 	{
@@ -354,6 +407,29 @@ static struct msm_sensor_output_info_t ce1502_dimensions[] = {
 #endif
 		.binning_factor = 1,
 	},
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+    {
+#ifdef ZSL_JPEG_STREAM_640X480
+        .x_output = CE1502_JPEG_ZSL_SIZE_WIDTH,//CE1502_ZSL_SIZE_WIDTH,
+        .y_output = CE1502_JPEG_ZSL_SIZE_HEIGHT,//CE1502_ZSL_SIZE_HEIGHT,
+        .line_length_pclk = 920,//+1560,//CE1502_JPEG_ZSL_SIZE_WIDTH,//CE1502_ZSL_SIZE_WIDTH,
+        .frame_length_lines = 482,//+2366,//CE1502_JPEG_ZSL_SIZE_HEIGHT,//CE1502_ZSL_SIZE_HEIGHT,
+#else
+        .x_output = CE1502_JPEG_ZSL_SIZE_WIDTH,//CE1502_ZSL_SIZE_WIDTH,
+        .y_output = CE1502_JPEG_ZSL_SIZE_HEIGHT,//CE1502_ZSL_SIZE_HEIGHT,
+        .line_length_pclk = 1596,
+        .frame_length_lines = 962,
+#endif
+#ifdef F_MIPI336
+        .vt_pixel_clk = 176160768, //
+        .op_pixel_clk = 176160768, //
+#else
+        .vt_pixel_clk = 264000000, //
+        .op_pixel_clk = 264000000, //
+#endif
+        .binning_factor = 1,
+    },
+#endif
 };
 
 #if 0
@@ -783,8 +859,11 @@ static int32_t ce1502_lens_stop(struct msm_sensor_ctrl_t *s_ctrl)
     		return rc;
     	}
 
-    	if(data_buf[0] == 0x01)
+    	//if(data_buf[0] == 0x01)
+    	if(continuous_af_mode == 2)
     	{
+    	if(data_buf[0] == 0x01){
+            
             SKYCDBG("%s AF-T PAUSE~~\n", __func__);
             is_af_t  = 1;
             data_buf[0] = 0x03;
@@ -804,6 +883,7 @@ static int32_t ce1502_lens_stop(struct msm_sensor_ctrl_t *s_ctrl)
 #endif
                 return rc;
             }
+           }
     	}		
         else
 #endif
@@ -940,10 +1020,15 @@ else if(caf == 4) //resume
 
     continuous_af_mode = caf;    
     caf_b_ojt = caf;
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
 
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5)&&(sensor_mode!=11)) // test
+        return 0;
+#else
     if(!(sensor_mode > 0 && sensor_mode < 4)&&(sensor_mode!=10)) // test
         return 0;
-
+#endif
 
 #if 0 //def CONFIG_PNTECH_CAMERA_OJT_TEST
     if(caf == 2)
@@ -1122,6 +1207,12 @@ int32_t ce1502_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
     int32_t rc = 0;
     SKYCDBG("%s: %d\n", __func__, __LINE__);
+    
+    release_flag = 0;//test_for_ce1502
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+    szoom_value = 0;
+    pre_szoom_value = 0;
+#endif 
 
 #if 0
     msm_sensor_probe_on(&s_ctrl->sensor_i2c_client->client->dev);   //////////////////
@@ -1142,7 +1233,11 @@ int32_t ce1502_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
     mdelay(10);
     
     if (svreg_ctrl(svregs, CAMV_IO_1P8V, 1) < 0)	rc = -EIO;	// HOST IO 1.8V
+#if (defined(CONFIG_MACH_APQ8064_EF52K) && (CONFIG_BOARD_VER >= CONFIG_TP20))
+    // 13M_VDD_RAM_1P8_EN pin is not used.  (VREG_L29_1P8 => VDD_RAM_1P8)
+#else
     if (sgpio_ctrl(sgpios, CAM1_RAM_EN, 1) < 0)	rc = -EIO;	// VDD RAM 1.8V
+#endif
 #if (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
     if (svreg_ctrl(svregs, CAMV_RAM_1P8V, 1) < 0)	rc = -EIO;	// VDD RAM 1.8V
 #endif
@@ -1181,6 +1276,7 @@ int32_t ce1502_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
     if (svreg_ctrl(svregs, CAMV_AF_2P8V, 1) < 0)	rc = -EIO;	// AF 2.8V
         
     continuous_af_mode = 0;
+    SKYCDBG(" %s :[SD_check] sensor_mode = -1 \n",__func__); 
     sensor_mode = -1;
 #if 1 // F_PANTECH_CAMERA_CFG_HDR
     ev_sft_mode = 0;   
@@ -1193,10 +1289,19 @@ int32_t ce1502_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 #if 1 //def F_PANTECH_CAMERA_FIX_CFG_AE_AWB_LOCK
     aec_awb_lock = 0x02;
 #endif
-
-#ifdef AF_FLASH
-    flash_flag =0;
-#endif    
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD    
+    asd_flag = 0;
+    fd_flag = 0;
+#if 1// test 0320 //def F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD  
+    test_flag = 0;
+#endif
+#if 0//need_to_check
+    flash_flag =0; 
+#endif
+#endif
+#if 1//need_to_check
+    flash_flag =0; 
+#endif
     SKYCDBG("%s X (%d)\n", __func__, rc);
     return rc;
 
@@ -1207,9 +1312,25 @@ int32_t ce1502_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
     int32_t rc = 0;
     SKYCDBG("%s\n", __func__);
 
-#ifdef AF_FLASH
+    release_flag = 0;//test_for_ce1502
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD    
+    asd_flag = 0;
+    fd_flag = 0;
+#if 1// test 0320 //def F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD  
+    test_flag = 0;
+#endif
+#if 0//need_to_check
     flash_flag =0;
 #endif
+#endif
+#if 1//need_to_check
+    flash_flag =0; 
+#endif
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+    szoom_value = 0;
+    pre_szoom_value = 0;
+#endif 
+
 //    ce1502_lens_stability(s_ctrl);
     ce1502_set_led_gpio_set(0);
     
@@ -1375,8 +1496,15 @@ static int32_t ce1502_update_fw(struct msm_sensor_ctrl_t *s_ctrl)
         fd = sys_open(CE1502_71_FW_INFO_F, O_RDONLY, 0);
     }else if(ce1502_ver.fw_major_ver == CE1502_83_FW_MAJOR_VER) {
         fd = sys_open(CE1502_83_FW_INFO_F, O_RDONLY, 0);
+#if 0//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL		
+    }else if(ce1502_ver.fw_major_ver == CE1502_100_FW_MAJOR_VER) {
+        fd = sys_open(CE1502_100_FW_INFO_F, O_RDONLY, 0);
+#else    
     }else if(ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER) {
 		fd = sys_open(CE1502_87_FW_INFO_F, O_RDONLY, 0);
+#endif
+    }else if(ce1502_ver.fw_major_ver == CE1502_89_FW_MAJOR_VER) {
+		fd = sys_open(CE1502_89_FW_INFO_F, O_RDONLY, 0);
 	}else {
         goto fw_update_fail;
     }
@@ -1417,8 +1545,15 @@ static int32_t ce1502_update_fw(struct msm_sensor_ctrl_t *s_ctrl)
         fd = sys_open(CE1502_71_FW_BIN_F, O_RDONLY, 0);
     } else if(ce1502_ver.fw_major_ver == CE1502_83_FW_MAJOR_VER) {
         fd = sys_open(CE1502_83_FW_BIN_F, O_RDONLY, 0);
+#if 0//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL	
+    } else if(ce1502_ver.fw_major_ver == CE1502_100_FW_MAJOR_VER) {
+        fd = sys_open(CE1502_100_FW_BIN_F, O_RDONLY, 0);
+#else
     } else if(ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER) {
     	fd = sys_open(CE1502_87_FW_BIN_F, O_RDONLY, 0);
+#endif
+    } else if(ce1502_ver.fw_major_ver == CE1502_89_FW_MAJOR_VER) {
+    	fd = sys_open(CE1502_89_FW_BIN_F, O_RDONLY, 0);
     }else{
         goto fw_update_fail;
     }
@@ -1507,10 +1642,23 @@ static int32_t ce1502_update_fw_boot(struct msm_sensor_ctrl_t *s_ctrl, const str
 	{
 		SKYCERR("ERR:%s FAIL!!!rc=%d return~~\n", __func__, rc);
 #if defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF52L)
+#if 0//temp_for_force_change_FW //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL	
+//step_1
+//        ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
+//step_2
+        ce1502_ver.fw_major_ver = CE1502_83_FW_MAJOR_VER;
+#else
 		goto update_fw_boot_done; 
-#elif defined(CONFIG_MACH_APQ8064_EF51S)|| defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52W)
+#endif
+#elif defined(CONFIG_MACH_APQ8064_EF51S)|| defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
   				ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
-
+				
+#elif defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52W)
+#if 0//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL	
+		ce1502_ver.fw_major_ver = CE1502_100_FW_MAJOR_VER;
+#else
+		ce1502_ver.fw_major_ver = CE1502_89_FW_MAJOR_VER;//CE1502_87_FW_MAJOR_VER;
+#endif
 #elif defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K)
               ce1502_ver.fw_major_ver = CE1502_81_FW_MAJOR_VER;
 /*
@@ -1544,14 +1692,43 @@ static int32_t ce1502_update_fw_boot(struct msm_sensor_ctrl_t *s_ctrl, const str
 */ 
     ce1502_ver.fw_major_ver = CE1502_71_FW_MAJOR_VER;
 #elif defined (CONFIG_MACH_APQ8064_EF52L)
+#if 0//temp_for_force_change_FW //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+//step_1
+//        if(ce1502_ver.fw_major_ver == CE1502_81_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER)
+//            ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
+//        else if(ce1502_ver.fw_major_ver == CE1502_71_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_83_FW_MAJOR_VER )
+//        {
+//            ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
+//            goto update_fw_boot;
+//        }
+//step_2
         if(ce1502_ver.fw_major_ver == CE1502_81_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER)
-            ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
+        {
+            ce1502_ver.fw_major_ver = CE1502_83_FW_MAJOR_VER;
+            goto update_fw_boot;
+        }
         else if(ce1502_ver.fw_major_ver == CE1502_71_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_83_FW_MAJOR_VER )
             ce1502_ver.fw_major_ver = CE1502_83_FW_MAJOR_VER;
-#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52W)
+#else
+        if(ce1502_ver.fw_major_ver == CE1502_81_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_89_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER)
+            ce1502_ver.fw_major_ver = CE1502_89_FW_MAJOR_VER;
+        else if(ce1502_ver.fw_major_ver == CE1502_71_FW_MAJOR_VER || ce1502_ver.fw_major_ver == CE1502_83_FW_MAJOR_VER )
+            ce1502_ver.fw_major_ver = CE1502_83_FW_MAJOR_VER;
+#endif
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
 		ce1502_ver.fw_major_ver = CE1502_87_FW_MAJOR_VER;
+#elif defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52W)
+#if 0//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL	
+        ce1502_ver.fw_major_ver = CE1502_100_FW_MAJOR_VER;
+#else
+		ce1502_ver.fw_major_ver = CE1502_89_FW_MAJOR_VER;//CE1502_87_FW_MAJOR_VER;
+#endif
 #else
         ce1502_ver.fw_major_ver = CE1502_81_FW_MAJOR_VER;
+#endif
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL	
+printk(KERN_INFO "%s : FW minor version=0x%x, FW major viersion=0x%x\n",__func__, ce1502_ver.fw_minor_ver, ce1502_ver.fw_major_ver);
 #endif
 
     if (ce1502_ver.fw_major_ver == CE1502_81_FW_MAJOR_VER)
@@ -1596,6 +1773,22 @@ static int32_t ce1502_update_fw_boot(struct msm_sensor_ctrl_t *s_ctrl, const str
             }
         }
     }    
+#if 0//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL
+    else if (ce1502_ver.fw_major_ver == CE1502_100_FW_MAJOR_VER)
+    {
+        if (ce1502_ver.fw_minor_ver == CE1502_100_FW_MINOR_VER) {
+        //SKYCDBG("%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, ce1502_ver.prm_minor_ver, ce1502_ver.prm_major_ver);
+        printk(KERN_INFO "%s : 1 PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, ce1502_ver.prm_minor_ver, ce1502_ver.prm_major_ver);
+
+            if ((ce1502_ver.prm_major_ver == CE1502_100_PRM_MAJOR_VER) &&
+            (ce1502_ver.prm_minor_ver == CE1502_100_PRM_MINOR_VER)) {						
+                //SKYCDBG("%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, CE1502_PRM_MINOR_VER, CE1502_PRM_MAJOR_VER);
+                printk(KERN_INFO "%s : 2 PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, CE1502_100_PRM_MINOR_VER, CE1502_100_PRM_MAJOR_VER);
+                goto update_fw_boot_done;
+            }
+        }
+    }
+#else    
 	else if (ce1502_ver.fw_major_ver == CE1502_87_FW_MAJOR_VER)
     {
         if (ce1502_ver.fw_minor_ver == CE1502_87_FW_MINOR_VER) {
@@ -1610,6 +1803,21 @@ static int32_t ce1502_update_fw_boot(struct msm_sensor_ctrl_t *s_ctrl, const str
             }
         }
     }    
+#endif
+    else if (ce1502_ver.fw_major_ver == CE1502_89_FW_MAJOR_VER)
+    {
+        if (ce1502_ver.fw_minor_ver == CE1502_89_FW_MINOR_VER) {
+        //SKYCDBG("%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, ce1502_ver.prm_minor_ver, ce1502_ver.prm_major_ver);
+        printk(KERN_INFO "%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, ce1502_ver.prm_minor_ver, ce1502_ver.prm_major_ver);
+
+        if ((ce1502_ver.prm_major_ver == CE1502_89_PRM_MAJOR_VER) &&
+        (ce1502_ver.prm_minor_ver == CE1502_89_PRM_MINOR_VER)) {                        
+                //SKYCDBG("%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, CE1502_PRM_MINOR_VER, CE1502_PRM_MAJOR_VER);
+                printk(KERN_INFO "%s : PRM minor version=0x%x, PRM major viersion=0x%x\n",__func__, CE1502_89_PRM_MINOR_VER, CE1502_89_PRM_MAJOR_VER);
+                goto update_fw_boot_done;
+            }
+        }
+    }  
 
 update_fw_boot:
 
@@ -1649,14 +1857,78 @@ uint32_t ce1502_readirq(struct msm_sensor_ctrl_t *s_ctrl)
 
     if (data_buf[2] & 0x04) // bit 2, AF done
     {
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+        if(asd_flag == 2) {
+            //SKYCDBG("%s[SD_check] (asd_flag == 2) /  asd_flag = 1 \n",__func__);
+            asd_flag = 1;
+        }        
+#endif
+#ifdef F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+        ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
+        //SKYCDBG("%s [AF/success/fail] data_buf[0]:%d \n",__func__, data_buf[0]); 
+        
+        //if(!(data_buf[0] & 0x01)){//stop
+        //    SKYCDBG("%s [AF/success/fail] af status : stop \n",__func__);
+        //} else {
+        //    SKYCDBG("%s [AF/success/fail] af status : doing \n",__func__);                
+        //}
+
+        if(data_buf[0] & 0x02){//af_success
+            ce1502_irq_stat = 2;
+        //    SKYCDBG("%s [AF/success/fail] af_success \n",__func__);
+        } else {
+            ce1502_irq_stat = 4;
+        //    SKYCDBG("%s [AF/success/fail] af_fail / other \n",__func__);                
+        }
+#else
         ce1502_irq_stat = 2;
+#endif
     }
     else if (data_buf[3] & 0x20) // bit 5, AF trigger
     {
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+        if(asd_flag == 1) {
+            //SKYCDBG("%s[SD_check] (asd_flag == 1) /  asd_flag = 2 \n",__func__);
+            asd_flag = 2;
+        }
+#endif            
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD	// test 0320 //F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD
+        if((test_flag == 1)||(fd_flag == 1))
+        {
+            data_buf[0] = 0x00; //preview assist setting//FD ON
+            data_buf[1] = 0x03; //0x01;//0x03;
+            data_buf[2] = 0x03;
+            data_buf[3] = 0x00;
+            data_buf[4] = 0x00;
+            data_buf[5] = 0x00;
+            data_buf[6] = 0x00;
+            data_buf[7] = 0x00;
+            data_buf[8] = 0x00;
+            data_buf[9] = 0x00;
+            rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+            rc = ce1502_read(s_ctrl, data_buf, 1);            
+            test_flag = 0;
+            //SKYCDBG("%s : AF triggered after focusing by caf ^^^^^^^^^^^^^^^^^^^^ FD ENABLE\n", __func__);
+        }
+#endif
         if(ce1502_irq_stat != 1)
         {
             ce1502_irq_stat = 1;
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD  
+        if((asd_flag != 0) ||(fd_flag == 1))  {
+            //SKYCDBG("%s[SD_check] (asd_flag != 0) /  ce1502_42_command(s_ctrl, 0x01) \n",__func__);
+#if 1// test 0320 //def F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST //F_PANTECH_CAMERA_ADD_CFG_ASD  
+			//ce1502_42_command(s_ctrl, 0x01);
+#else			
+            ce1502_42_command(s_ctrl, 0x01);
+#endif
+        }else {
+            //SKYCDBG("%s[SD_check] (asd_flag != 0)else /  ce1502_42_command(s_ctrl, 0x00) \n",__func__); 
             ce1502_42_command(s_ctrl, 0x00);
+        }
+#else
+            ce1502_42_command(s_ctrl, 0x00);
+#endif
         }
     }
 #endif
@@ -1682,6 +1954,7 @@ static int ce1502_get_frame_info(struct msm_sensor_ctrl_t *s_ctrl, void __user *
 //  SKYCDBG("%s ce1502_irq_stat=%d\n",__func__, *f_info);
 
 #ifdef CONFIG_PNTECH_CAMERA_OJT
+    if(current_ojt == 1) {
     p_obj = (int16_t *)(f_info+2);
     p_width = *p_obj++;
     p_height = *p_obj;
@@ -1710,9 +1983,47 @@ static int ce1502_get_frame_info(struct msm_sensor_ctrl_t *s_ctrl, void __user *
         *(p_obj+3) = ((ybottom*2000)/height) & 0xffff;
 //        SKYCDBG("%s state=%d :: xleft=%d, ytop=%d, xright=%d , ybottom=%d\n",__func__, data_buf[0], *(p_obj), *(p_obj+1), *(p_obj+2), *(p_obj+3));
     }
+    }
+#endif
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+      // Preview //
+    if(asd_flag != 0) {
+#if 1//ASD_SCENE_CHECK
+        *(f_info+11) = 254;
+        if (asd_flag == 1){    
+            rc = ce1502_cmd_read(s_ctrl, 0x83, data_buf, 2);
+            if(data_buf[0] == 0x02)//0x00:fail / 0x01:~ing / 0x02:complete
+            {
+                *(f_info+11) = data_buf[1];//*f_info.asd_enable = data_buf[1];
+               //SKYCDBG("%s [ASD_TEST] data_buf[0] = %d \n",__func__, data_buf[0]);
+               //SKYCDBG("%s [ASD_TEST] data_buf[1] = %d \n",__func__, data_buf[1]);
+                rc = ce1502_cmd_read(s_ctrl, 0x9b, data_buf, 2);
+                //SKYCDBG("%s [ASD_TEST] FD data_buf[0] = %d \n",__func__, data_buf[0]);
+                //SKYCDBG("%s [ASD_TEST] FD data_buf[1] = %d \n",__func__, data_buf[1]);
+                *(f_info+12) = data_buf[0];
+            } else {
+    			//SKYCERR("%s [ASD_TEST] ASD_SCENE_CHECK ing  \n",__func__ );        
+                //*(f_info+11) = 254;
+            }    
+            if(rc != 0){
+                SKYCERR("%s [ASD_TEST] ce1502_cmd_read failed rc=%d \n",__func__ ,rc);   
+                //*(f_info+11) = 254;
+#ifdef ISP_LOGEVENT_PRINT //#define ISP_LOGEVENT_PRINT
+                SKYCERR("%s [ASD_TEST] ce1502_get_isp_event_log(s_ctrl); / return -1; \n",__func__ );
+                ce1502_get_isp_event_log(s_ctrl);
+#endif
+            }
+        } else {//asd_flag != 1
+            //*(f_info+11) = 254;
+        }
+        *(f_info+10) = asd_flag;  //*f_info.asd_enable = 1;
+    	//SKYCERR("%s [ASD_TEST] ASD_SCENE_CHECK FINAL 3  asd_flag:%d *(f_info+11):%d \n",__func__, asd_flag, *(f_info+11) );      
+#endif
+    }
 #endif
 
     return 0;
+
 }
 
 #endif
@@ -1772,9 +2083,15 @@ static int32_t ce1502_set_object_tracking(struct msm_sensor_ctrl_t *s_ctrl, int3
 
     SKYCDBG("%s E\n",__func__);
 
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5))
+        goto set_ojt_end;
+#else
     if(!(sensor_mode > 0 && sensor_mode < 4))
         goto set_ojt_end;
-
+#endif
     if(!(x1|y1|x2|y2)) {
         goto set_ojt_end;
     }
@@ -1853,9 +2170,15 @@ static int32_t ce1502_set_area_interlock(struct msm_sensor_ctrl_t *s_ctrl, int32
     int32_t interlock = 0;
 
     SKYCDBG("%s E\n",__func__);
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
 
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5))
+        goto set_rect_end;
+#else
     if(!(sensor_mode > 0 && sensor_mode < 4))
         goto set_rect_end;
+#endif
 
     if(!(x1|y1|x2|y2)) {
         goto set_rect_end;
@@ -1876,6 +2199,43 @@ static int32_t ce1502_set_area_interlock(struct msm_sensor_ctrl_t *s_ctrl, int32
 #endif
         interlock = 0x10;
     }
+
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD // test 0320 //F_ASD_TEST
+if((asd_flag != 0) || (fd_flag == 1))
+{
+    //SKYCDBG("%s ASD STATE ON !!! AREA FOCUS START !!!(%d, %d, %d, %d)\n",__func__, x1,x2,y1,y2);
+        data_buf[0] = 0x00; //preview assist setting//FD ON
+        data_buf[1] = 0x03; //0x01;//0x03;
+        data_buf[2] = 0x01; //only AF //0x03; //interlock;
+        data_buf[3] = 0x01;
+        data_buf[4] = 0x00;
+        data_buf[5] = 0x00;
+        data_buf[6] = 0x10;
+        data_buf[7] = 0x00;
+        data_buf[8] = 0x00;
+        data_buf[9] = 0x00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        rc = ce1502_read(s_ctrl, data_buf, 1);
+
+        data_buf[0] = 0x01; //preview assist setting//FD ON        
+        data_buf[1] = ((x1+x2)>>1) & 0xff;
+        data_buf[2] = ((x1+x2)>>9) & 0xff;
+        data_buf[3] = ((y1+y2)>>1) & 0xff;
+        data_buf[4] = ((y1+y2)>>9) & 0xff;        
+        data_buf[5] = 0x00;
+        data_buf[6] = 0x00;
+        data_buf[7] = 0x00;
+        data_buf[8] = 0x00;
+        data_buf[9] = 0x00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        rc = ce1502_read(s_ctrl, data_buf, 1);
+
+    //SKYCDBG("%s ASD STATE ON !!! AREA FOCUS END !!! asd_flag:%d / rc:%d \n",__func__,asd_flag, rc);
+        rc = 0;
+        test_flag = 1;
+        goto set_rect_end;
+}
+#endif
 
     data_buf[0] = interlock;
     data_buf[1] = 0xB2; //0x03;
@@ -1944,9 +2304,15 @@ static int32_t ce1502_set_metering_area(struct msm_sensor_ctrl_t *s_ctrl, int32_
 #endif
 
     SKYCDBG("%s  metering_area = %x\n",__func__, metering_area);
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
 
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5))
+        return rc;
+#else
     if(!(sensor_mode > 0 && sensor_mode < 4))
         return rc;
+#endif
 
     if (metering_area == 0) {
         ce1502_42_command(s_ctrl, 0x00);
@@ -2019,8 +2385,15 @@ static int32_t ce1502_set_focus_rect(struct msm_sensor_ctrl_t *s_ctrl, int32_t f
 
     SKYCDBG("%s  focus_rect = %x\n",__func__, focus_rect);
 
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5))
+        return rc;
+#else
     if(!(sensor_mode > 0 && sensor_mode < 4))
         return rc;
+#endif
 
     if (focus_rect == 0) {
         ce1502_42_command(s_ctrl, 0x00);
@@ -2260,8 +2633,15 @@ static int32_t ce1502_sensor_set_auto_focus(struct msm_sensor_ctrl_t *s_ctrl, in
     uint8_t read_data =0;
     uint8_t data_buf[10];
 
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5)) // test
+        return 0;
+#else  
     if(!(sensor_mode > 0 && sensor_mode < 4)) // test
         return 0;
+#endif
 
 #ifdef CONFIG_PNTECH_CAMERA_OJT
     if(current_ojt == 1)
@@ -2292,10 +2672,11 @@ static int32_t ce1502_sensor_set_auto_focus(struct msm_sensor_ctrl_t *s_ctrl, in
         return rc;
     }
     
-#ifdef AF_FLASH
-    SKYCDBG("%s[SD_check] flash_flag = %d / ce1502_lens_stop\n",__func__, flash_flag);
+#if 1//for_flash_test
+SKYCDBG("%s[SD_check] flash_flag = %d / ce1502_lens_stop\n",__func__, flash_flag);
 
     rc = ce1502_lens_stop(s_ctrl);
+
 
     switch(flash_flag)
     {
@@ -2427,8 +2808,14 @@ static int32_t ce1502_sensor_set_focus_mode(struct msm_sensor_ctrl_t *s_ctrl, in
 	//uint8_t read_data[2];
 	int caf = 0;
 	int rc = 0;
+        SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5)&&(sensor_mode!=11) ) // test
+        return 0;
+#else 
 	if(!(sensor_mode > 0 && sensor_mode < 4)&&(sensor_mode!=10) ) // test
 		return 0;
+#endif
 		
 	SKYCDBG("%s start : focus_mode = %d\n",__func__, focusmode);
 	
@@ -2467,6 +2854,151 @@ static int32_t ce1502_sensor_set_focus_mode(struct msm_sensor_ctrl_t *s_ctrl, in
     return rc;
 }
 
+#ifdef F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp, int8_t * af_result)
+{
+    uint8_t rdata = 0;
+    uint8_t data_buf[10];
+    int32_t rc = 0;
+    //SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d / continuous_af_mode:%d / ce1502_irq_stat:%d \n",__func__, sensor_mode, continuous_af_mode, ce1502_irq_stat);
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_TEST
+    if(!(sensor_mode > 0 && sensor_mode < 5)) // test
+        return 0;
+#else
+    if(!(sensor_mode > 0 && sensor_mode < 4)) // test
+        return 0;
+#endif
+    if(continuous_af_mode == 1)
+        return 0;
+    else if(continuous_af_mode == 2)
+    {
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+        if((ce1502_irq_stat == 2)||(ce1502_irq_stat == 4)) {
+            ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
+            //SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / data_buf[0]:%d \n",__func__, data_buf[0]); 
+            
+            //if(!(data_buf[0] & 0x01)){//stop
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af status : stop \n",__func__);
+            //} else {
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af status : doing \n",__func__);                
+            //}
+
+            if(data_buf[0] & 0x02){//af_success
+                *af_result = 1;
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af_success \n",__func__);
+            } else {
+                *af_result = 2;
+            //    SKYCDBG("%s [AF/success/fail] (ce1502_irq_stat == 2) / af_fail / other \n",__func__);                
+            }
+            return 0;
+        }
+#else
+        if(ce1502_irq_stat == 2)
+            return 0;
+#endif
+        else
+        {
+            //uint8_t data_buf[10];
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+            if(asd_flag == 1) {//||(asd_flag == 2)) {
+                //FD OFF
+#if 1 // test 0320
+#else				
+                rc = ce1502_42_command(s_ctrl, 0x00);
+                //SKYCDBG("%s [ASD_TEST] FD OFF / rc = %d \n",__func__, rc);
+#endif
+                asd_flag = 3;
+            }
+#endif
+            rc = ce1502_cmd_read(s_ctrl, 0xD0, data_buf, 8);
+
+            if (data_buf[2] & 0x04) { // bit 2, AF done
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD            
+                //SKYCDBG("%s[ASD_TEST] asd_flag:%d \n",__func__, asd_flag);
+                if(asd_flag == 3) {//((asd_flag == 1)||(asd_flag == 2)) {
+                    //FD ON
+#if 0 // test 0320
+                    if(test_flag == 1)
+                    {
+                        data_buf[0] = 0x00; //preview assist setting//FD ON
+                        data_buf[1] = 0x03; //0x01;//0x03;
+                        data_buf[2] = 0x03;
+                        data_buf[3] = 0x00;
+                        data_buf[4] = 0x00;
+                        data_buf[5] = 0x00;
+                        data_buf[6] = 0x00;
+                        data_buf[7] = 0x00;
+                        data_buf[8] = 0x00;
+                        data_buf[9] = 0x00;
+                        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+                        test_flag = 0;
+                        SKYCDBG("%s : AF triggered after focusing by touch ^^^^^^^^^^^^^^^^^^^^ FD ENABLE\n", __func__);
+                    }
+#else					
+                    //rc = ce1502_42_command(s_ctrl, 0x01);
+#endif
+                    asd_flag = 1;
+                    //SKYCDBG("%s [ASD_TEST] FD ON / rc = %d \n",__func__, rc);            
+                }
+#endif
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+            ce1502_cmd_read(s_ctrl, 0x24, data_buf, 1);
+            //SKYCDBG("%s [AF/success/fail] data_buf[0]:%d \n",__func__, data_buf[0]); 
+            
+            //if(!(data_buf[0] & 0x01)){//stop
+            //    SKYCDBG("%s [AF/success/fail] af status : stop \n",__func__);
+            //} else {
+            //    SKYCDBG("%s [AF/success/fail] af status : doing \n",__func__);                
+            //}
+
+            if(data_buf[0] & 0x02){//af_success
+                *af_result = 1;
+            //    SKYCDBG("%s [AF/success/fail] af_success \n",__func__);
+            } else {
+                *af_result = 2;
+            //    SKYCDBG("%s [AF/success/fail] af_fail / other \n",__func__);                
+            }
+#endif
+                //SKYCDBG("%s[ASD_TEST] return 0 \n",__func__);
+                return 0;
+            }
+            else {
+                //SKYCDBG("%s[ASD_TEST] return -1 \n",__func__);
+                return -1;
+        }
+    }
+    }
+    rc = ce1502_cmd_read(s_ctrl, 0x24, &rdata, 1);
+#if 0        
+    SKYCDBG("%s: read = 0x%x\n", __func__, rdata);        
+#endif
+    if (rc < 0)
+        return rc;
+
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+    if (!(rdata & 0x01)) {
+        if(rdata & 0x02){//af_success
+            *af_result = 1;
+            //SKYCDBG("%s [AF/success/fail] 33 af_success \n",__func__);
+        } else {
+            *af_result = 2;
+            //SKYCDBG("%s [AF/success/fail] 33 af_fail / other \n",__func__);                
+        }
+        rc = 0;
+    }else{
+        //*af_result = 2;//af_fail
+        rc = -1;
+    }
+#else    
+    if (!(rdata & 0x01))
+        rc = 0;
+    else
+        rc = -1;
+#endif
+    return rc;
+}
+#else
 static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t autofocus)
 {
     uint8_t rdata = 0;
@@ -2507,6 +3039,7 @@ static int32_t ce1502_sensor_check_af(struct msm_sensor_ctrl_t *s_ctrl ,int8_t a
 
     return rc;
 }
+#endif
 
 static int32_t ce1502_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
 {
@@ -2514,6 +3047,9 @@ static int32_t ce1502_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
     uint8_t data_buf[4];
     uint8_t rdata = 0;
     int8_t prev_caf2;
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    int8_t i;
+#endif
 
     SKYCDBG("%s: START + \n", __func__);
 
@@ -2568,7 +3104,15 @@ static int32_t ce1502_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
         goto preview_ok;
     }
 #endif
-        
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1// Embedded
+// Embedded Data OFF
+    data_buf[0] = 0x14;
+    data_buf[1] = 0x00;
+
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+#endif
+#endif        
     SKYCDBG("%s : ZSL Preview Start CMD !!!\n",__func__);
 #ifdef NEW_CAPTURE_FW
         data_buf[0] = 0x00;
@@ -2578,10 +3122,17 @@ static int32_t ce1502_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
 
     data_buf[0] = 0x00;	//
     rc = ce1502_cmd(s_ctrl, 0x40, data_buf, 1);
-
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    data_buf[0] = 0x24;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check test//0x21;	
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
     data_buf[0] = 0x21;	
+#endif
 #ifdef FULLSIZE_13P0
-    data_buf[1] = 0x06;
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    data_buf[1] = 0x00;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check test//0x06;
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
+  data_buf[1] = 0x06;
+#endif
 #else
     data_buf[1] = 0x00;
 #endif
@@ -2597,7 +3148,21 @@ static int32_t ce1502_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
         data_buf[0] = 0x00;	//
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
     }
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1//D-ZOOM off
 
+    data_buf[0] = 0xFF;
+    rc = ce1502_cmd(s_ctrl, 0xB9, data_buf, 1);
+    for(i=0 ; i<100; i++) {
+        rc = ce1502_cmd_read(s_ctrl, 0xba, data_buf, 2);
+
+        if (data_buf[1] == 0)
+            break;
+            
+        msleep(10);
+    }
+#endif
+#endif
     // ZSL Preview start (PREVIEW)
     data_buf[0] = 0x03;	//
     rc = ce1502_cmd(s_ctrl, 0x7D, data_buf, 1);
@@ -2631,6 +3196,152 @@ preview_ok:
 
     return rc;
 }
+
+#if 1 //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set
+static int32_t ce1502_JPEG_ZSL_config(struct msm_sensor_ctrl_t *s_ctrl)
+{
+    int32_t rc = 0;
+#if 1//for JPEG_quaility
+    uint8_t data_buf[8];
+#else
+    uint8_t data_buf[7];
+#endif
+    //uint8_t rdata = 0;
+    int8_t prev_caf2;
+//    int i = 0;
+
+    SKYCDBG("%s: START + \n", __func__);
+       
+    SKYCDBG("%s : JPEG ZSL Preview Start CMD !!!\n",__func__);
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//[SD_check] from_korea
+// MIPI4Lane/Capteure VC=1
+	data_buf[0] = 0x00;
+    data_buf[1] = 0x03;
+
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+
+// Embedded Data ON
+	data_buf[0] = 0x14;
+    data_buf[1] = 0x01;
+
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+
+// Frame ID ON	
+#if 1//for JPEG_quaility//2500~1500
+	data_buf[0] = 0x00;
+    data_buf[1] = 0xC4;
+    data_buf[2] = 0x09;
+    data_buf[3] = 0xDC;//0xD0;
+    data_buf[4] = 0x05;//0x07;
+    data_buf[5] = 0x64;//100%//0x5F;//95%//0x01;//0x00;
+    data_buf[6] = 0x00;
+    data_buf[7] = 0x40;//0x20;
+    rc = ce1502_cmd(s_ctrl, 0x99, data_buf, 8);
+#else
+	data_buf[0] = 0x00;
+    data_buf[1] = 0xC4;
+    data_buf[2] = 0x09;
+    data_buf[3] = 0xDC;//0xD0;
+    data_buf[4] = 0x05;//0x07;
+    data_buf[5] = 0x00;//0x01;//0x00;
+    data_buf[6] = 0x20;
+
+    rc = ce1502_cmd(s_ctrl, 0x90, data_buf, 7);
+#endif
+#endif
+
+//multi image setting
+#ifdef ZSL_JPEG_STREAM_640X480
+    data_buf[0] = 0x0B;
+    data_buf[1] = 0x31;
+    data_buf[2] = 0x00;
+    data_buf[3] = 0x00;
+    data_buf[4] = 0x00;
+    data_buf[5] = 0x00;
+    data_buf[6] = 0x00;
+#else
+    data_buf[0] = 0x1C;
+    data_buf[1] = 0x31;
+    data_buf[2] = 0x00;
+    data_buf[3] = 0x00;
+    data_buf[4] = 0x00;
+    data_buf[5] = 0x00;
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//[SD_check] from_korea
+    data_buf[6] = 0x00;
+#else
+    data_buf[6] = 0x01;
+#endif
+#endif
+    rc = ce1502_cmd(s_ctrl, 0x62, data_buf, 7);
+
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+#if 1 
+    pre_szoom_value = -1;
+    ce1502_sensor_set_szoom(s_ctrl, szoom_value);
+#else
+//D-ZOOM off
+    data_buf[0] = 0xFF;
+    rc = ce1502_cmd(s_ctrl, 0xB9, data_buf, 1);
+
+    for(i=0 ; i<100; i++) {
+        rc = ce1502_cmd_read(s_ctrl, 0xba, data_buf, 2);
+        //SKYCERR("%s [SD_check] data_buf[0] = %d \n", __func__, data_buf[0]);
+        //SKYCERR("%s [SD_check] data_buf[1] = %d \n", __func__, data_buf[1]);
+
+        if (data_buf[1] == 0)
+            break;
+
+        //SKYCERR("%s msleep(5) i=%d\n", __func__,i);        
+        msleep(5);
+    }
+#endif
+#endif
+
+//multi image start
+    data_buf[0] = 0x00;
+    rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
+
+    data_buf[0] = 0x01;
+    rc = ce1502_cmd(s_ctrl, 0x63, data_buf, 1);
+
+    rc = ce1502_poll(s_ctrl, 0x6C, 0x18, 100, 100);  // response 0x13? 0x19?
+    
+        if (rc < 0)
+        {
+        SKYCERR("%s : ZSL Preview Start polling ERROR !!!\n",__func__);
+        	return rc;
+        }	
+#if 1 //0
+//preview_ok:
+    
+    mdelay(30); // test 04.13.
+
+    sensor_mode = 4;
+#if 1 // F_PANTECH_CAMERA_CFG_HDR
+    ev_sft_mode = 0;   // 0:normal capture , 1: ev shift capture
+#endif
+
+    prev_caf2 = caf_b_ojt;
+    ce1502_set_continuous_af(s_ctrl, continuous_af_mode);
+    caf_b_ojt = prev_caf2;
+
+    //	f_stop_capture = 0;	// test cts
+        x1 = 0;
+        x2 = 0;
+        y1 = 0;
+        y2 = 0;
+#endif
+
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    sensor_mode = 4;
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+#endif
+
+    SKYCDBG("%s end rc = %d\n",__func__, rc);
+
+    return rc;
+}
+#endif
 
 static int32_t ce1502_1080p_config(struct msm_sensor_ctrl_t *s_ctrl)
 {
@@ -2692,7 +3403,15 @@ static int32_t ce1502_1080p_config(struct msm_sensor_ctrl_t *s_ctrl)
         goto preview_ok;
     }
 #endif
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1// Embedded
+// Embedded Data OFF
+    data_buf[0] = 0x14;
+    data_buf[1] = 0x00;
 
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+#endif
+#endif
     SKYCDBG("%s : 1080p Preview Start CMD !!!\n",__func__);
 
 #ifdef NEW_CAPTURE_FW
@@ -2706,7 +3425,11 @@ static int32_t ce1502_1080p_config(struct msm_sensor_ctrl_t *s_ctrl)
 
     data_buf[0] = 0x1F;	//1080p(1920x1088)
 #ifdef FULLSIZE_13P0
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    data_buf[1] = 0x01;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check //0x0B;
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
     data_buf[1] = 0x0B;
+#endif
 #else
     data_buf[1] = 0x01;
 #endif
@@ -2818,6 +3541,15 @@ static int32_t ce1502_video_config(struct msm_sensor_ctrl_t *s_ctrl)
     }
 #endif
 
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1// Embedded
+// Embedded Data OFF
+    data_buf[0] = 0x14;
+    data_buf[1] = 0x00;
+
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+#endif
+#endif
 
     SKYCDBG("%s : Preview Start CMD !!!\n",__func__);
 
@@ -2832,7 +3564,11 @@ static int32_t ce1502_video_config(struct msm_sensor_ctrl_t *s_ctrl)
 
     data_buf[0] = 0x1C;	//SXGA(1280x960)
 #ifdef FULLSIZE_13P0
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    data_buf[1] = 0x01;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check //0x0B;
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
     data_buf[1] = 0x0B;
+#endif
 #else
     data_buf[1] = 0x01;
 #endif
@@ -2849,6 +3585,7 @@ static int32_t ce1502_video_config(struct msm_sensor_ctrl_t *s_ctrl)
         data_buf[0] = 0x00;
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
     }
+
     // Preview start (PREVIEW)
     data_buf[0] = 0x01;
     rc = ce1502_cmd(s_ctrl, 0x6B, data_buf, 1);
@@ -2938,13 +3675,25 @@ static int32_t ce1502_snapshot_config(struct msm_sensor_ctrl_t *s_ctrl)
 	}
 #endif
 
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1// Embedded
+// Embedded Data OFF
+    data_buf[0] = 0x14;
+    data_buf[1] = 0x00;
 
+    rc = ce1502_cmd(s_ctrl, 0x05, data_buf, 2);
+#endif
+#endif
 #if 1 // F_PANTECH_CAMERA_CFG_HDR
     if(ev_sft_mode == 1)
     {
 #ifdef FULLSIZE_13P0
         data_buf[0] = 0x31;
-        data_buf[1] = 0x07;
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+        data_buf[1] = 0x05;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//[SD_check] 4160x3120 //0x07;
+ #elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)  
+         data_buf[1] = 0x07;
+#endif
 #else
         data_buf[0] = 0x30;
         data_buf[1] = 0x05;
@@ -2987,7 +3736,11 @@ static int32_t ce1502_snapshot_config(struct msm_sensor_ctrl_t *s_ctrl)
 
 #ifdef FULLSIZE_13P0
     data_buf[0] = 0x31;
-    data_buf[1] = 0x07;
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+    data_buf[1] = 0x05;//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//[SD_check] 4160x3120 //0x07;//<
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)  
+         data_buf[1] = 0x07;
+#endif    
 #else
     data_buf[0] = 0x30;
     data_buf[1] = 0x05;
@@ -3091,10 +3844,21 @@ void ce1502_sensor_ideal_stream(struct msm_sensor_ctrl_t *s_ctrl)
 
 //    if(!(sensor_mode > 0 && sensor_mode < 4))
 //    if((sensor_mode < 0) || (sensor_mode > 3))
+#if 1///#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+    if(((sensor_mode < 0) || (sensor_mode > 4))&&(sensor_mode != 11)) {
+        SKYCERR("%s : sensor_mode = %d SKIP !!!\n",__func__ ,sensor_mode);
+        return;
+    }
+    
+    if(sensor_mode == 11) 
+        sensor_mode = 1;    
+#else
     if(((sensor_mode < 0) || (sensor_mode > 3))&&(sensor_mode != 10))
         return;
     if(sensor_mode == 10) 
         sensor_mode = 1;
+#endif
 
     if(sensor_mode != 0)    
         rc = ce1502_lens_stop2(s_ctrl);
@@ -3113,6 +3877,22 @@ void ce1502_sensor_ideal_stream(struct msm_sensor_ctrl_t *s_ctrl)
             return;
         }	
     }
+//need to change pair with ce1502_sensor_stop_stream()
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set
+    else if(sensor_mode == 4)//[SD_check]//SD_check_mode_set//JPEG_ZSL stop
+    {
+       SKYCDBG("%s:[SD_check] 0x63 / 0x00\n", __func__);
+       data_buf[0] = 0x00;
+       rc = ce1502_cmd(s_ctrl, 0x63, data_buf, 1);//JPEG_ZSL stop
+
+       rc = ce1502_poll(s_ctrl, 0x6C, 0x00, 10, 100);  // response 0x13? 0x19?
+
+       if (rc < 0)
+       {
+           SKYCERR("%s : JPEG ZSL Preview Stop polling ERROR !!!\n",__func__);          
+       }   
+    }
+#endif
     else if(sensor_mode == 0)
     {
         // stop Capture	
@@ -3147,7 +3927,7 @@ void ce1502_sensor_ideal_stream(struct msm_sensor_ctrl_t *s_ctrl)
             return;
         }	
     }
-
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d -> -1\n",__func__, sensor_mode);
     sensor_mode = -1;
 	
     //F_PANTECH_CAMERA	
@@ -3158,6 +3938,7 @@ void ce1502_sensor_start_stream(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 #if 1 //F_PANTECH_CAMERA
+    SKYCDBG("%s: g_sensor_mode :%d \n", __func__, g_sensor_mode);  
 	switch (g_sensor_mode) {
             case 0:
 //                rc = ce1502_snapshot_config(s_ctrl);	
@@ -3171,12 +3952,24 @@ void ce1502_sensor_start_stream(struct msm_sensor_ctrl_t *s_ctrl)
             case 3: 
                 rc = ce1502_ZSL_config(s_ctrl);	
                 break;
+#if 1 //#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set
+            case 4: 
+                rc = ce1502_JPEG_ZSL_config(s_ctrl);
+                break;
+#endif
             default:
                 rc = ce1502_video_config(s_ctrl);	
                 SKYCDBG("%s fail res=%d\n", __func__, g_sensor_mode);
                 break;
             }
             sensor_mode = g_sensor_mode;
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+    SKYCDBG("%s [ASD_TEST] asd_flag:%d  / g_sensor_mode:%d / \n",__func__, asd_flag, g_sensor_mode);
+    if((asd_flag == 1) && (g_sensor_mode != -1) && (g_sensor_mode != 0)) {
+        SKYCDBG("%s [ASD_TEST] ce1502_sensor_set_asd_mode() call asd_flag:%d\n",__func__, asd_flag);
+        ce1502_sensor_set_asd_mode(s_ctrl, asd_flag);
+    }
+#endif
 SKYCDBG("%s: %d\n", __func__, g_sensor_mode);
 #endif
 
@@ -3185,6 +3978,40 @@ SKYCDBG("%s: %d\n", __func__, g_sensor_mode);
 void ce1502_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
 {
     SKYCDBG("%s: g_sensor_mode = %d, g_update_type = %d\n", __func__, g_sensor_mode, g_update_type);
+#if 1//[SD_check]
+    if((release_flag == 1) && (g_sensor_mode != 0)) {
+       SKYCDBG("%s: ce1502_sensor_ideal_stream() CALL! \n", __func__);
+       ce1502_sensor_ideal_stream(s_ctrl);
+       release_flag = 0;//test
+    } else {
+       SKYCDBG("%s: ce1502_sensor_ideal_stream() SKIP! \n", __func__);
+    }
+//    else if(g_update_type == MSM_SENSOR_UPDATE_PERIODIC) {
+//        ce1502_snapshot_config(s_ctrl);
+//    }
+#endif
+
+//need to change pair with ce1502_sensor_ideal_stream()
+#if 0//[SD_check]
+#if 1//[SD_check]
+        int rc = 0;
+        uint8_t data_buf[1];
+#endif
+
+    if((g_sensor_mode == 4)) {//||(g_sensor_mode == MSM_SENSOR_RES_3))  {//SD_check_mode_set //MSM_SENSOR_RES_3 -> MSM_SENSOR_RES_4
+        SKYCDBG("%s:[SD_check] 0x63 / 0x00\n", __func__);
+        data_buf[0] = 0x00;
+        rc = ce1502_cmd(s_ctrl, 0x63, data_buf, 1);
+
+        rc = ce1502_poll(s_ctrl, 0x6C, 0x00, 10, 100);  // response 0x13? 0x19?
+
+        if (rc < 0)
+        {
+            SKYCERR("%s : ZSL Preview Stop polling ERROR !!!\n",__func__);          
+        }   
+    }
+#endif
+	
 #if 0
     if(g_sensor_mode != 0) {
        ce1502_sensor_ideal_stream(s_ctrl);
@@ -3267,8 +4094,12 @@ int ce1502_sensor_init(struct msm_sensor_ctrl_t *s_ctrl)
 #endif
 
 //    sensor_mode = 1;
+#if 1//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL//SD_check_mode_set//SD_TEST
+    sensor_mode = 11; // test
+    SKYCDBG("%s[SD_check]/TEST/ sensor_mode = %d\n",__func__, sensor_mode);
+#else
     sensor_mode = 10; // test
-
+#endif
 
 #if 0 // test preview
 #ifdef NEW_CAPTURE_FW
@@ -3572,6 +4403,210 @@ static int ce1502_sensor_set_wb(struct msm_sensor_ctrl_t *s_ctrl ,int8_t wb)
     return rc;
 }
 
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+static int32_t ce1502_set_scene_mode(struct msm_sensor_ctrl_t *s_ctrl, int8_t scene_mode)
+{
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+    uint8_t data_buf[10];
+#endif
+    int rc = 0;
+
+    if(sensor_mode == 0) // test
+        return 0;    
+
+    SKYCDBG("%s start / scene_mode:%d\n",__func__,scene_mode);
+
+    if(scene_mode < 0 || scene_mode >= CE1502_SCENE_MAX+1){
+        SKYCERR("%s error. scene_mode=%d\n", __func__, scene_mode);
+        return 0; //-EINVAL;
+    }
+
+#if 1 //def F_PANTECH_CAMERA_FIX_CFG_AE_AWB_LOCK
+    if(aec_awb_lock & 0x01)
+        ce1502_set_aec_lock(s_ctrl, 0);
+    if(aec_awb_lock & 0x10)
+        ce1502_set_awb_lock(s_ctrl, 0);
+#endif
+
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+    if(asd_flag != 0) {//(scene_mode != 1)//ASD=1
+#if 1//ASD
+        data_buf[0] = 0x00;//ASD OFF
+        rc = ce1502_cmd(s_ctrl, 0x82, data_buf, 1);
+        SKYCDBG("%s [ASD_TEST] ASD OFF / rc = %d \n",__func__, rc);  
+#endif
+#if 1//FD 
+        //data_buf[0] = 0x00;//FD OFF
+        //rc = ce1502_cmd(s_ctrl, 0x42, data_buf, 1);
+        rc = ce1502_42_command(s_ctrl, 0x00);
+        SKYCDBG("%s [ASD_TEST] FD OFF / rc = %d \n",__func__, rc);
+#endif
+#if 0//flicker
+        data_buf[0] = 0x00;//auto
+        rc = ce1502_cmd(s_ctrl, 0x14, data_buf, 1);
+        SKYCDBG("%s [ASD_TEST] flicker OFF / rc = %d \n",__func__, rc);
+#endif
+    asd_flag = 0;
+    fd_flag = 0;
+    }
+#endif
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+    switch (scene_mode)
+    {
+    case 0: //OFF
+        data_buf[0] = 0x00;
+        data_buf[1] = 0x00;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//None
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+    case 7: //Potrait
+        data_buf[0] = 0x00; //preview assist setting//FD ON
+        data_buf[1] = 0x03; //0x01;//0x03;
+        data_buf[2] = 0x03;
+        data_buf[3] = 0X00;
+        data_buf[4] = 0X00;
+        data_buf[5] = 0X00;
+        data_buf[6] = 0X00;
+        data_buf[7] = 0X00;
+        data_buf[8] = 0X00;
+        data_buf[9] = 0X00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        rc = ce1502_read(s_ctrl, data_buf, 1);
+        //SKYCDBG("%s [ASD_TEST] preview assist setting / rc = %d \n",__func__, rc);
+        rc = ce1502_42_command(s_ctrl, 0x01);   
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x02;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Portrait
+        asd_flag = 0;
+        fd_flag = 1;
+        break;
+    case 2: //LandScape
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x01;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Scenery
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+    case 19: //Indoor
+    case 14: //Party
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x08;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Indoor
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+    //case 9: //Sports
+    //    asd_flag = 0;
+    //    break;
+    case 6: //Night
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x03;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Night Scenery
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+    case 15: //Night_portrait
+        data_buf[0] = 0x00; //preview assist setting//FD ON
+        data_buf[1] = 0x03; //0x01;//0x03;
+        data_buf[2] = 0x03;
+        data_buf[3] = 0X00;
+        data_buf[4] = 0X00;
+        data_buf[5] = 0X00;
+        data_buf[6] = 0X00;
+        data_buf[7] = 0X00;
+        data_buf[8] = 0X00;
+        data_buf[9] = 0X00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        rc = ce1502_read(s_ctrl, data_buf, 1);
+        //SKYCDBG("%s [ASD_TEST] preview assist setting / rc = %d \n",__func__, rc);
+        rc = ce1502_42_command(s_ctrl, 0x01);   
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x04;          
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Night_portrait
+        asd_flag = 0;
+        fd_flag = 1;
+        break;
+    case 8: //backlight
+        data_buf[0] = 0x00; //preview assist setting//FD ON
+        data_buf[1] = 0x03; //0x01;//0x03;
+        data_buf[2] = 0x03;
+        data_buf[3] = 0X00;
+        data_buf[4] = 0X00;
+        data_buf[5] = 0X00;
+        data_buf[6] = 0X00;
+        data_buf[7] = 0X00;
+        data_buf[8] = 0X00;
+        data_buf[9] = 0X00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        rc = ce1502_read(s_ctrl, data_buf, 1);
+        //SKYCDBG("%s [ASD_TEST] preview assist setting / rc = %d \n",__func__, rc);
+        rc = ce1502_42_command(s_ctrl, 0x01);   
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x06;          
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Portrait(Back Light)    
+        asd_flag = 0;
+        fd_flag = 1;
+    //case 4: //Beach
+    //case 3: //Snow
+    //    asd_flag = 0;
+    //    break;
+    case 5: //Sunset
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x07;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Twilight
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+    case 20: //TEXT
+        data_buf[0] = 0x01;
+        data_buf[1] = 0x05;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Macro
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD//F_ASD_TEST//F_PANTECH_CAMERA_ADD_CFG_ASD
+    case 1: //AUTO
+        SKYCDBG("%s [ASD_TEST] scenemode = SCENE_MODE_AUTO / g_sensor_mode:%d \n",__func__, g_sensor_mode);
+        data_buf[0] = 0x00;
+        data_buf[1] = 0x00;           
+        rc = ce1502_cmd(s_ctrl, 0x86, data_buf, 2);//Manual scene off       
+        asd_flag = 1;
+        fd_flag = 1;
+        if((g_sensor_mode != -1) && (g_sensor_mode != 0)) {
+            //SKYCDBG("%s [ASD_TEST] ((g_sensor_mode != -1) && (g_sensor_mode != 0))\n",__func__);
+            //asd_flag = 1;
+            //SKYCDBG("%s [ASD_TEST] asd_flag = 1; / ce1502_sensor_set_asd_mode() call\n",__func__);
+            ce1502_sensor_set_asd_mode(s_ctrl, asd_flag);
+        }
+        break;
+#endif
+    case CE1502_SCENE_MAX: // AUTO
+    default:
+#if 0	
+        if(asd_flag != 0) {
+            data_buf[0] = 0x00;
+            rc = ce1502_cmd(s_ctrl, 0x82, data_buf, 1);//ASD OFF
+            rc = ce1502_42_command(s_ctrl, 0x00);//FD off
+            data_buf[0] = 0x00;//auto
+            rc = ce1502_cmd(s_ctrl, 0x14, data_buf, 1);//flicker off
+        }    
+#endif
+        asd_flag = 0;
+        fd_flag = 0;
+        break;
+            
+    }
+#endif
+
+    rc  = ce1502_01_command(s_ctrl);
+
+    SKYCDBG("%s end\n",__func__);
+
+    return rc;
+}
+
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) 
 static int32_t ce1502_set_scene_mode(struct msm_sensor_ctrl_t *s_ctrl, int8_t scene_mode)
 {
     uint8_t data_buf[2];
@@ -3756,7 +4791,69 @@ static int32_t ce1502_set_scene_mode(struct msm_sensor_ctrl_t *s_ctrl, int8_t sc
 
     return rc;
 }
+#endif
 
+#ifdef F_PANTECH_CAMERA_ADD_CFG_ASD
+static int ce1502_sensor_set_asd_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t asd_flag)
+{
+    uint8_t data_buf[10];
+    int rc = 0;
+    
+    SKYCDBG("%s start / asd_flag:%d \n",__func__, asd_flag);
+
+    if((sensor_mode == 0) || (asd_flag != 1)) // test
+        return 0;
+    
+    if((g_sensor_mode != -1) && (g_sensor_mode != 0)) {
+        SKYCDBG("%s [ASD_TEST] ((g_sensor_mode != -1) && (g_sensor_mode != 0))\n",__func__);
+#if 1// no.1 //FD ON
+#if 1// test 0320
+#else
+            ce1502_42_command(s_ctrl, 0x00);
+#endif
+        SKYCDBG("%s [ASD_TEST] preview assist mode  \n",__func__);
+        //asd_flag = 1;
+        //SKYCDBG("%s [ASD_TEST] asd_flag = 1;\n",__func__);
+
+            data_buf[0] = 0x00; //preview assist setting//FD ON
+        data_buf[1] = 0x03; //0x01;//0x03;
+        data_buf[2] = 0x03;
+        data_buf[3] = 0X00;
+        data_buf[4] = 0X00;
+        data_buf[5] = 0X00;
+        data_buf[6] = 0X00;
+        data_buf[7] = 0X00;
+        data_buf[8] = 0X00;
+        data_buf[9] = 0X00;
+        rc = ce1502_cmd(s_ctrl, 0x41, data_buf, 10);
+        SKYCDBG("%s [ASD_TEST] preview assist setting / rc = %d \n",__func__, rc);
+
+        data_buf[0] = 0x01;//FD ON
+        //rc = ce1502_cmd(s_ctrl, 0x42, data_buf, 1);
+        rc = ce1502_42_command(s_ctrl, 0x01);
+        SKYCDBG("%s [ASD_TEST] FD ON / rc = %d \n",__func__, rc);
+#endif
+
+#if 0//flicker_auto
+        data_buf[0] = 0x01;//auto
+        rc = ce1502_cmd(s_ctrl, 0x14, data_buf, 1);
+        SKYCDBG("%s [ASD_TEST] flicker ON / rc = %d \n",__func__, rc);
+#endif
+
+#if 1//ASD_ON
+        data_buf[0] = 0x01;//ASD ON
+        rc = ce1502_cmd(s_ctrl, 0x82, data_buf, 1);
+        SKYCDBG("%s [ASD_TEST] ASD ON / rc = %d \n",__func__, rc);
+#endif
+    } else {
+        SKYCDBG("%s [ASD_TEST] SKIP !!\n",__func__);
+    }
+
+    SKYCDBG("%s end\n",__func__);
+    return rc;
+}   
+#endif
+        
 static int ce1502_sensor_set_preview_fps(struct msm_sensor_ctrl_t *s_ctrl ,int8_t preview_fps)
 {
 	/* 0 : variable 30fps, 1 ~ 30 : fixed fps */
@@ -3907,9 +5004,8 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
     if(led_mode != 6)
         rc = ce1502_lens_stop(s_ctrl);
 
-#ifdef AF_FLASH
-    if(led_mode)
-        ce1502_set_led_gpio_set(led_mode);
+#if 1//for_flashtest
+    ce1502_set_led_gpio_set(led_mode);
 #endif
     //control ce1502 isp gpio
     switch(led_mode)
@@ -3930,10 +5026,12 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0xB2, data_buf, 2);
 	
         mdelay(10);
+#if 0//for_flashtest        
         rc = ce1502_set_led_gpio_set(led_mode);
-#ifdef AF_FLASH
-        flash_flag = 0;//off
 #endif
+#if 1//for_flashtest  
+        flash_flag = 0;//off
+#endif   
         break;
         
     case 1: // auto
@@ -3973,7 +5071,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x04, data_buf, 2);
         rc = ce1502_01_command(s_ctrl);
 #endif	
-#ifdef AF_FLASH  
+#if 1//for_flashtest  
         flash_flag = 2;//auto
 #endif
     break;	
@@ -4015,14 +5113,14 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x04, data_buf, 2);
         rc = ce1502_01_command(s_ctrl);
 #endif
-#ifdef AF_FLASH 
+#if 1//for_flashtest  
         flash_flag = 1;//on
 #endif
         break;
 
     case 3: // torch
         SKYCDBG("CE1502_CFG_LED_MODE_MOVIE SET\n");
-#ifndef AF_FLASH       
+#if 0//for_flashtest          
         rc = ce1502_set_led_gpio_set(led_mode);
 #endif
         data_buf[0] = 0x01;
@@ -4051,7 +5149,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
 
         mdelay(10);
-#ifndef AF_FLASH 
+#if 0//for_flashtest          
         rc = ce1502_set_led_gpio_set(0);
 #endif
         rc = 0;
@@ -4060,7 +5158,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         
     case 5: // LED_MODE_ZSL_FLASH_ON for ZSL flash
         SKYCDBG("LED_MODE_ZSL_FLASH_ON SET\n");
-#ifndef AF_FLASH 
+#if 0//for_flashtest  
         rc = ce1502_set_led_gpio_set(1);
 #endif
         data_buf[0] = 0x13;
@@ -4080,7 +5178,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
 
     case 7: // LED_MODE_ZSL_TORCH_AUTO for ZSL flash
         SKYCDBG("LED_MODE_ZSL_TORCH_AUTO SET\n");
-#ifndef AF_FLASH  
+#if 0//for_flashtest  
         rc = ce1502_set_led_gpio_set(1);
 #endif
         data_buf[0] = 0x13;
@@ -4117,7 +5215,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
             data_buf[0] = 0x00;
             rc = ce1502_cmd(s_ctrl, 0x11, data_buf, 1);
             mdelay(10);
-#ifndef AF_FLASH 
+#if 0//for_flashtest  
             rc = ce1502_set_led_gpio_set(0);
 #endif
         }        
@@ -4126,7 +5224,7 @@ static int32_t ce1502_set_led_mode(struct msm_sensor_ctrl_t *s_ctrl ,int8_t led_
         
     case 4: // torch flash for 4648 test mode
         SKYCDBG("CE1502_CFG_LED_MODE_MOVIE SET\n");
-#ifndef AF_FLASH          
+#if 0//for_flashtest          
         rc = ce1502_set_led_gpio_set(led_mode);
 #endif
         data_buf[0] = 0x01;
@@ -4189,12 +5287,79 @@ static int ce1502_set_hdr(struct msm_sensor_ctrl_t *s_ctrl)
     else
     {
         rc = ce1502_cmd(s_ctrl, 0x74, 0, 0);
-	    mdelay(50);
+	 mdelay(50);
     }
 
     SKYCDBG("%s end\n",__func__);
     return rc;
 }
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+static int ce1502_sensor_set_szoom(struct msm_sensor_ctrl_t *s_ctrl ,int8_t szoom)
+{
+    uint8_t data_buf[2];
+    uint8_t zoom_ratio = 0;
+    int rc = 0;
+    int i = 0;
+    
+    SKYCDBG("%s start\n",__func__);
+    SKYCDBG("%s [SD_check] sensor_mode= %d g_sensor_mode:%d szoom=%d\n", __func__, sensor_mode, g_sensor_mode, szoom);
+    szoom_value = szoom;
+
+    if(sensor_mode == 0) // test
+        return 0;
+
+    if((g_sensor_mode == 4)&&(pre_szoom_value != szoom_value)) {    
+        /*
+        ratio = 256/(zoom_val+1)
+    255-63 = 192
+        192 / 59 = 3.2542372881355932203389830508475
+    */
+    //0xc0;//192 x4
+    //0x7f;//127 x2
+#if 0//test
+    if(check ==0) {
+        check = 1;
+        zoom_ratio = 255;//255 - (3.254 * szoom);//(3.2 * szoom)
+    }else{
+        check = 0;
+        zoom_ratio = 192;//255 - (3.254 * szoom);//(3.2 * szoom)
+    }
+#endif
+        zoom_ratio = (uint8_t)(255 - (32542378 * szoom)/10000000);//(3.2 * szoom)
+    
+        SKYCDBG("%s [SD_check] zoom_ratio=%d\n", __func__, zoom_ratio);
+
+    data_buf[0] = zoom_ratio;
+    rc = ce1502_cmd(s_ctrl, 0xb9, data_buf, 1);
+
+    for(i=0 ; i<100; i++) {
+        rc = ce1502_cmd_read(s_ctrl, 0xba, data_buf, 2);
+            //SKYCERR("%s [SD_check] data_buf[0] = %d \n", __func__, data_buf[0]);
+            //SKYCERR("%s [SD_check] data_buf[1] = %d \n", __func__, data_buf[1]);
+
+        if (data_buf[1] == 0)
+            break;
+        
+            //SKYCERR("%s msleep(10) i=%d\n", __func__,i);        
+            msleep(10);
+    }
+        pre_szoom_value = szoom_value;
+#if 1//for_test
+    ce1502_set_continuous_af(s_ctrl, continuous_af_mode);
+#endif    
+    if (rc < 0)
+    {
+        SKYCERR("%s : zoom polling ERROR !!!\n",__func__);
+        return rc;
+    }   
+    }else {
+        SKYCDBG("%s [SD_check] pre_szoom_value:%d szoom_value:%d zoom_ratio=%d SKIP!!\n", __func__,pre_szoom_value, szoom_value, zoom_ratio);
+    }    
+    
+    SKYCDBG("%s end\n",__func__);
+    return rc;
+}
+#endif
 
 #if 0
 static int32_t ce1502_set_wdr(struct msm_sensor_ctrl_t *s_ctrl ,int32_t wdr)
@@ -4376,6 +5541,9 @@ static struct msm_sensor_fn_t ce1502_func_tbl = {
     .sensor_get_frame_info = ce1502_get_frame_info,
 #endif
     .sensor_lens_stability = ce1502_lens_stability,
+#ifdef F_PANTECH_CAMERA_ADD_CFG_SZOOM
+    .sensor_set_szoom = ce1502_sensor_set_szoom,
+#endif
 #endif
     .sensor_set_focus_mode = ce1502_sensor_set_focus_mode,
 };
@@ -4393,7 +5561,7 @@ static struct msm_sensor_reg_t ce1502_regs = {
 	.mode_settings = NULL, //&ce1502_confs[0],
 	.output_settings = &ce1502_dimensions[0],
 #if 1
-	.num_conf = 4,//ARRAY_SIZE(ce1502_cid_cfg),
+	.num_conf = 5,//#ifdef F_PANTECH_CAMERA_QPATCH_JPEG_ZSL //SD_check_mode_set//4,//ARRAY_SIZE(ce1502_cid_cfg),
 #endif
 	//.num_conf = 2,
 };

@@ -18,10 +18,6 @@
 #include <linux/msm_ion.h>
 #endif
 
-#if 1 //20130107 jhsong : qct patch for watchdog lpass after set audio effect
-#define CONFIG_PANTECH_QCT_PATCH_SR1071471 1
-#endif
-
 #define IN                      0x000
 #define OUT                     0x001
 #define CH_MODE_MONO            0x001
@@ -156,9 +152,7 @@ struct audio_client {
 	struct mutex	       cmd_lock;
 
 	atomic_t		cmd_state;
-#ifdef CONFIG_PANTECH_QCT_PATCH_SR1071471 //20130107 jhsong : qct patch for watchdog lpass after set audio effect
 	atomic_t		cmd_close_state;
-#endif
 	atomic_t		time_flag;
 	atomic_t		nowait_cmd_cnt;
 	wait_queue_head_t	cmd_wait;
@@ -313,98 +307,52 @@ int q6asm_media_format_block_wma(struct audio_client *ac,
 int q6asm_media_format_block_wmapro(struct audio_client *ac,
 			void *cfg);
 
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp  //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-
-struct asm_modul_enable_params {
-	u32 enable_flag;
-} __attribute__ ((packed));
-
-struct asm_eq_band_level_params {
-//	uint16_t band;
-	int16_t level[7];
-} __attribute__ ((packed));
-
-struct asm_eq_get_param_values_params {
-	int param;
-	int *value;
-} __attribute__ ((packed));
-
-struct asm_eq_get_values_params {
-	int *value;
-} __attribute__ ((packed));
-
-struct asm_eq_get_preset_name_params {
-   uint16_t       preset;           // preset number
-   uint16_t       max_chars;		// maximum length of name
-   char           name[1];          // returned name (maximum length depends on maxChars)
-};
-
-struct asm_eq_get_lvl_range_params {
-   int16_t        *min;
-   int16_t        *max;
-} __attribute__ ((packed));
-
-struct asm_eq_preset_params {
-	u32 eq_preset_enum;
-} __attribute__ ((packed));
-
-struct asm_reverb_preset_params {
-	u32 preset_enum;
-} __attribute__ ((packed));
-
-struct asm_virtual_spread_params {
-	u32 spread;
-} __attribute__ ((packed));
-
-struct asm_bassboost_strength_params {
-	u32 strength;
-} __attribute__ ((packed));
 
 
-#define QSOUND_EQ_MODULE_ID				0x1000c000
-#define QSOUND_EQ_ENABLE_ID				0x1000c001
-#define QSOUND_EQ_GET_BAND_NUM			0x1000c002  
-#define QSOUND_EQ_GET_LVL_RANGE			0x1000c003
-#define QSOUND_EQ_BAND_LEVEL_ID			0x1000c004
-#define QSOUND_EQ_GET_CENTER_FREQ		0x1000c005  
-#define QSOUND_EQ_GET_FREQ_RANGE			0x1000c006  
-#define QSOUND_EQ_GET_BAND				0x1000c007  
-#define QSOUND_EQ_BAND_CUR_PRESET            0x1000c008  
-#define QSOUND_EQ_GET_PESET_NUM			0x1000c009  
-#define QSOUND_EQ_GET_PESET_NAME			0x1000c00a
-#define QSOUND_EQ_BAND_LEVELS_ID          0x1000c00e  // Gets/Sets the gain set for all the equalizer bands. (#bands * int16_t)
+#ifdef CONFIG_PANTECH_SND_QSOUND
 
-#define QSOUND_VIRTUAL_MODULE_ID			0x1000c010
-#define QSOUND_VIRTUAL_ENABLE_ID			0x1000c011
-#define QSOUND_VIRTUAL_SPREAD_ID			0x1000c012
+#define QSOUND_EQ_MODULE_ID						0x1000c000
+#define QSOUND_EQ_ENABLE						0x1000c001
+#define QSOUND_EQ_NUM_BANDS						0x1000c002
+#define QSOUND_EQ_LEVEL_RANGE					0x1000c003
+#define QSOUND_EQ_CURRENT_BAND					0x1000c00b	// used for band level, center freq, and freq range
+#define QSOUND_EQ_BAND_LEVEL					0x1000c004
+#define QSOUND_EQ_CENTER_FREQ					0x1000c005
+#define QSOUND_EQ_FREQ_RANGE					0x1000c006
+#define QSOUND_EQ_CUR_PRESET					0x1000c008
+#define QSOUND_EQ_NUM_PRESETS					0x1000c009
+#define QSOUND_EQ_PRESET_NAME					0x1000c00a
+#define QSOUND_EQ_BULK_LEVEL					0x1000c00c
+#define QSOUND_EQ_BAND_LEVELS					0x1000c00e	// Gets/Sets the gain set for all the equalizer bands. (#bands * int16_t)
 
-#define QSOUND_REVERB_MODULE_ID			0x1000c020
-#define QSOUND_REVERB_PRESET_ID			0x1000c021
+#define QSOUND_VIRTUAL_MODULE_ID				0x1000c010
+#define QSOUND_VIRTUAL_ENABLE_ID				0x1000c011
+#define QSOUND_VIRTUAL_SPREAD_ID				0x1000c012
+#define QSOUND_VIRTUAL_OUTPUTCONFIG_ID          0x1000c013
 
-#define QSOUND_BASSBOOST_MODULE_ID		0x1000c030
-#define QSOUND_BASSBOOST_ENABLE_ID		0x1000c031
-#define QSOUND_BASSBOOST_STRENGTH_ID	0x1000c032
+#define QSOUND_REVERB_MODULE_ID					0x1000c020
+#define QSOUND_REVERB_PRESET_ID					0x1000c021
 
-#define QSOUND_LIMITTER_MODULE_ID		0x1000c040
-#define QSOUND_LIMITTER_ENABLE_ID			0x1000c041
+#define QSOUND_BASSBOOST_MODULE_ID				0x1000c030
+#define QSOUND_BASSBOOST_ENABLE_ID				0x1000c031
+#define QSOUND_BASSBOOST_STRENGTH_ID			0x1000c032
 
-#define QSOUND_EXTREME_VOL_MODULE_ID	0x1000c050
-#define QSOUND_EXTREME_VOL_ENABLE_ID		0x1000c051
+#define QSOUND_LIMITER_MODULE_ID				0x1000c040
+#define QSOUND_LIMITER_ENABLE_ID				0x1000c041
 
-#define QSOUND_QVSS_MODULE_ID			0x1000c060
-#define QSOUND_QVSS_ENABLE_ID				0x1000c061
+#define QSOUND_EXTREME_VOL_MODULE_ID			0x1000c050
+#define QSOUND_EXTREME_VOL_ENABLE_ID			0x1000c051
+#define QSOUND_EXTREME_VOL_STRENGTH_ID          0x1000c052
+#define QSOUND_EXTREME_VOL_PRESET_ID            0x1000c053  // Gets/sets a preset.
 
-int q6asm_qsound_module_enable_dsp(int session_id, uint32_t module, uint32_t param_id, uint32_t enable);
-int q6asm_qsound_eq_band_level_dsp(int session_id, int16_t *level /*uint16_t band, int16_t level*/);
-int q6asm_qsound_eq_preset_dsp(int session_id, uint32_t preset_enum);
-int q6asm_qsound_eq_get_param_value_dsp(int session_id, uint32_t module_id, uint32_t param_id, int param,int *value);
-int q6asm_qsound_eq_get_value_dsp(int session_id, uint32_t module_id, uint32_t param_id, int *value);
-int q6asm_qsound_eq_get_lvl_range_dsp(int session_id, int16_t *min, int16_t *max);
-int q6asm_qsound_eq_get_preset_name_dsp(int session_id, uint32_t preset, char *value);
-int q6asm_qsound_virtual_spread_dsp(int session_id, uint32_t spread_value);
-int q6asm_qsound_reverb_preset_dsp(int session_id, uint32_t preset_enum);
-int q6asm_qsound_bassboost_strength_dsp(int session_id, uint32_t strgth_value);
-#endif  //SKY_SND_QSOUND_OPEN_DSP
+#define QSOUND_EXCITER_MODULE_ID				0x1000c070
+#define QSOUND_EXCITER_ENABLE_ID				0x1000c071
+#define QSOUND_EXCITER_STRENGTH_ID				0x1000c072
+
+int q6asm_set_mqfx_param(int session_id, uint32_t module_id, uint32_t param_id, const void* param, size_t size);
+int q6asm_get_mqfx_param(int session_id, uint32_t module_id, uint32_t param_id, void* param, size_t size);
+
+#endif  //CONFIG_PANTECH_SND_QSOUND
 
 /* PP specific */
 int q6asm_equalizer(struct audio_client *ac, void *eq);

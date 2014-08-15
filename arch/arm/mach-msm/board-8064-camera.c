@@ -24,6 +24,8 @@
 #include "devices.h"
 #include "board-8064.h"
 
+#ifdef CONFIG_MSM_CAMERA
+
 static struct gpiomux_setting cam_settings[] = {
 	{
 		.func = GPIOMUX_FUNC_GPIO, /*suspend*/
@@ -102,13 +104,12 @@ static struct gpiomux_setting cam_settings[] = {
 
 };
 
-
 static struct msm_gpiomux_config apq8064_cam_common_configs[] = {
 #ifdef CONFIG_PANTECH_CAMERA
-//20120510 yujm_camera WS2�� HW ����  
-//GPIO�� �����ϴ� GPIO 2�� pin ��  -> clock ���� �����ϱ� ���� 
-//clock setting�� cam_settings[12] �� ����  
-#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+//20120510 yujm_camera WS2Â÷ HW º¯°æ  
+//GPIO·Î »ç¿ëÇÏ´ø GPIO 2¹ø pin À»  -> clock À¸·Î »ç¿ëÇÏ±â À§ÇØ 
+//clock settingÀÎ cam_settings[12] ·Î º¯°æ  
+#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	{
 		.gpio = 2,
 		.settings = {
@@ -187,8 +188,20 @@ static struct msm_gpiomux_config apq8064_cam_common_configs[] = {
 			[GPIOMUX_SUSPENDED] = &cam_settings[0],
 		},
 	},
-#endif	
-#if !defined(CONFIG_PANTECH_CAMERA)
+	{
+		.gpio = 10,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[9],
+			[GPIOMUX_SUSPENDED] = &cam_settings[8],
+		},
+	},
+	{
+		.gpio = 11,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[10],
+			[GPIOMUX_SUSPENDED] = &cam_settings[8],
+		},
+	},
 	{
 		.gpio = 12,
 		.settings = {
@@ -206,10 +219,22 @@ static struct msm_gpiomux_config apq8064_cam_common_configs[] = {
 #endif
 };
 
+#ifndef CONFIG_PANTECH_CAMERA
+#define VFE_CAMIF_TIMER1_GPIO 3
+#define VFE_CAMIF_TIMER2_GPIO 1
+
+static struct msm_camera_sensor_flash_src msm_flash_src = {
+	.flash_sr_type = MSM_CAMERA_FLASH_SRC_EXT,
+	._fsrc.ext_driver_src.led_en = VFE_CAMIF_TIMER1_GPIO,
+	._fsrc.ext_driver_src.led_flash_en = VFE_CAMIF_TIMER2_GPIO,
+	._fsrc.ext_driver_src.flash_id = MAM_CAMERA_EXT_LED_FLASH_SC628A,
+};
+#endif
+
 static struct msm_gpiomux_config apq8064_cam_2d_configs[] = {
 #ifdef CONFIG_PANTECH_CAMERA
 //set gpio default value for cam I2C
-#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	{
 		.gpio = 10,
 		.settings = {
@@ -267,21 +292,6 @@ static struct msm_gpiomux_config apq8064_cam_2d_configs[] = {
 #endif
 #endif
 };
-
-
-#define VFE_CAMIF_TIMER1_GPIO 3
-#define VFE_CAMIF_TIMER2_GPIO 1
-/* patch1023error
-static struct msm_camera_sensor_flash_src msm_flash_src = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_EXT,
-	._fsrc.ext_driver_src.led_en = VFE_CAMIF_TIMER1_GPIO,
-	._fsrc.ext_driver_src.led_flash_en = VFE_CAMIF_TIMER2_GPIO,
-	._fsrc.ext_driver_src.flash_id = MAM_CAMERA_EXT_LED_FLASH_SC628A,
-};
-*/
-
-
-#ifdef CONFIG_MSM_CAMERA
 
 static struct msm_bus_vectors cam_init_vectors[] = {
 	{
@@ -530,12 +540,7 @@ static struct camera_vreg_t apq_8064_cam_vreg[] = {
 static struct gpio apq8064_back_common_cam_gpio[] = {
 	{5, GPIOF_DIR_OUT, "CAMIF_MCLK"},
 };
-#else
-static struct gpio apq8064_common_cam_gpio[] = {
-};
-#endif
 
-#ifdef CONFIG_PANTECH_CAMERA
 #define CAMIO_R_RST_N PM8921_GPIO_PM_TO_SYS(28)
 #define CAMIO_R_STB_N PM8921_GPIO_PM_TO_SYS(31)
 #define CAM1_RAM_EN PM8921_GPIO_PM_TO_SYS(17)
@@ -554,13 +559,14 @@ static struct gpio apq8064_back_cam_gpio[] = {
 #define CAML_RSTN PM8921_GPIO_PM_TO_SYS(28)
 #define CAMR_RSTN 34
 
+static struct gpio apq8064_common_cam_gpio[] = {
+};
+
 static struct gpio apq8064_back_cam_gpio[] = {
 	{5, GPIOF_DIR_IN, "CAMIF_MCLK"},
 	{CAML_RSTN, GPIOF_DIR_OUT, "CAM_RESET"},
 };
-#endif
 
-#ifndef CONFIG_PANTECH_CAMERA
 static struct msm_gpio_set_tbl apq8064_back_cam_gpio_set_tbl[] = {
 	{CAML_RSTN, GPIOF_OUT_INIT_LOW, 10000},
 	{CAML_RSTN, GPIOF_OUT_INIT_HIGH, 10000},
@@ -597,10 +603,10 @@ static struct msm_camera_gpio_conf apq8064_back_cam_gpio_conf = {
 #define CAMIO_RST_N PM8921_GPIO_PM_TO_SYS(29)
 
 static struct gpio apq8064_front_common_cam_gpio[] = {
-//20120509 yujm_camera WS2�� HW ���� 
+//20120509 yujm_camera WS2Â÷ HW º¯°æ 
 //CAMIF_MCLK  GPIO 4 --> GPIO 2
 //CAM_STB_N   GPIO 2 --> GPIO 12
-#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	{2, GPIOF_DIR_OUT, "CAMIF_MCLK"},
 #else
 #if (CONFIG_BOARD_VER <= CONFIG_WS10)
@@ -617,7 +623,7 @@ static struct gpio apq8064_front_cam_gpio[] = {
 	{CAMIO_RST_N, GPIOF_DIR_OUT, "CAMIO_RST_N_PM"},	
 #if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L))
 	{37, GPIOF_DIR_OUT, "CAM_STB_N"},
-#elif (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#elif (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	{13, GPIOF_DIR_OUT, "CAM_STB_N"},
 #else
 #if (CONFIG_BOARD_VER <= CONFIG_WS10)
@@ -751,7 +757,7 @@ static struct msm_camera_csi_lane_params yacd5c1sbdbc_csi_lane_params = {
 };
 
 static struct msm_camera_sensor_platform_info sensor_board_info_yacd5c1sbdbc = {
-	.mount_angle	= 270, //90, //20120503 front camera rotate�� sensor register�� ������. 
+	.mount_angle	= 270, //90, //20120503 front camera rotateï¿½ï¿½ sensor registerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½. 
 	.cam_vreg = apq_8064_cam_vreg,
 	.num_vreg = ARRAY_SIZE(apq_8064_cam_vreg),
 	.gpio_conf = &apq8064_front_cam_gpio_conf,
@@ -778,7 +784,7 @@ static struct msm_camera_sensor_flash_data flash_as0260 = {
 
 static struct msm_camera_csi_lane_params as0260_csi_lane_params = {
 	.csi_lane_assign = 0xE4,
-#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	.csi_lane_mask = 0x3,
 #else
 	.csi_lane_mask = 0x1,
@@ -787,7 +793,7 @@ static struct msm_camera_csi_lane_params as0260_csi_lane_params = {
 };
 
 static struct msm_camera_sensor_platform_info sensor_board_info_as0260 = {
-	.mount_angle	= 270, //90, //20120503 front camera rotate�� sensor register�� ������. 
+	.mount_angle	= 270, //90, //20120503 front camera rotateï¿½ï¿½ sensor registerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½. 
 	.cam_vreg = apq_8064_cam_vreg,
 	.num_vreg = ARRAY_SIZE(apq_8064_cam_vreg),
 	.gpio_conf = &apq8064_front_cam_gpio_conf,
@@ -807,7 +813,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_as0260_data = {
 
 #endif
 
-#ifdef CONFIG_IMX074
+#ifdef CONFIG_IMX135
 static struct msm_camera_sensor_flash_data flash_imx135 = {
 	.flash_type = MSM_CAMERA_FLASH_NONE,
 };
@@ -837,12 +843,13 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx135_data = {
 	.actuator_info = &msm_act_main_cam_1_info,
 };
 
-/* patch1023error
 static struct msm_camera_sensor_flash_data flash_imx074 = {
 	.flash_type	= MSM_CAMERA_FLASH_LED,
 	.flash_src	= &msm_flash_src
 };
-*/
+#endif
+
+#ifdef CONFIG_IMX074
 static struct msm_camera_csi_lane_params imx074_csi_lane_params = {
 	.csi_lane_assign = 0xE4,
 	.csi_lane_mask = 0xF,
@@ -865,11 +872,11 @@ static struct msm_eeprom_info imx074_eeprom_info = {
 	.board_info     = &imx074_eeprom_i2c_info,
 	.bus_id         = APQ_8064_GSBI4_QUP_I2C_BUS_ID,
 };
-/*
+
 static struct msm_camera_sensor_info msm_camera_sensor_imx074_data = {
 	.sensor_name	= "imx074",
 	.pdata	= &msm_camera_csi_device_data[0],
-	.flash_data	= NULL,
+	.flash_data	= &flash_imx074,
 	.sensor_platform_info = &sensor_board_info_imx074,
 	.csi_if	= 1,
 	.camera_type = BACK_CAMERA_2D,
@@ -877,7 +884,6 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx074_data = {
 	.actuator_info = &msm_act_main_cam_0_info,
 	.eeprom_info = &imx074_eeprom_info,
 };
-*/
 #endif
 
 #ifdef CONFIG_IMX091
@@ -1018,8 +1024,12 @@ static struct platform_device msm_camera_server = {
 
 void __init apq8064_init_cam(void)
 {
-	msm_gpiomux_install(apq8064_cam_common_configs,
+	/* for SGLTE2 platform, do not configure i2c/gpiomux gsbi4 is used for
+	 * some other purpose */
+	if (socinfo_get_platform_subtype() != PLATFORM_SUBTYPE_SGLTE2) {
+		msm_gpiomux_install(apq8064_cam_common_configs,
 			ARRAY_SIZE(apq8064_cam_common_configs));
+	}
 
 #ifndef CONFIG_PANTECH_CAMERA
 	if (machine_is_apq8064_cdp()) {
@@ -1030,7 +1040,8 @@ void __init apq8064_init_cam(void)
 #endif
 
 	platform_device_register(&msm_camera_server);
-	platform_device_register(&msm8960_device_i2c_mux_gsbi4);
+	if (socinfo_get_platform_subtype() != PLATFORM_SUBTYPE_SGLTE2)
+		platform_device_register(&msm8960_device_i2c_mux_gsbi4);
 	platform_device_register(&msm8960_device_csiphy0);
 	platform_device_register(&msm8960_device_csiphy1);
 	platform_device_register(&msm8960_device_csid0);

@@ -586,7 +586,7 @@ static void mipi_renesas_set_backlight(struct msm_fb_data_type *mfd)
 		}
 #endif
 
-#if defined(FEATURE_RENESAS_BL_CTRL_CHG)
+#ifdef FEATURE_RENESAS_BL_CTRL_CHG 
 		bl_level=mfd->bl_level;
 		cabc_data_val[2] = bl_table[bl_level];
 

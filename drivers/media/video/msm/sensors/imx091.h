@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -78,7 +78,7 @@ static struct v4l2_subdev_ops imx091_subdev_ops = {
 };
 
 static struct msm_sensor_fn_t imx091_func_tbl = {
-#ifndef CONFIG_PANTECH_CAMERA
+#ifndef CONFIG_PANTECH_CAMERA    
 	.sensor_config = msm_sensor_bayer_config,
 #endif
 	.sensor_power_up = msm_sensor_bayer_power_up,

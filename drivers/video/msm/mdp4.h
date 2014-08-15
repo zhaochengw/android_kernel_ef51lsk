@@ -34,8 +34,19 @@ extern u64 mdp_max_bw;
 extern u32 mdp_bw_ab_factor;
 extern u32 mdp_bw_ib_factor;
 extern u32 mdp_iommu_max_map_size;
+#if defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L)
+#ifdef CONFIG_F_SKYDISP_FIX_MDP_UNDERRUN
+#define MDP4_BW_AB_DEFAULT_FACTOR (160)	/* 1.6 */
+#define MDP4_BW_IB_DEFAULT_FACTOR (160)	/* 1.6 */
+#else
 #define MDP4_BW_AB_DEFAULT_FACTOR (115)	/* 1.15 */
 #define MDP4_BW_IB_DEFAULT_FACTOR (150)	/* 1.5 */
+#endif
+#else
+#define MDP4_BW_AB_DEFAULT_FACTOR (115)	/* 1.15 */
+#define MDP4_BW_IB_DEFAULT_FACTOR (150)	/* 1.5 */
+#endif
+
 #define MDP_BUS_SCALE_AB_STEP (0x4000000)
 
 #define MDP4_OVERLAYPROC0_BASE	0x10000
@@ -540,12 +551,10 @@ static inline void mdp4_dtv_overlay_blt_stop(struct msm_fb_data_type *mfd)
 {
 	return;
 }
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL  // [LS5], 20121120, kkcho
 static inline void mdp4_dtv_base_swap(int cndx, struct mdp4_overlay_pipe *pipe)
 {
 	/* empty */
 }
-#endif
 static inline void mdp4_dtv_pipe_queue(int cndx, struct mdp4_overlay_pipe *pipe)
 {
 	/* empty */

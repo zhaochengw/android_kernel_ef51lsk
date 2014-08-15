@@ -96,35 +96,6 @@ extern uint32_t SMSM_NUM_HOSTS;
 
 #define SMSM_SUBSYS2AP_STATUS         0x00008000
 
-//#if defined(CONFIG_PANTECH_PMIC)
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-typedef struct
-{
-    uint32_t  factory_cable_adc;
-    uint32_t  battery_id_adc;
-    uint32_t  hw_rev_adc;
-    uint32_t  power_on_mode;
-    bool silent_boot_mode;
-    uint32_t  hw_rev;
-    uint32_t  battery_id;
-    bool backlight_off;
-} oem_pm_smem_vendor1_data_type;
-#else
-typedef struct
-{
-  uint32_t  power_on_reason;
-	uint32_t  factory_cable_adc;
-	uint32_t  battery_id_adc;
-	uint32_t  hw_rev_adc;
-	uint32_t  power_on_mode;
-	uint8_t   silent_boot_mode;
-	uint32_t  hw_rev;
-	uint32_t  battery_id;
-	uint8_t  backlight_off;
-} oem_pm_smem_vendor1_data_type;
-#endif
-//#endif
-
 #ifdef CONFIG_MSM_SMD
 void *smem_alloc(unsigned id, unsigned size);
 #else
@@ -277,6 +248,35 @@ enum {
 	SMEM_Q6_APPS_SMSM = 5,
 	SMSM_NUM_INTR_MUX = 8,
 };
+
+//#if defined(CONFIG_PANTECH_PMIC)
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+typedef struct
+{
+    uint32_t  factory_cable_adc;
+    uint32_t  battery_id_adc;
+    uint32_t  hw_rev_adc;
+    uint32_t  power_on_mode;
+    bool silent_boot_mode;
+    uint32_t  hw_rev;
+    uint32_t  battery_id;
+    bool backlight_off;
+} oem_pm_smem_vendor1_data_type;
+#else
+typedef struct
+{
+  uint32_t  power_on_reason;
+	uint32_t  factory_cable_adc;
+	uint32_t  battery_id_adc;
+	uint32_t  hw_rev_adc;
+	uint32_t  power_on_mode;
+	uint8_t   silent_boot_mode;
+	uint32_t  hw_rev;
+	uint32_t  battery_id;
+	uint8_t  backlight_off;
+} oem_pm_smem_vendor1_data_type;
+#endif
+//#endif
 
 int smsm_check_for_modem_crash(void);
 void *smem_find(unsigned id, unsigned size);

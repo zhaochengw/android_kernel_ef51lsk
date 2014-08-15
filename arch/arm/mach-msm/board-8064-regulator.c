@@ -622,7 +622,7 @@ msm8064_pm8921_regulator_pdata[] __devinitdata = {
 	/*           ID        name     always_on pd       en_t supply reg_ID */
 	PM8XXX_VS300(USB_OTG,  "8921_usb_otg",  0, 0,         0, "ext_5v", 2),
 #if defined(CONFIG_F_SKYDISP_CONFIGURE_HDMI_MVS_BECAUSE_OF_SLEEP_CURRENT)
-    PM8XXX_VS300(HDMI_MVS, "8921_hdmi_mvs", 0, 0,         0, "ext_5v", 3),
+	PM8XXX_VS300(HDMI_MVS, "8921_hdmi_mvs", 0, 0,         0, "ext_5v", 3),
 #else
 	PM8XXX_VS300(HDMI_MVS, "8921_hdmi_mvs", 0, 1,         0, "ext_5v", 3),
 #endif
@@ -693,7 +693,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L9,  0, 1, 0, 3000000, 3000000, NULL,          0,     0),
 	RPM_LDO(L10, 0, 1, 0, 2900000, 2900000, NULL,          0,     0),
 #if defined(CONFIG_PANTECH_LCD_ROHM_APQ8064) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K)
-#if defined(CONFIG_SKY_EF52S_BOARD)||defined(CONFIG_SKY_EF52K_BOARD)||defined(CONFIG_SKY_EF52L_BOARD)	
+#if defined(CONFIG_SKY_EF52S_BOARD)||defined(CONFIG_SKY_EF52K_BOARD)||defined(CONFIG_SKY_EF52L_BOARD)||defined(CONFIG_SKY_EF52W_BOARD)	
 	RPM_LDO(L11,	 0, 1, 0, 3300000, 3300000, NULL,	   0, 0),
 #else
 	RPM_LDO(L11, 0, 1, 0, 2850000, 2850000, NULL,          0,     0),
@@ -718,15 +718,15 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 #else
 	RPM_LDO(L16,	 0, 1, 0, 2800000, 2800000, NULL,      0, 0),
 #endif
-#if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	RPM_LDO(L17, 0, 1, 0, 2900000, 2900000, NULL,		   0, 	  0),
-#elif (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#if (defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
 	RPM_LDO(L17, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
+#elif defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
+	RPM_LDO(L17, 0, 1, 0, 2900000, 2900000, NULL,		   0, 	  0),
 #else
 	RPM_LDO(L17, 0, 1, 0, 2000000, 2000000, NULL,          0,     0),
 #endif
 	RPM_LDO(L18, 0, 1, 0, 1300000, 1800000, "8921_s4",     0,     0),
-#if defined(CONFIG_SKY_EF52S_BOARD)||defined(CONFIG_SKY_EF52K_BOARD)||defined(CONFIG_SKY_EF52L_BOARD)
+#if defined(CONFIG_SKY_EF52S_BOARD)||defined(CONFIG_SKY_EF52K_BOARD)||defined(CONFIG_SKY_EF52L_BOARD)||defined(CONFIG_SKY_EF52W_BOARD)
         RPM_LDO(L21, 0, 1, 0, 1800000, 1800000, NULL,		   0,	  0),
 #elif defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
         RPM_LDO(L21, 0, 1, 0, 1900000, 1900000, NULL,          0,     0),
@@ -745,12 +745,11 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L28, 0, 1, 0, 1050000, 1050000, "8921_s7",     0,     0),
 #if (defined(CONFIG_MACH_APQ8064_EF48S)||defined(CONFIG_MACH_APQ8064_EF49K)||defined(CONFIG_MACH_APQ8064_EF50L))
 	RPM_LDO(L29, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
-#elif (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L))
+#elif (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L)||defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)||defined(CONFIG_MACH_APQ8064_EF52W))
     RPM_LDO(L29, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
 #else
 	RPM_LDO(L29, 0, 1, 0, 2000000, 2000000, NULL,          0,     0),
 #endif
-
 
 	/*     ID  a_on pd ss                   supply */
 	RPM_VS(LVS1, 0, 1, 0,                   "8921_s4"),

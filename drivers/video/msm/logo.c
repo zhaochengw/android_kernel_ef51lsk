@@ -106,7 +106,6 @@ int load_565rle_image(char *filename, bool bf_supported)
 		bits = (unsigned short *)(info->screen_base);
 	printk("[%s] logo CONFIG_PANTECH_FB_24BPP_NOT_RGB888 test _ shinbrad \n",__func__);
 #endif
-
 		while (count > 3) {
 			unsigned n = ptr[0];
 			if (n > max)

@@ -4198,8 +4198,7 @@ static int tabla_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* 20130320 Jimmy, enable below block (153346 Turn off slimbus clocks when no ports are active) */
-#if 1 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
+#if 0 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
 static void tabla_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -4818,8 +4817,7 @@ static int tabla_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_dai_ops tabla_dai_ops = {
 	.startup = tabla_startup,
-/* 20130320 Jimmy, enable below block (153346 Turn off slimbus clocks when no ports are active) */	
-#if 1 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
+#if 0 // jmlee SR Case No 00926132 Watch dog Reset by slimbus disable error... Patch 
 	.shutdown = tabla_shutdown,
 #endif
 	.hw_params = tabla_hw_params,
@@ -5473,83 +5471,15 @@ static const struct snd_soc_dapm_widget tabla_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MUX("SLIM TX1 MUX", SND_SOC_NOPM, 0, 0, &sb_tx1_mux),
-#if 0	// before 1031
-	// SD epos check FC miss //SND_SOC_DAPM_AIF_OUT_E("SLIM TX1", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX1", "AIF1 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX2 MUX", SND_SOC_NOPM, 0, 0, &sb_tx2_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX2", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX3 MUX", SND_SOC_NOPM, 0, 0, &sb_tx3_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX3", "AIF3 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#if 1  // JMLEE 1021 Changes add
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX3", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX4 MUX", SND_SOC_NOPM, 0, 0, &sb_tx4_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX4", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#if 1  // JMLEE 1021 Changes add
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX4", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX5 MUX", SND_SOC_NOPM, 0, 0, &sb_tx5_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX5", "AIF3 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX6 MUX", SND_SOC_NOPM, 0, 0, &sb_tx6_mux),
-#if 0	// before 1031
-	// SD epos check FC miss //SND_SOC_DAPM_AIF_OUT_E("SLIM TX6", "AIF2 Capture", 0, SND_SOC_NOPM, 0,
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX6", "AIF1 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX7 MUX", SND_SOC_NOPM, 0, 0, &sb_tx7_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX7", "AIF1 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX8 MUX", SND_SOC_NOPM, 0, 0, &sb_tx8_mux),
-	#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX8", "AIF1 Capture", 0, SND_SOC_NOPM, 0,
-				0, tabla_codec_enable_slimtx,
-				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX9 MUX", SND_SOC_NOPM, 0, 0, &sb_tx9_mux),
-#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX9", "AIF1 Capture", NULL, SND_SOC_NOPM,
-			0, 0, tabla_codec_enable_slimtx,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#if 1  // JMLEE 1021 Changes add
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX9", "AIF2 Capture", NULL, SND_SOC_NOPM,
-			0, 0, tabla_codec_enable_slimtx,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-
-#endif
-#endif
 	SND_SOC_DAPM_MUX("SLIM TX10 MUX", SND_SOC_NOPM, 0, 0, &sb_tx10_mux),
-	#if 0	// before 1031
-	SND_SOC_DAPM_AIF_OUT_E("SLIM TX10", "AIF1 Capture", NULL, SND_SOC_NOPM,
-			0, 0, tabla_codec_enable_slimtx,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-#endif
 
 	/* Digital Mic Inputs */
 	SND_SOC_DAPM_ADC_E("DMIC1", NULL, SND_SOC_NOPM, 0, 0,
@@ -8385,9 +8315,15 @@ static const struct tabla_reg_mask_val tabla_1_1_reg_defaults[] = {
 	TABLA_REG_VAL(TABLA_A_CDC_RX7_B5_CTL, 0x78),
 
 	/* Tabla 1.1 RX1 and RX2 Changes */
+#if 1
+    /* 20140528 frogLove_KK : change default value from 0xA0 to 0x80 due to rx voice (-3dB) down of HATS test by HW */
+	TABLA_REG_VAL(TABLA_A_CDC_RX1_B6_CTL, 0x80),
+	TABLA_REG_VAL(TABLA_A_CDC_RX2_B6_CTL, 0x80),
+#else
+    /* Qulcomm origin value both JB and KK */
 	TABLA_REG_VAL(TABLA_A_CDC_RX1_B6_CTL, 0xA0),
 	TABLA_REG_VAL(TABLA_A_CDC_RX2_B6_CTL, 0xA0),
-
+#endif
 	/* Tabla 1.1 RX3 to RX7 Changes */
 	TABLA_REG_VAL(TABLA_A_CDC_RX3_B6_CTL, 0x80),
 	TABLA_REG_VAL(TABLA_A_CDC_RX4_B6_CTL, 0x80),
@@ -8513,10 +8449,6 @@ static const struct tabla_reg_mask_val tabla_codec_reg_init_val[] = {
 	/* config DMIC clk to CLK_MODE_1 (3.072Mhz@12.88Mhz mclk) */
 	{TABLA_A_CDC_CLK_DMIC_CTL, 0x2A, 0x2A},
 
-
-	/* set to capless mode by default */
-	{TABLA_A_TX_5_6_EN, 0x11, 0x00},
-	
 };
 
 static const struct tabla_reg_mask_val tabla_1_x_codec_reg_init_val[] = {

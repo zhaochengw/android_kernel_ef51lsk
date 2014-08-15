@@ -6,7 +6,7 @@
 **        extampctrl.c 
 **
 **    DESCRIPTION 
-**        This file contains audio external amp api//   
+**        This file contains audio external amp api//    
 **          
 **          void snd_extamp_api_Init()//
 **          void snd_extamp_api_SetPath()//

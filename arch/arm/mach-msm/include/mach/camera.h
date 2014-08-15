@@ -30,9 +30,12 @@
 #ifdef CONFIG_PANTECH_CAMERA
 #define F_PANTECH_CAMERA_LOG_PRINTK
 #endif
-//#define CONFIG_MSM_CAMERA_DEBUG
+
+#undef F_PANTECH_CAMERA_LOG_PRINTK
+#undef CONFIG_MSM_CAMERA_DEBUG
+
 #ifdef CONFIG_MSM_CAMERA_DEBUG
-#define CDBG(fmt, args...) printk(KERN_INFO "msm_camera: " fmt, ##args)//pr_debug(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #else
 #define CDBG(fmt, args...) do { } while (0)
 #endif
@@ -105,6 +108,7 @@ enum vfe_resp_msg {
 	VFE_MSG_OUTPUT_SECONDARY,
 	VFE_MSG_OUTPUT_TERTIARY1,
 	VFE_MSG_OUTPUT_TERTIARY2,
+	VFE_MSG_OUTPUT_TERTIARY3,
 };
 
 enum vpe_resp_msg {
@@ -145,21 +149,6 @@ struct msm_vpe_phy_info {
 #define VFE31_OUTPUT_MODE_T (0x1 << 4)
 #define VFE31_OUTPUT_MODE_P_ALL_CHNLS (0x1 << 5)
 #endif
-
-#define CSI_EMBED_DATA 0x12
-#define CSI_RESERVED_DATA_0 0x13
-#define CSI_YUV422_8  0x1E
-#if 1//#ifdef F_PANTECH_CAMERA_1080P_PREVIEW	
-#define CSI_RESERVED_DATA 0x13
-#endif
-#define CSI_RAW8    0x2A
-#define CSI_RAW10   0x2B
-#define CSI_RAW12   0x2C
-
-#define CSI_DECODE_6BIT 0
-#define CSI_DECODE_8BIT 1
-#define CSI_DECODE_10BIT 2
-#define CSI_DECODE_DPCM_10_8_10 5
 
 struct msm_vfe_phy_info {
 	uint32_t sbuf_phy;
@@ -662,7 +651,7 @@ enum msm_bus_perf_setting {
 	S_DEFAULT,
 	S_LIVESHOT,
 	S_DUAL,
-	S_ADV_VIDEO,
+	S_LOW_POWER,
 	S_EXIT
 };
 

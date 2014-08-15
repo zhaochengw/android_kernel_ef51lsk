@@ -30,9 +30,11 @@
 #include "msm_fb.h"
 #include "mipi_dsi.h"
 #include "mdp4.h"
-
+#if defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
+static int vsync_start_y_adjust = 415;
+#else
 static int vsync_start_y_adjust = 4;
-
+#endif
 #define MAX_CONTROLLER	1
 
 /*

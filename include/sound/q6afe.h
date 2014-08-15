@@ -88,6 +88,10 @@ int afe_cmd_memory_map_nowait(u32 dma_addr_p, u32 dma_buf_sz);
 int afe_cmd_memory_unmap(u32 dma_addr_p);
 int afe_cmd_memory_unmap_nowait(u32 dma_addr_p);
 
+#if 1 // SR 1340074 Subject: [PATCH] ASoC: msm: Unmap ACDB memory with Q6 on ACDB close
+int afe_unmap_cal_blocks(void);
+#endif
+
 int afe_register_get_events(u16 port_id,
 		void (*cb) (uint32_t opcode,
 		uint32_t token, uint32_t *payload, void *priv),

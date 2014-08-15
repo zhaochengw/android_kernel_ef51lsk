@@ -178,14 +178,17 @@ config FB_PANTECH_MIPI_DSI_RENESAS
 	bool
 	select FB_PANTECH_MIPI_DSI
 	default n
+	
 config FB_PANTECH_MIPI_DSI_SONY
 	bool
 	select FB_PANTECH_MIPI_DSI
 	default n	
+	
 config FB_PANTECH_MIPI_DSI_ROHM
 	bool
 	select FB_PANTECH_MIPI_DSI
 	default y
+
 config FB_MSM_MIPI_DSI_TOSHIBA
 	bool
 	select FB_MSM_MIPI_DSI
@@ -328,11 +331,6 @@ config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
 	select FB_MSM_MIPI_DSI_LGIT
 	default n
 
-config FB_MSM_LVDS_CHIMEI_WXGA
-	bool
-	select FB_MSM_LVDS
-	default n
-
 config FB_PANTECH_MIPI_RENESAS_VIDEO_FHD
 	bool
 	select FB_PANTECH_MIPI_DSI_RENESAS
@@ -348,8 +346,7 @@ config FB_PANTECH_MIPI_ROHM_VIDEO_HD
 	select FB_PANTECH_MIPI_DSI_ROHM
 	default n
 	 
-
-config FB_MSM_LVDS_FRC_FHD
+config FB_MSM_LVDS_CHIMEI_WXGA
 	bool
 	select FB_MSM_LVDS
 	default n
@@ -707,10 +704,6 @@ config FB_MSM_MDDI_SHARP_QVGA_128x128
 	---help---
 	  Support for MDDI Sharp QVGA (240x320) and 128x128 dual panel
 
-config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT_PANEL
-	bool "MIPI LG Display WXGA PT Panel"
-	select FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
-
 config FB_PANTECH_MIPI_RENESAS_VIDEO_FHD_PANEL
 	bool "MIPI Renesas Full HD Panel(EF51)"
 	select FB_PANTECH_MIPI_RENESAS_VIDEO_FHD
@@ -720,13 +713,18 @@ config FB_PANTECH_MIPI_SONY_CMD_HD_PANEL
 	select FB_PANTECH_SONY_CMD_VIDEO_HD
 
 config FB_PANTECH_MIPI_SONY_VIDEO_HD_PANEL
-	bool "MIPI SONY VIDEO HD Panel(EF52)"
-	select FB_PANTECH_SONY_CMD_VIDEO_HD	
-	
+	bool "MIPI SONY VIDEO HD Panel(ef52-ws)"
+	select FB_PANTECH_SONY_CMD_VIDEO_HD
+
 config FB_PANTECH_MIPI_ROHM_VIDEO_HD_PANEL
 	bool "MIPI Rohm HD Panel(EF48S)"
 	select FB_PANTECH_MIPI_ROHM_VIDEO_HD
 	
+
+config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT_PANEL
+	bool "MIPI LG Display WXGA PT Panel"
+	select FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
+
 config FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT_PANEL
 	bool "MIPI Toshiba WVGA PT Panel"
 	select FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT
@@ -1021,10 +1019,6 @@ config FB_MSM_EXTMDDI_NONE
 	  This will disable External MDDI functionality.
 endchoice
 
-# SKYDISP
-# 32bpp 적용과 관련해 수정되어야할 부분들 
-# FB_MSM_DEFAULT_DEPTH_RGBA8888 is Qualcomm define but Pantech also used.
-# Search with FB_MSM_DEFAULT_DEPTH_RGBA8888 if you want to see modified files.
 choice
 	prompt "Default framebuffer color depth"
 	depends on FB_MSM_MDP40 || FB_MSM_MDP31 || FB_MSM_MDP303

@@ -55,7 +55,6 @@ static void __mdp_outp(uint32 port, uint32 value)
 static int first_pixel_start_x;
 static int first_pixel_start_y;
 
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL  // [LS5], 20121120, kkcho
 void mdp4_dtv_base_swap(int cndx, struct mdp4_overlay_pipe *pipe)
 {
 #ifdef BYPASS4
@@ -63,7 +62,6 @@ void mdp4_dtv_base_swap(int cndx, struct mdp4_overlay_pipe *pipe)
 		dtv_pipe = pipe;
 #endif
 }
-#endif
 
 #define MAX_CONTROLLER	1
 
@@ -487,10 +485,6 @@ static int mdp4_dtv_start(struct msm_fb_data_type *mfd)
 
 	vctrl = &vsync_ctrl_db[0];
 
-#ifdef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
-	return 0;
-#endif
-
 	if (!mfd)
 		return -ENODEV;
 
@@ -607,9 +601,7 @@ int mdp4_dtv_on(struct platform_device *pdev)
 	int ret = 0;
 	int cndx = 0;
 	struct vsycn_ctrl *vctrl;
-#ifdef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
-	return 0;
-#endif
+
 	vctrl = &vsync_ctrl_db[cndx];
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
@@ -675,9 +667,6 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	struct mdp4_overlay_pipe *pipe;
 	struct vsync_update *vp;
 	int mixer = 0;
-#ifdef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
-	return 0;
-#endif
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 

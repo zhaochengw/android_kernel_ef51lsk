@@ -76,7 +76,7 @@ D4HP3_SETTING_INFO g_extamp_info[3];
 D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 #if defined(CONFIG_SKY_EF52S_BOARD) || defined(CONFIG_SKY_EF52K_BOARD) || defined(CONFIG_SKY_EF52L_BOARD)
 	{   // mm
-	    .bLine1Gain         = INVOL_GAIN_P_0_DB /*INVOL_GAIN_P_3_DB*/, //20121019_LS4_Sound_HDJ
+	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
 	    .bLine2Gain         = INVOL_GAIN_P_0_DB,
 	    .bLine1Balance      = LINE_BALANCE_SINGLE,
 	    .bLine2Balance      = LINE_BALANCE_DIFF,
@@ -86,15 +86,15 @@ D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 	    .bHpEco             = HP_ECO_OFF,
 	    .bHpAtt             = HP_ATT_GAIN,
 	    .bHpGainUp          = HP_OUTPUT_AMP_GAIN,
-	    .bHpSvol                = HP_SOFTVOL_ON,
+	    .bHpSvol            = HP_SOFTVOL_ON,
 	    .bHpZcs             = HP_ZC_OFF,
 	    .bHpCh              = HP_CH_STEREO,
 	    .bHpMixer_Line1     = HP_MIX_OFF,   //HP_MIX_ON,
-	    .bHpMixer_Line2         = HP_MIX_OFF,
+	    .bHpMixer_Line2     = HP_MIX_OFF,
 	            
 	    .bSpAtt             = SP_ATT_GAIN,
 	    .bSpGainUp          = SP_OUTPUT_AMP_GAIN,
-	    .bSpSvol                = SP_SOFTVOL_ON,
+	    .bSpSvol            = SP_SOFTVOL_ON,
 	    .bSpZcs             = SP_ZC_OFF,
 	    .bSpMixer_Line1     = SP_MIX_OFF,
 	    .bSpMixer_Line2     = SP_MIX_OFF, //SP_MIX_ON,
@@ -106,100 +106,14 @@ D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 	    .bSpNcpl_ReleaseTime    = 1,
 	},
 	{   // voice
-	    .bLine1Gain         = LINE1_INPUT_VOL_GAIN,
-	    .bLine2Gain         = INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 20121213
-	    .bLine1Balance      = LINE_BALANCE_SINGLE,
-	    .bLine2Balance      = LINE_BALANCE_DIFF,
-
-	    .bHpCpMode          = HP_CP_3,
-	    .bHpAvddLev         = HP_AVDD_1P65_2P4,
-	    .bHpEco             = HP_ECO_OFF,
-	    .bHpAtt             = HP_ATT_GAIN,
-	    .bHpGainUp          = HP_OUTPUT_AMP_GAIN,
-	    .bHpSvol                = HP_SOFTVOL_ON,
-	    .bHpZcs             = HP_ZC_OFF,
-	    .bHpCh              = HP_CH_STEREO,
-	    .bHpMixer_Line1     = HP_MIX_OFF,   //HP_MIX_ON,
-	    .bHpMixer_Line2         = HP_MIX_OFF,
-
-	    .bSpAtt             = SP_ATT_GAIN,
-	    .bSpGainUp          = SPAMP_GAIN_P_20_DB,  // V:20 // 110406
-	    .bSpSvol                = SP_SOFTVOL_ON,
-	    .bSpZcs             = SP_ZC_OFF,
-	    .bSpMixer_Line1     = SP_MIX_OFF,
-	    .bSpMixer_Line2     = SP_MIX_OFF, //SP_MIX_ON,
-	    .bSpNg_DetectionLv  = SP_NG_OFF,
-	    .bSpNg_AttackTime   = SP_NG_ATIME_800,
-	    .bSpNcpl_NonClipRatio   = 3,        // V: 5% // 110406
-	    .bSpNcpl_PowerLimit = 11,   // 800mW
-	    .bSpNcpl_AttackTime = 2,        // V: 0.5 // 110406
-	    .bSpNcpl_ReleaseTime    = 1,        // V: 200
-	},
-	{   // vt & volte
-		.bLine1Gain 		= LINE1_INPUT_VOL_GAIN,
-		.bLine2Gain 		= INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 20121213
-		.bLine1Balance		= LINE_BALANCE_SINGLE,
-		.bLine2Balance		= LINE_BALANCE_DIFF,
-		
-		.bHpCpMode			= HP_CP_3,
-		.bHpAvddLev 		= HP_AVDD_1P65_2P4,
-		.bHpEco 			= HP_ECO_OFF,
-		.bHpAtt 			= HP_ATT_GAIN,
-		.bHpGainUp			= HP_OUTPUT_AMP_GAIN,
-		.bHpSvol				= HP_SOFTVOL_ON,
-		.bHpZcs 			= HP_ZC_OFF,
-		.bHpCh				= HP_CH_STEREO,
-		.bHpMixer_Line1 	= HP_MIX_OFF,	//HP_MIX_ON,
-		.bHpMixer_Line2 		= HP_MIX_OFF,
-		
-		.bSpAtt 			= SP_ATT_GAIN,
-		.bSpGainUp			= SPAMP_GAIN_P_20_DB,  // V:20 // 110406
-		.bSpSvol				= SP_SOFTVOL_ON,
-		.bSpZcs 			= SP_ZC_OFF,
-		.bSpMixer_Line1 	= SP_MIX_OFF,
-		.bSpMixer_Line2 	= SP_MIX_OFF, //SP_MIX_ON,
-		.bSpNg_DetectionLv	= SP_NG_OFF,
-		.bSpNg_AttackTime	= SP_NG_ATIME_800,
-		.bSpNcpl_NonClipRatio	= 3,		// V: 5% // 110406
-		.bSpNcpl_PowerLimit = 11,	// 800mW
-		.bSpNcpl_AttackTime = 2,		// V: 0.5 // 110406
-		.bSpNcpl_ReleaseTime	= 1,		// V: 200
-	}
+	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
+#if defined(CONFIG_SKY_EF52L_BOARD) 
+	    .bLine2Gain         = INVOL_GAIN_P_0_DB,    // 20130712 hdj  VB Gain 0x10(0dB) for 3g Qvoice. 
+#elif defined(CONFIG_SKY_EF52S_BOARD)
+        .bLine2Gain         = INVOL_GAIN_M_3_DB,   //20130712 frogLove - SPKR INVOL -3dB for QVoice 3G NB tune
 #else
-	{   
-	    // mm
-	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB,
-	    .bLine2Gain         = INVOL_GAIN_P_0_DB,
-	    .bLine1Balance      = LINE_BALANCE_SINGLE,
-	    .bLine2Balance      = LINE_BALANCE_DIFF,
-	            
-	    .bHpCpMode          = HP_CP_3,
-	    .bHpAvddLev         = HP_AVDD_1P65_2P4,
-	    .bHpEco             = HP_ECO_OFF,
-	    .bHpAtt             = HP_ATT_GAIN,
-	    .bHpGainUp          = HP_OUTPUT_AMP_GAIN,
-	    .bHpSvol                = HP_SOFTVOL_ON,
-	    .bHpZcs             = HP_ZC_OFF,
-	    .bHpCh              = HP_CH_STEREO,
-	    .bHpMixer_Line1     = HP_MIX_OFF,   //HP_MIX_ON,
-	    .bHpMixer_Line2		= HP_MIX_OFF,
-	            
-	    .bSpAtt             = SP_ATT_GAIN,
-	    .bSpGainUp          = SPAMP_GAIN_P_20_DB,
-	    .bSpSvol			= SP_SOFTVOL_ON,
-	    .bSpZcs             = SP_ZC_OFF,
-	    .bSpMixer_Line1     = SP_MIX_OFF,
-	    .bSpMixer_Line2     = SP_MIX_OFF, //SP_MIX_ON,
-	    .bSpNg_DetectionLv  = SP_NG_OFF,
-	    .bSpNg_AttackTime   = SP_NG_ATIME_800,
-	    .bSpNcpl_NonClipRatio   = 0,   //Off
-	    .bSpNcpl_PowerLimit = 11,   // 800mW
-	    .bSpNcpl_AttackTime = 1,
-	    .bSpNcpl_ReleaseTime    = 1,
-	},
-	{   // voice
-	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB,
-	    .bLine2Gain         = INVOL_GAIN_P_12_DB,  // V: 3dB // 110406
+	    .bLine2Gain         = INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 2012121
+#endif
 	    .bLine1Balance      = LINE_BALANCE_SINGLE,
 	    .bLine2Balance      = LINE_BALANCE_DIFF,
 
@@ -215,7 +129,7 @@ D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 	    .bHpMixer_Line2     = HP_MIX_OFF,
 
 	    .bSpAtt             = SP_ATT_GAIN,
-	    .bSpGainUp          = SPAMP_GAIN_P_16_DB,  // V:20 // 110406
+	    .bSpGainUp          = SPAMP_GAIN_P_20_DB,  // V:20 // 110406
 	    .bSpSvol            = SP_SOFTVOL_ON,
 	    .bSpZcs             = SP_ZC_OFF,
 	    .bSpMixer_Line1     = SP_MIX_OFF,
@@ -228,8 +142,8 @@ D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 	    .bSpNcpl_ReleaseTime    = 1,        // V: 200
 	},
 	{   // vt & volte
-		.bLine1Gain 		= INVOL_GAIN_M_1D5_DB,
-		.bLine2Gain 		= INVOL_GAIN_P_12_DB,  // V: 3dB // 110406
+	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
+		.bLine2Gain 		= INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 20121213
 		.bLine1Balance		= LINE_BALANCE_SINGLE,
 		.bLine2Balance		= LINE_BALANCE_DIFF,
 		
@@ -245,7 +159,190 @@ D4HP3_SETTING_INFO g_extamp_info_org[3] = {
 		.bHpMixer_Line2 	= HP_MIX_OFF,
 		
 		.bSpAtt 			= SP_ATT_GAIN,
-		.bSpGainUp			= SPAMP_GAIN_P_16_DB,  // V:20 // 110406
+		.bSpGainUp			= SPAMP_GAIN_P_20_DB,  // V:20 // 110406
+		.bSpSvol			= SP_SOFTVOL_ON,
+		.bSpZcs 			= SP_ZC_OFF,
+		.bSpMixer_Line1 	= SP_MIX_OFF,
+		.bSpMixer_Line2 	= SP_MIX_OFF, //SP_MIX_ON,
+		.bSpNg_DetectionLv	= SP_NG_OFF,
+		.bSpNg_AttackTime	= SP_NG_ATIME_800,
+		.bSpNcpl_NonClipRatio	= 3,		// V: 5% // 110406
+		.bSpNcpl_PowerLimit = 11,	// 800mW
+		.bSpNcpl_AttackTime = 2,		// V: 0.5 // 110406
+		.bSpNcpl_ReleaseTime	= 1,		// V: 200
+	}
+#elif defined(CONFIG_SKY_EF52W_BOARD)
+	{	// mm
+		.bLine1Gain 		= INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
+		.bLine2Gain 		= INVOL_GAIN_P_0_DB,
+		.bLine1Balance		= LINE_BALANCE_SINGLE,
+		.bLine2Balance		= LINE_BALANCE_DIFF,
+			
+		.bHpCpMode			= HP_CP_3,
+		.bHpAvddLev 		= HP_AVDD_1P65_2P4,
+		.bHpEco 			= HP_ECO_OFF,
+		.bHpAtt 			= HP_ATT_GAIN,
+		.bHpGainUp			= HP_OUTPUT_AMP_GAIN,
+		.bHpSvol			= HP_SOFTVOL_ON,
+		.bHpZcs 			= HP_ZC_OFF,
+		.bHpCh				= HP_CH_STEREO,
+		.bHpMixer_Line1 	= HP_MIX_OFF,	//HP_MIX_ON,
+		.bHpMixer_Line2 	= HP_MIX_OFF,
+				
+		.bSpAtt 			= SP_ATT_GAIN,
+		.bSpGainUp			= SP_OUTPUT_AMP_GAIN,
+		.bSpSvol			= SP_SOFTVOL_ON,
+		.bSpZcs 			= SP_ZC_OFF,
+		.bSpMixer_Line1 	= SP_MIX_OFF,
+		.bSpMixer_Line2 	= SP_MIX_OFF, //SP_MIX_ON,
+		.bSpNg_DetectionLv	= SP_NG_OFF,
+		.bSpNg_AttackTime	= SP_NG_ATIME_800,
+		.bSpNcpl_NonClipRatio	= 1,		// LQ 1%
+		.bSpNcpl_PowerLimit = 13,	// 900mW
+		.bSpNcpl_AttackTime = 1,
+		.bSpNcpl_ReleaseTime	= 1,
+	},
+	{	// voice
+		.bLine1Gain 		= INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
+		.bLine2Gain 		= INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 20121213
+		.bLine1Balance		= LINE_BALANCE_SINGLE,
+		.bLine2Balance		= LINE_BALANCE_DIFF,
+
+		.bHpCpMode			= HP_CP_3,
+		.bHpAvddLev 		= HP_AVDD_1P65_2P4,
+		.bHpEco 			= HP_ECO_OFF,
+		.bHpAtt 			= HP_ATT_GAIN,
+		.bHpGainUp			= HP_OUTPUT_AMP_GAIN,
+		.bHpSvol			= HP_SOFTVOL_ON,
+		.bHpZcs 			= HP_ZC_OFF,
+		.bHpCh				= HP_CH_STEREO,
+		.bHpMixer_Line1 	= HP_MIX_OFF,	//HP_MIX_ON,
+		.bHpMixer_Line2 	= HP_MIX_OFF,
+
+		.bSpAtt 			= SP_ATT_GAIN,
+		.bSpGainUp			= SPAMP_GAIN_P_20_DB,  // V:20 // 110406
+		.bSpSvol			= SP_SOFTVOL_ON,
+		.bSpZcs 			= SP_ZC_OFF,
+		.bSpMixer_Line1 	= SP_MIX_OFF,
+		.bSpMixer_Line2 	= SP_MIX_OFF, //SP_MIX_ON,
+		.bSpNg_DetectionLv	= SP_NG_OFF,
+		.bSpNg_AttackTime	= SP_NG_ATIME_800,
+		.bSpNcpl_NonClipRatio	= 3,		// V: 5% // 110406
+		.bSpNcpl_PowerLimit = 13,	// 900mW
+		.bSpNcpl_AttackTime = 2,		// V: 0.5 // 110406
+		.bSpNcpl_ReleaseTime	= 1,		// V: 200
+	},
+	{	// vt & volte
+		.bLine1Gain 		= INVOL_GAIN_M_1D5_DB, //20130130 frogLove - gain reduce 0dB -> -1.5dB by HW
+		.bLine2Gain 		= INVOL_GAIN_P_12_DB,  //SPKR INVOL 12dB for HW Tune 20121213
+		.bLine1Balance		= LINE_BALANCE_SINGLE,
+		.bLine2Balance		= LINE_BALANCE_DIFF,
+		
+		.bHpCpMode			= HP_CP_3,
+		.bHpAvddLev 		= HP_AVDD_1P65_2P4,
+		.bHpEco 			= HP_ECO_OFF,
+		.bHpAtt 			= HP_ATT_GAIN,
+		.bHpGainUp			= HP_OUTPUT_AMP_GAIN,
+		.bHpSvol			= HP_SOFTVOL_ON,
+		.bHpZcs 			= HP_ZC_OFF,
+		.bHpCh				= HP_CH_STEREO,
+		.bHpMixer_Line1 	= HP_MIX_OFF,	//HP_MIX_ON,
+		.bHpMixer_Line2 	= HP_MIX_OFF,
+		
+		.bSpAtt 			= SP_ATT_GAIN,
+		.bSpGainUp			= SPAMP_GAIN_P_20_DB,  // V:20 // 110406
+		.bSpSvol			= SP_SOFTVOL_ON,
+		.bSpZcs 			= SP_ZC_OFF,
+		.bSpMixer_Line1 	= SP_MIX_OFF,
+		.bSpMixer_Line2 	= SP_MIX_OFF, //SP_MIX_ON,
+		.bSpNg_DetectionLv	= SP_NG_OFF,
+		.bSpNg_AttackTime	= SP_NG_ATIME_800,
+		.bSpNcpl_NonClipRatio	= 3,		// V: 5% // 110406
+		.bSpNcpl_PowerLimit = 13,	// 900mW
+		.bSpNcpl_AttackTime = 2,		// V: 0.5 // 110406
+		.bSpNcpl_ReleaseTime	= 1,		// V: 200
+	}
+#else
+	{   
+	    // mm
+	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB,
+	    .bLine2Gain         = INVOL_GAIN_M_1D5_DB/*INVOL_GAIN_P_0_DB*/,
+	    .bLine1Balance      = LINE_BALANCE_SINGLE,
+	    .bLine2Balance      = LINE_BALANCE_DIFF,
+	            
+	    .bHpCpMode          = HP_CP_3,
+	    .bHpAvddLev         = HP_AVDD_1P65_2P4,
+	    .bHpEco             = HP_ECO_OFF,
+	    .bHpAtt             = HP_ATT_GAIN,
+	    .bHpGainUp          = HP_OUTPUT_AMP_GAIN,
+	    .bHpSvol                = HP_SOFTVOL_ON,
+	    .bHpZcs             = HP_ZC_OFF,
+	    .bHpCh              = HP_CH_STEREO,
+	    .bHpMixer_Line1     = HP_MIX_OFF,   //HP_MIX_ON,
+	    .bHpMixer_Line2		= HP_MIX_OFF,
+	            
+	    .bSpAtt             = SP_ATT_GAIN,
+	    .bSpGainUp          = SP_OUTPUT_AMP_GAIN,
+	    .bSpSvol			= SP_SOFTVOL_ON,
+	    .bSpZcs             = SP_ZC_OFF,
+	    .bSpMixer_Line1     = SP_MIX_OFF,
+	    .bSpMixer_Line2     = SP_MIX_OFF, //SP_MIX_ON,
+	    .bSpNg_DetectionLv  = SP_NG_OFF,
+	    .bSpNg_AttackTime   = SP_NG_ATIME_800,
+	    .bSpNcpl_NonClipRatio   = 1,        // LQ 1%
+	    .bSpNcpl_PowerLimit = 11,   // 800mW
+	    .bSpNcpl_AttackTime = 1,
+	    .bSpNcpl_ReleaseTime    = 1,
+	},
+	{   // voice
+	    .bLine1Gain         = INVOL_GAIN_M_1D5_DB,
+	    .bLine2Gain         = INVOL_GAIN_P_3_DB,  // V: 3dB // 110406
+	    .bLine1Balance      = LINE_BALANCE_SINGLE,
+	    .bLine2Balance      = LINE_BALANCE_DIFF,
+
+	    .bHpCpMode          = HP_CP_3,
+	    .bHpAvddLev         = HP_AVDD_1P65_2P4,
+	    .bHpEco             = HP_ECO_OFF,
+	    .bHpAtt             = HP_ATT_GAIN,
+	    .bHpGainUp          = HP_OUTPUT_AMP_GAIN,
+	    .bHpSvol            = HP_SOFTVOL_ON,
+	    .bHpZcs             = HP_ZC_OFF,
+	    .bHpCh              = HP_CH_STEREO,
+	    .bHpMixer_Line1     = HP_MIX_OFF,   //HP_MIX_ON,
+	    .bHpMixer_Line2     = HP_MIX_OFF,
+
+	    .bSpAtt             = SP_ATT_GAIN,
+	    .bSpGainUp          = SPAMP_GAIN_P_20_DB,  // V:20 // 110406
+	    .bSpSvol            = SP_SOFTVOL_ON,
+	    .bSpZcs             = SP_ZC_OFF,
+	    .bSpMixer_Line1     = SP_MIX_OFF,
+	    .bSpMixer_Line2     = SP_MIX_OFF, //SP_MIX_ON,
+	    .bSpNg_DetectionLv  = SP_NG_OFF,
+	    .bSpNg_AttackTime   = SP_NG_ATIME_800,
+	    .bSpNcpl_NonClipRatio   = 3,        // V: 5% // 110406
+	    .bSpNcpl_PowerLimit = 11,   // 800mW
+	    .bSpNcpl_AttackTime = 2,        // V: 0.5 // 110406
+	    .bSpNcpl_ReleaseTime    = 1,        // V: 200
+	},
+	{   // vt & volte
+		.bLine1Gain 		= INVOL_GAIN_M_1D5_DB,
+		.bLine2Gain 		= INVOL_GAIN_P_3_DB,  // V: 3dB // 110406
+		.bLine1Balance		= LINE_BALANCE_SINGLE,
+		.bLine2Balance		= LINE_BALANCE_DIFF,
+		
+		.bHpCpMode			= HP_CP_3,
+		.bHpAvddLev 		= HP_AVDD_1P65_2P4,
+		.bHpEco 			= HP_ECO_OFF,
+		.bHpAtt 			= HP_ATT_GAIN,
+		.bHpGainUp			= HP_OUTPUT_AMP_GAIN,
+		.bHpSvol			= HP_SOFTVOL_ON,
+		.bHpZcs 			= HP_ZC_OFF,
+		.bHpCh				= HP_CH_STEREO,
+		.bHpMixer_Line1 	= HP_MIX_OFF,	//HP_MIX_ON,
+		.bHpMixer_Line2 	= HP_MIX_OFF,
+		
+		.bSpAtt 			= SP_ATT_GAIN,
+		.bSpGainUp			= SPAMP_GAIN_P_20_DB,  // V:20 // 110406
 		.bSpSvol			= SP_SOFTVOL_ON,
 		.bSpZcs 			= SP_ZC_OFF,
 		.bSpMixer_Line1 	= SP_MIX_OFF,

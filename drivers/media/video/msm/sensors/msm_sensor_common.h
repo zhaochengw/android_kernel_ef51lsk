@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -39,7 +39,7 @@
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
-#if 1//def CONFIG_PANTECH_CAMERA
+#ifdef CONFIG_PANTECH_CAMERA
 #define OV8820_ID 0x88
 #define S5K3H2_ID 0x382B
 #define YACD5C1SBDBC_ID 0xB4
@@ -59,7 +59,7 @@
 #define AS0260_BRIGHTNESS_PARM 2
 #define AS0260_EXPOSURE_MODE_PARM 26
 #define AS0260_REFLECT_PARM 5
-#define AS0260_PREVIEW_FPS_PARM 30//29//9//8
+#define AS0260_PREVIEW_FPS_PARM 33//30//29//9//8
 #define AS0260_WB_PARM 9
 #define AS0260_AEC_LOCK 1
 
@@ -126,7 +126,7 @@ struct msm_sensor_reg_t {
 	struct msm_camera_i2c_conf_array *no_effect_settings;
 	struct msm_sensor_output_info_t *output_settings;
 	uint8_t num_conf;
-#if (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L) ||defined(CONFIG_MACH_APQ8064_EF52S) ||defined(CONFIG_MACH_APQ8064_EF52K) ||defined(CONFIG_MACH_APQ8064_EF52L) ||defined(CONFIG_MACH_APQ8064_EF52W))
+#if (defined(CONFIG_PANTECH_CAMERA) && (defined(CONFIG_MACH_APQ8064_EF51S)||defined(CONFIG_MACH_APQ8064_EF51K)||defined(CONFIG_MACH_APQ8064_EF51L) ||defined(CONFIG_MACH_APQ8064_EF52S) ||defined(CONFIG_MACH_APQ8064_EF52K) ||defined(CONFIG_MACH_APQ8064_EF52L) ||defined(CONFIG_MACH_APQ8064_EF52W)))
 	struct msm_camera_i2c_reg_conf (*bright_cfg_settings)[AS0260_BRIGHTNESS_PARM];
     uint8_t bright_cfg_settings_size;
     struct msm_camera_i2c_reg_conf (*effect_cfg_settings)[AS0260_EFFECT_PARM];
@@ -196,9 +196,9 @@ struct msm_sensor_fn_t {
 	int32_t (*sensor_set_fps) (struct msm_sensor_ctrl_t *,
 			struct fps_cfg *);
 	int32_t (*sensor_write_exp_gain) (struct msm_sensor_ctrl_t *,
-			uint16_t, uint32_t);
+			uint16_t, uint32_t, int32_t, uint16_t);
 	int32_t (*sensor_write_snapshot_exp_gain) (struct msm_sensor_ctrl_t *,
-			uint16_t, uint32_t);
+			uint16_t, uint32_t, int32_t, uint16_t);
 	int32_t (*sensor_setting) (struct msm_sensor_ctrl_t *,
 			int update_type, int rt);
 	int32_t (*sensor_csi_setting) (struct msm_sensor_ctrl_t *,
@@ -217,7 +217,13 @@ struct msm_sensor_fn_t {
 	void (*sensor_adjust_frame_lines) (struct msm_sensor_ctrl_t *s_ctrl);
 	int32_t (*sensor_get_csi_params)(struct msm_sensor_ctrl_t *,
 		struct csi_lane_params_t *);
-
+	int (*sensor_set_vision_mode)(struct msm_sensor_ctrl_t *s_ctrl,
+			int32_t vision_mode_enable);
+	int (*sensor_set_vision_ae_control)(
+			struct msm_sensor_ctrl_t *s_ctrl, int ae_mode);
+	int32_t (*sensor_read_eeprom)(struct msm_sensor_ctrl_t *);
+	int32_t (*sensor_hdr_update)(struct msm_sensor_ctrl_t *,
+		 struct sensor_hdr_update_parm_t *);
 #ifdef CONFIG_PANTECH_CAMERA_TUNER
     int (*sensor_set_tuner) (struct tuner_cfg);
 #endif
@@ -233,7 +239,13 @@ struct msm_sensor_fn_t {
     int (*sensor_set_antibanding) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_antishake) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_led_mode) (struct msm_sensor_ctrl_t *, int8_t);
+#if defined(CONFIG_MACH_APQ8064_EF52S)||defined(CONFIG_MACH_APQ8064_EF52K)||defined(CONFIG_MACH_APQ8064_EF52L)
+#if 1//def F_PANTECH_CAMERA_FIX_CFG_AF_RESURT
+    int (*sensor_check_af) (struct msm_sensor_ctrl_t *, void __user *argp, int8_t *);
+#endif
+#elif defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L)
     int (*sensor_check_af) (struct msm_sensor_ctrl_t *, int8_t);
+#endif
     int (*sensor_set_continuous_af) (struct msm_sensor_ctrl_t *, int8_t);
     int (*sensor_set_focus_rect) (struct msm_sensor_ctrl_t *, int32_t, int8_t * f_info);
     int (*sensor_set_hdr) (struct msm_sensor_ctrl_t *);
@@ -247,6 +259,9 @@ struct msm_sensor_fn_t {
     int (*sensor_lens_stability) (struct msm_sensor_ctrl_t *);
     int (*sensor_get_eeprom_data) (struct msm_sensor_ctrl_t *, struct sensor_cfg_data *);//void *);//eeprom
     int (*sensor_set_focus_mode) (struct msm_sensor_ctrl_t *, int8_t); //FOCUS_MODE
+#if 1//def F_PANTECH_CAMERA_ADD_CFG_SZOOM
+    int (*sensor_set_szoom) (struct msm_sensor_ctrl_t *, int8_t); // szoom);
+#endif
 #endif
 };
 
@@ -284,6 +299,7 @@ struct msm_sensor_ctrl_t {
 	struct msm_sensor_v4l2_ctrl_info_t *msm_sensor_v4l2_ctrl_info;
 	uint16_t num_v4l2_ctrl;
 	uint8_t is_csic;
+	int8_t vision_mode_flag;
 
 	uint16_t curr_line_length_pclk;
 	uint16_t curr_frame_length_lines;

@@ -1,0 +1,185 @@
+##################################################################################
+# SKYDISP_LCD START
+##################################################################################
+
+# Fix backlight related issue
+config F_SKYDISP_QBUG_FIX_BACKLIGHT
+	bool     
+	default y
+
+# Init backlight level to 10.
+config F_SKYDISP_INIT_BL_SET
+	bool     
+	default y
+
+# 2012.05.23, kkcho
+# Macro for  CABC_CTRL on Sharp-LCD
+# KERNEL : used     
+# USER   :   used
+config F_SKYDISP_CABC_CTRL
+	bool     
+	default y
+
+# 2012.05.23, kkcho
+# Macro for  CABC_Tunning on Sharp-LCD
+# KERNEL : used     
+# USER   :   used
+# This macro will enable the LCD_tuning only.
+# M1 : by LCDtestmenu in the #####
+# M2 : by adb shell command
+config F_SKYDISP_CE_TUNING_M1
+	bool     
+	default y		
+
+config F_SKYDISP_CE_TUNING_M2
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD || SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool     
+	default y
+
+# Boot without LCD ON when abnormal reset without LCD ON.
+# In Short, Boot secretly.
+# Also, In LK, silent boot is implemented. See define DISPLAY_SILENT_BOOT in LK.
+config F_SKYDISP_SILENT_BOOT
+	bool     
+	default y
+
+# Offline charging need a dark-brightness backlight for low power consumption.
+# When offline charging, change bl table and then, can set very low backlight brightness. 
+# Also, When offline charging, doesn't turn on CABC
+config F_SKYDISP_CHANGE_BL_TABLE_WHEN_OFFLINE_CHARGING
+	bool     
+	default y
+
+# 20140514, kkcho, workaround... for EF52-Tearing problem.
+#   Bug :  Tearing occured on the EF52_KK
+#   This issue is Qualcomm-Bug. below feautre is workaround. So, we must receive solution via Q-SR
+#config F_SKYDISP_EF52_KK_TEARING_WORKAROUND  <== disable!!!
+# 20140522, kkcho, received q-patch via SR (case#01536577)
+config F_SKYDISP_EF52_KK_TEARING
+	depends on (SKY_EF52S_BOARD || SKY_EF52K_BOARD || SKY_EF52L_BOARD || SKY_EF52W_BOARD)
+	bool     
+	default y
+
+# 20140513, kkcho, workaround... for bl set bug in the KK
+#   Bug :   efs-erase -> no display at the bootanimation play
+#   hdmi block disable at power_up. But don't disable hdmi_donfing in defconfg for WFD fuction
+config F_SKYDISP_SKIP_BLSET_WITH_EFS_ERASE
+	bool     
+	default y
+
+# 20120515, kkcho, HDMI clock_set diasble for FUSION3
+#   Bug :   or reset during boot (refer to clock_dss_8960.c  hdmi_pll_enable hang)
+#   hdmi block disable at power_up. But don't disable hdmi_donfing in defconfg for WFD fuction
+config F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
+	bool     
+	default y
+
+# 20120819, kkcho, LCD_DEVICE_SHUTDOWN
+#   Bug :Apply power_seq at the power-off animation.
+#   Relevant macro or source : mipi_rohm.c, board-8064-diaplay.c, kernel/kernel/sys.c
+config F_SKYDISP_LCD_SHUTDOWN
+	bool     
+	default n
+
+# 20120908, kkcho, apply reset escape code by double-call 'mipi_pannel_power_on' durnig bootup
+#   Bug : Dump_mode occured durnig power on/off repeat test
+#   Relevant macro or source : msm_fb.c mipi_rohm.c msm_fb.h
+config F_PREVENT_RESET_DURING_BOOTUP
+	bool     
+	default n	
+
+# 20120819, kkcho, for Sharp LCD-flicker.
+#   Bug :Apply power_seq at the power-off animation.
+#   Relevant macro or source : mipi_xxx.c, board-8064-diaplay.c, kernel/kernel/sys.c
+config F_SKYDISP_SHARP_LCD_FLICKER
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD || SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool     
+	default y	
+
+# 20121107, kobj switching DMB screen bug fix
+#   Bug :When switched screen, iommu page fault occur.
+#   Relevant macro or source : mdp4_overlay.c
+config F_SKYDISP_QCOM_DMB_MMU_BUG_FIXED
+	bool     
+	default y	
+
+# 20121022 p14198
+#   Set HDMI_MVS active pull-down disabled becuase of sleep current.
+#   This is dependant on a circuit diagram.
+config F_SKYDISP_CONFIGURE_HDMI_MVS_BECAUSE_OF_SLEEP_CURRENT
+	depends on ( (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD) && ((BOARD_VER!=WS10) && (BOARD_VER!=WS20)) ) \
+	           || (SKY_EF52S_BOARD || SKY_EF52K_BOARD || SKY_EF52L_BOARD || SKY_EF52W_BOARD)
+	bool
+	default y
+
+# 20121101 p14198
+#   Change mdp_max_clk 200000000 to 266667000 for removing underrun.
+#   8064 supports up to 266667000.
+#   Refer to CASE #01006445 Underrun issue when playing movies.
+config F_SKYDISP_CHANGE_MDP_MAX_CLOCK
+	bool
+	default y
+
+# 20121114 p14198
+#   Fix the QC bug.
+#   bug : When using continuous splash screen, mdp related clock is turned off.
+#         Therefore, booting logo is turned off during boot up.
+#   Refer to QC CASE #1001536 LCD screen is turned off during booting.
+config F_SKYDISP_QCBUGFIX_CONTINUOUS_SPLASH_SCREEN
+	bool
+	default y
+
+# 2012.10.04, p14198
+# MODEL  : It's for ITEC WFD solution. That'why models are EF48S, EF49K, EF50L
+# DO     : Fix aperiodic data abort because of mutex when start screen link(phone to phone). refer to 50L PLM 3240.
+#          Data abort occur when access mutex eventhough mutex is not initialized.
+# NOTE   : It's just work-around. It is need to be improved.
+config F_SKYDISP_FIX_WFD_DATA_ABORT_BECAUSE_OF_MUTEX
+	depends on (SKY_EF48S_BOARD || SKY_EF49K_BOARD || SKY_EF50L_BOARD)
+	bool
+	default y
+
+# 20121130 p14198
+#   Fix the QC bug.
+#   bug : When using continuous splash screen, memalloc for LK FB buffer copy.
+#         However, dma_alloc_coherent fails in case of 1080p buffer size
+#   Refer to QC CASE #00992718 mdp_probe failed becasue of dma_alloc_coherent. - 179967_1.patch
+config F_SKYDISP_QCBUGFIX_CONTINUOUS_SPLASH_SCREEN_BUFFER_ALLOC_FOR_1080P
+	depends on (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+	bool
+	default y
+
+# 20121212 p14198 : Used in KERNEL and FRAMWORK
+# We can see some noise(for example, when rotate 1080p video). That's why blocked blt mode(writeback).
+# Tuned rotater ratio for blocking MDP underrun.
+# Refer to QC CASE #01034021 [EF51]IOMMU page fault occur when rotating the video repeatedly.
+#                  #01044917 [EF51]Underrun occur when rotating 1080p portrate video to 270 degree.
+config F_SKYDISP_QCBUGFIX_BLOCK_BLT_MODE_AND_TUNE_ROTATER_RATIO
+	bool
+	default y
+	
+
+config PANTECH_LCD_SHARPNESS_CTRL 	
+	bool
+	default y
+	
+	
+config F_SKYDISP_CHECK_AND_SET_PANEL_POWER_ON
+	bool
+	default y
+
+# 2014.05.23, KangMS
+# Macro for MDP underrun on EF51SS
+# KERNEL : used
+# USER   : not used
+# This macro will fix mdp underrun in normal use
+# Case : #01547600 [APQ8064_KK] mdp underrun
+config F_SKYDISP_FIX_MDP_UNDERRUN
+    depends on (SKY_EF51S_BOARD || SKY_EF51K_BOARD || SKY_EF51L_BOARD)
+    bool
+    default y
+
+##################################################################################
+# SKYDISP_LCD END
+##################################################################################
+

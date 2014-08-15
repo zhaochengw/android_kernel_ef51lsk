@@ -75,7 +75,7 @@ msm_mipi-objs := mipi_dsi.o mipi_dsi_host.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
 
 # MIPI manufacture
-# obj-$(CONFIG_FB_PANTECH_MIPI_DSI_RENESAS) += mipi_renesas.o // shkwak fhd test
+# obj-$(CONFIG_FB_PANTECH_MIPI_DSI_RENESAS) += mipi_renesas.o
 ifeq ($(CONFIG_FB_PANTECH_MIPI_DSI_SONY),y)
 obj-$(CONFIG_FB_PANTECH_MIPI_DSI_SONY) += mipi_sony_incell.o
 else
@@ -142,10 +142,10 @@ obj-y += mipi_chimei_wuxga.o
 obj-y += mipi_truly_video_wvga_pt.o
 else
 ifeq ($(CONFIG_FB_PANTECH_MIPI_SONY_CMD_HD_PANEL),y)
-obj-$(CONFIG_FB_PANTECH_MIPI_SONY_CMD_HD_PANEL) += mipi_sony_incell_cmd_hd.o
+obj-$(CONFIG_FB_PANTECH_MIPI_SONY_CMD_HD_PANEL) +=mipi_sony_incell_cmd_hd.o
 endif
 ifeq ($(CONFIG_FB_PANTECH_MIPI_SONY_VIDEO_HD_PANEL),y)
-obj-$(CONFIG_FB_PANTECH_MIPI_SONY_VIDEO_HD_PANEL) += mipi_sony_incell_video_hd.o
+obj-$(CONFIG_FB_PANTECH_MIPI_SONY_VIDEO_HD_PANEL) +=mipi_sony_incell_video_hd.o
 endif
 ifeq ($(CONFIG_FB_PANTECH_MIPI_RENESAS_VIDEO_FHD),y)
 obj-$(CONFIG_FB_PANTECH_MIPI_RENESAS_VIDEO_FHD) += mipi_renesas_video_fhd.o

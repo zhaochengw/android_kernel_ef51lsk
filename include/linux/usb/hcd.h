@@ -349,11 +349,7 @@ struct hc_driver {
 	/* to log submission/completion events*/
 	void	(*log_urb)(struct urb *urb, char *event, unsigned extra);
 	void	(*dump_regs)(struct usb_hcd *);
-// P12125 kernel panic debug code->
-#ifndef CONFIG_PANTECH_USER_BUILD
-	void	(*dump_qh_qtd)(struct usb_hcd *);
-#endif
-// P12125 kernel panic debug code-<
+
 	void	(*reset_sof_bug_handler)(struct usb_hcd *hcd, u32 val);
 };
 

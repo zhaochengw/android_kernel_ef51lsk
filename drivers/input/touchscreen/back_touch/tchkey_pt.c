@@ -47,7 +47,8 @@
 
 #include "tchkey_pt.h"
 
-#include"Pantech_Back_Touch_EF51_Rev2R7_TP20.h"		//Modify Gesture mode
+#include"Pantech_Back_Touch_EF51_Rev2R7_TP20.h"		//Modify gesture mode
+
 
 
 #define TOUCHPAD_RST				62
@@ -106,7 +107,6 @@
 #ifdef MOUSE_MODE
 #define MOUSE_MODE_DOUBLE_TAP
 #endif
-
 
 // I2C Done Status
 #define I2C_DONE_ADDR						0xFFFF
@@ -212,6 +212,8 @@ static void tchkeypt_repeat_fw_update_func(struct work_struct * p);
 #endif
 
 static void tchkeypt_cancel_input(void);
+
+static int kk_upgrade_request = 100;
 
 /* -------------------------------------------------------------------- */
 /* Structure */
@@ -330,11 +332,11 @@ struct touch_info {
     unsigned long down_time;
     unsigned long up_time;
 };
+
 struct double_tap_touch_info {
     struct touch_info info[2];
     int toggle;
 };
-
 struct double_tap_touch_info dt_ti;
 
 static void tchkey_raise_double_tap(struct input_dev *input) {
@@ -368,18 +370,17 @@ static void tchkey_set_double_tap_touch_info(int x, int y, int state) {
 static int tchkey_double_tap_check_interval(struct double_tap_touch_info dt) {
     int retval = 0;
     unsigned long diff = dt.info[dt.toggle].up_time - dt.info[!dt.toggle].down_time;
+
     if(jiffies_to_msecs(diff) <= DOUBLE_TAP_INTERVAL) {
         if(abs(dt.info[dt.toggle].x - dt.info[!dt.toggle].x) <= DOUBLE_TAP_SLOP
            && abs(dt.info[dt.toggle].y - dt.info[!dt.toggle].y) <= DOUBLE_TAP_SLOP) {
             retval = 1;
         }
     }
+
     return retval;
 }
-#endif /* MOUSE_MODE_DOUBLE_TAP */
-
-
-
+#endif /* MOUSE_MODE */
 
 static void tchkey_start_wd_timer(struct tchkeyptdata_t *ts)
 {
@@ -1950,8 +1951,8 @@ static void tchkeypt_work_f(struct work_struct *work)
 
 				if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_GESTURE)
 				{
-					temp_x = temp_x * 2 ;
-					temp_y = temp_y * 2 ;
+					temp_x = temp_x * 2 + kk_upgrade_request;
+					temp_y = temp_y * 2 + kk_upgrade_request ;
 				}
 #ifdef MOUSE_MODE			
 				else if(tchkeyptdata->setting_mode == BACK_TOUCH_ON_MOUSE)
@@ -2246,6 +2247,17 @@ static int __devinit tchkeypt_probe(struct i2c_client *client, const struct i2c_
 	
 #ifdef MOUSE_MODE_DOUBLE_TAP
     memset(&dt_ti, 0, sizeof(struct double_tap_touch_info));
+    /*
+    dt_ti.toggle = 0;
+    dt_ti.info[dt_ti.toggle].x = 0;
+    dt_ti.info[dt_ti.toggle].y = 0;
+    dt_ti.info[dt_ti.toggle].down_time = 0;
+    dt_ti.info[dt_ti.toggle].up_time = 0;
+    dt_ti.info[!dt_ti.toggle].x = 0;
+    dt_ti.info[!dt_ti.toggle].y = 0;
+    dt_ti.info[!dt_ti.toggle].down_time = 0;
+    dt_ti.info[!dt_ti.toggle].up_time = 0;
+    */
 #endif /* MOUSE_MODE */
 	
 #ifdef USE_FILE_ATTR
@@ -2424,7 +2436,6 @@ err_exit:
 			input_free_device(tchkeyptdata->tchkeypt_gesture);
 	}
 	}
-	
 #ifdef MOUSE_MODE
 	else if(err_m)
 	{
@@ -2460,9 +2471,7 @@ static int tchkeypt_probe_gesture(struct i2c_client *client)
 	set_bit(EV_KEY, tchkeyptdata->tchkeypt_gesture->evbit);
 	set_bit(EV_ABS, tchkeyptdata->tchkeypt_gesture->evbit);
     set_bit(EV_SYN, tchkeyptdata->tchkeypt_gesture->evbit);
-
 	set_bit(INPUT_PROP_DIRECT, tchkeyptdata->tchkeypt_gesture->propbit);	//for divide back touch device
-
 	set_bit(BTN_TOUCH, tchkeyptdata->tchkeypt_gesture->keybit);
 
 
@@ -2477,8 +2486,8 @@ static int tchkeypt_probe_gesture(struct i2c_client *client)
 #endif
 
 #ifdef SINGLE_TOUCH
-	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_X, 0, RESOLUTION_X_GESTURE-1, 0, 0);
-	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_Y, 0, RESOLUTION_Y_GESTURE-1, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_X, 0, RESOLUTION_X_GESTURE-1 + kk_upgrade_request, 0, 0);
+	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_Y, 0, RESOLUTION_Y_GESTURE-1 + kk_upgrade_request, 0, 0);
 	input_set_abs_params(tchkeyptdata->tchkeypt_gesture, ABS_Z, 0, 255, 0, 0);	//for divide back touch device 
 #endif
 

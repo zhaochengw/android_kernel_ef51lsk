@@ -57,12 +57,6 @@
 #define MSM_FB_NUM	3
 #endif
 
-#if defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L)
-#if CONFIG_BOARD_VER >= CONFIG_TP10
-#define TEST_LCD_BL_UPDATE3
-#endif
-#endif 
-
 #ifdef CONFIG_PANTECH_LCD_GET_LCD_REV
 int mipi_renesas_fhd_manufature_ID_get(void);
 #endif
@@ -2009,6 +2003,10 @@ static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
 	return 	mdp4_overlay_free_base_pipe(mfd);
 }
 
+#if defined (BOOT_TOUCH_RESET) && (defined(CONFIG_SKY_EF52S_BOARD)|| defined(CONFIG_SKY_EF52K_BOARD)|| defined(CONFIG_SKY_EF52L_BOARD))
+extern int touch_init;
+#endif
+
 static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
@@ -2044,6 +2042,10 @@ static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 		} else {
 			msm_fb_free_base_pipe(mfd);
 		}
+#if defined (BOOT_TOUCH_RESET) && (defined(CONFIG_SKY_EF52S_BOARD)|| defined(CONFIG_SKY_EF52K_BOARD)|| defined(CONFIG_SKY_EF52L_BOARD))
+		if (info->node == 0)
+			touch_init = false;
+#endif		
 	}
 
 	return ret;
@@ -2207,9 +2209,6 @@ static void bl_workqueue_handler(struct work_struct *work)
 	struct msm_fb_data_type *mfd = container_of(to_delayed_work(work),
 				struct msm_fb_data_type, backlight_worker);
 	struct msm_fb_panel_data *pdata = mfd->pdev->dev.platform_data;
-#ifdef TEST_LCD_BL_UPDATE3	
-	//printk(KERN_ERR "bl_workqueue_handler unset_bl_level %d bl_updated %d \n",unset_bl_level,bl_updated);
-#endif 
 
 	down(&mfd->sem);
 	if ((pdata) && (pdata->set_backlight) && (!bl_updated)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,11 @@
 #include "msm_ispif.h"
 #include "msm.h"
 #include "msm_ispif_hwreg.h"
+
+#if 0 //psj_test
+#undef CDBG
+#define CDBG(fmt, args...) printk(KERN_INFO "msm_ispif : " fmt, ##args)//pr_debug(fmt, ##args)
+#endif
 
 #define V4L2_IDENT_ISPIF                     50001
 #define CSID_VERSION_V2                      0x02000011
@@ -54,6 +59,7 @@ static int msm_ispif_intf_reset(struct ispif_device *ispif,
 		case RDI0:
 			data |= (0x1 << RDI_0_VFE_RST_STB) |
 				(0x1 << RDI_0_CSID_RST_STB);
+			ispif->rdi0_sof_count = 0;
 			break;
 
 		case PIX1:
@@ -64,11 +70,13 @@ static int msm_ispif_intf_reset(struct ispif_device *ispif,
 		case RDI1:
 			data |= (0x1 << RDI_1_VFE_RST_STB) |
 				(0x1 << RDI_1_CSID_RST_STB);
+			ispif->rdi1_sof_count = 0;
 			break;
 
 		case RDI2:
 			data |= (0x1 << RDI_2_VFE_RST_STB) |
 				(0x1 << RDI_2_CSID_RST_STB);
+			ispif->rdi2_sof_count = 0;
 			break;
 
 		default:
@@ -285,6 +293,7 @@ static int msm_ispif_config(struct ispif_device *ispif,
 		msm_ispif_enable_intf_cids(ispif, intftype,
 			ispif_params[i].cid_mask, vfe_intf);
 	}
+	msm_camera_io_w(0x40, ispif->base + ISPIF_CTRL_ADDR);
 
 	msm_camera_io_w(ISPIF_IRQ_STATUS_MASK, ispif->base +
 					ISPIF_IRQ_MASK_ADDR);
@@ -377,6 +386,10 @@ static void msm_ispif_intf_cmd(struct ispif_device *ispif, uint16_t intfmask,
 		mask >>= 1;
 		intfnum++;
 	}
+
+//	pr_err("%s:[SD_check] cmd_mask = %x, cmd_mask1 = %x\n", __func__,ispif->global_intf_cmd_mask,
+//		global_intf_cmd_mask1);
+
 	msm_camera_io_w(ispif->global_intf_cmd_mask,
 		ispif->base + ISPIF_INTF_CMD_ADDR + (0x200 * vfe_intf));
 	if (global_intf_cmd_mask1 != 0xFFFFFFFF)
@@ -582,7 +595,7 @@ static void ispif_process_irq(struct ispif_device *ispif,
 
 	if (qcmd->ispifInterruptStatus0 &
 			ISPIF_IRQ_STATUS_PIX_SOF_MASK) {
-			CDBG("%s: ispif PIX irq status", __func__);
+			CDBG("%s: ispif PIX irq status\n", __func__);
 			ispif->pix_sof_count++;
 			v4l2_subdev_notify(&ispif->subdev,
 				NOTIFY_VFE_PIX_SOF_COUNT,
@@ -591,20 +604,23 @@ static void ispif_process_irq(struct ispif_device *ispif,
 
 	if (qcmd->ispifInterruptStatus0 &
 			ISPIF_IRQ_STATUS_RDI0_SOF_MASK) {
-			CDBG("%s: ispif RDI0 irq status", __func__);
 			ispif->rdi0_sof_count++;
+			CDBG("%s: ispif RDI0 irq status, counter = %d",
+				__func__, ispif->rdi0_sof_count);
 			send_rdi_sof(ispif, RDI_0, ispif->rdi0_sof_count);
 	}
 	if (qcmd->ispifInterruptStatus1 &
 		ISPIF_IRQ_STATUS_RDI1_SOF_MASK) {
-		CDBG("%s: ispif RDI1 irq status", __func__);
 		ispif->rdi1_sof_count++;
+		CDBG("%s: ispif RDI1 irq status, counter = %d",
+			__func__, ispif->rdi1_sof_count);
 		send_rdi_sof(ispif, RDI_1, ispif->rdi1_sof_count);
 	}
 	if (qcmd->ispifInterruptStatus2 &
 		ISPIF_IRQ_STATUS_RDI2_SOF_MASK) {
-		CDBG("%s: ispif RDI2 irq status", __func__);
 		ispif->rdi2_sof_count++;
+		CDBG("%s: ispif RDI2 irq status, counter = %d",
+			__func__, ispif->rdi2_sof_count);
 		send_rdi_sof(ispif, RDI_2, ispif->rdi2_sof_count);
 	}
 
@@ -638,7 +654,9 @@ static inline void msm_ispif_read_irq_status(struct ispif_irq_status *out,
 	CDBG("%s: irq vfe0 Irq_status0 = 0x%x, 1 = 0x%x, 2 = 0x%x\n",
 		__func__, out->ispifIrqStatus0, out->ispifIrqStatus1,
 		out->ispifIrqStatus2);
-	if (out->ispifIrqStatus0 & ISPIF_IRQ_STATUS_MASK) {
+	if (out->ispifIrqStatus0 & ISPIF_IRQ_STATUS_MASK ||
+		out->ispifIrqStatus1 & ISPIF_IRQ_STATUS_1_MASK ||
+		out->ispifIrqStatus2 & ISPIF_IRQ_STATUS_2_MASK) {
 		if (out->ispifIrqStatus0 & (0x1 << RESET_DONE_IRQ))
 			complete(&ispif->reset_complete);
 		if (out->ispifIrqStatus0 & (0x1 << PIX_INTF_0_OVERFLOW_IRQ))
@@ -794,9 +812,18 @@ static long msm_ispif_cmd(struct v4l2_subdev *sd, void *arg)
 static long msm_ispif_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 								void *arg)
 {
+#if	1//def F_PANTECH_CAMERA_DEADBEEF_ERROR_FIX
+	struct ispif_device *ispif;
+#endif
 	switch (cmd) {
 	case VIDIOC_MSM_ISPIF_CFG:
 		return msm_ispif_cmd(sd, arg);
+#if	1//def F_PANTECH_CAMERA_DEADBEEF_ERROR_FIX        
+	case VIDIOC_MSM_ISPIF_REL:
+		ispif =	(struct ispif_device *)v4l2_get_subdevdata(sd);
+		msm_ispif_release(ispif);
+		return 0;
+#endif
 	default:
 		return -ENOIOCTLCMD;
 	}

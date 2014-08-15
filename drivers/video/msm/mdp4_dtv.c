@@ -43,14 +43,13 @@ static int dtv_off_sub(void);
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
 
-#ifndef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
 static struct clk *tv_src_clk;
 static struct clk *hdmi_clk;
 static struct clk *mdp_tv_clk;
 static struct platform_device *dtv_pdev;
 static struct workqueue_struct *dtv_work_queue;
 static struct work_struct dtv_off_work;
-#endif
+
 
 static int mdp4_dtv_runtime_suspend(struct device *dev)
 {
@@ -136,7 +135,6 @@ static int dtv_off_sub(void)
 
 	pr_info("%s\n", __func__);
 
-#ifndef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
 	clk_disable_unprepare(hdmi_clk);
 	if (mdp_tv_clk)
 		clk_disable_unprepare(mdp_tv_clk);
@@ -146,8 +144,6 @@ static int dtv_off_sub(void)
 
 	if (dtv_pdata && dtv_pdata->lcdc_gpio_config)
 		ret = dtv_pdata->lcdc_gpio_config(0);
-#endif
-
 #ifdef CONFIG_MSM_BUS_SCALING
 	if (dtv_bus_scale_handle > 0)
 		msm_bus_scale_client_update_request(dtv_bus_scale_handle,
@@ -201,7 +197,6 @@ static int dtv_on(struct platform_device *pdev)
 
 	mfd = platform_get_drvdata(pdev);
 
-#ifndef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
 	ret = clk_set_rate(tv_src_clk, mfd->fbi->var.pixclock);
 	if (ret) {
 		pr_info("%s: clk_set_rate(%d) failed\n", __func__,
@@ -220,9 +215,6 @@ static int dtv_on(struct platform_device *pdev)
 
 	if (mdp_tv_clk)
 		clk_prepare_enable(mdp_tv_clk);
-
-
-#endif
 
 	ret = panel_next_on(pdev);
 	return ret;
@@ -256,8 +248,6 @@ static int dtv_probe(struct platform_device *pdev)
 			pr_warning("%s: Couldn't get ebi1 clock\n", __func__);
 		}
 #endif
-
-#ifndef CONFIG_F_SKYDISP_DISABLE_DTV_HDMI_CLK_MDP
 		tv_src_clk = clk_get(&pdev->dev, "src_clk");
 		if (IS_ERR(tv_src_clk)) {
 			pr_err("error: can't get tv_src_clk!\n");
@@ -273,7 +263,7 @@ static int dtv_probe(struct platform_device *pdev)
 		mdp_tv_clk = clk_get(&pdev->dev, "mdp_clk");
 		if (IS_ERR(mdp_tv_clk))
 			mdp_tv_clk = NULL;
-#endif
+
 		return 0;
 	}
 

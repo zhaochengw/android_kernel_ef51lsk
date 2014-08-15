@@ -23,18 +23,8 @@
 #include <asm/mach-types.h>
 #include <sound/apr_audio.h>
 #include <mach/qdsp6v2/usf.h>
-#include <linux/input/mt.h> /* for protocol type b */
 #include "q6usm.h"
 #include "usfcdev.h"
-#include <linux/mutex.h>
-#include <linux/spinlock.h>
-
-// SKY feature
-#define SKY_ULTRASOUNDPEN_FEATURE
-
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-#include <linux/delay.h>
-#endif
 
 /* The driver version*/
 #define DRV_VERSION "1.4.0"
@@ -181,15 +171,6 @@ static struct input_dev *allocate_dev(uint16_t ind, const char *name)
 	return in_dev;
 }
 
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-#define CAPTURE_KEY		366
-#define CAMERA_KEY 		212
-#endif
-
-#define NUM_TRK_ID			16
-
-static DEFINE_MUTEX(session_lock);
-
 static int prepare_tsc_input_device(uint16_t ind,
 				struct usf_type *usf_info,
 				struct us_input_info_type *input_info,
@@ -201,14 +182,7 @@ static int prepare_tsc_input_device(uint16_t ind,
 		return -ENOMEM;
 
 	usf_info->input_ifs[ind] = in_dev;
-
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-	set_bit(CAMERA_KEY, in_dev->keybit);
-	set_bit(CAPTURE_KEY, in_dev->keybit);
-#endif
-
 	in_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-
 	in_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(in_dev, ABS_X,
 			     input_info->tsc_x_dim[MIN_IND],
@@ -236,8 +210,6 @@ static int prepare_tsc_input_device(uint16_t ind,
 			     input_info->tsc_y_tilt[MIN_IND],
 			     input_info->tsc_y_tilt[MAX_IND],
 			     0, 0);
-
-	input_mt_init_slots(in_dev, NUM_TRK_ID);	
 
 	return 0;
 }
@@ -283,17 +255,6 @@ static int prepare_keyboard_input_device(
 	return 0;
 }
 
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-struct pen_pos{
-	int x;
-	int y;
-	int z;
-	int press;
-};
-
-static struct pen_pos pre_pos;
-#endif
-
 static void notify_tsc_event(struct usf_type *usf_info,
 			     uint16_t if_ind,
 			     struct usf_event_type *event)
@@ -301,34 +262,6 @@ static void notify_tsc_event(struct usf_type *usf_info,
 {
 	struct input_dev *input_if = usf_info->input_ifs[if_ind];
 	struct point_event_type *pe = &(event->event_data.point_event);
-
-
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-	if(pe->pressure == CAPTURE_KEY || pe->pressure == CAMERA_KEY)
-	{
-//		printk("Key Press : %d\n", pe->pressure);
-		input_report_key(input_if, pe->pressure, 1);
-		input_sync(input_if);
-		msleep(5);
-		input_report_key(input_if, pe->pressure, 0);
-		input_sync(input_if);
-		return;
-	}
-
-	if(pre_pos.x == pe->coordinates[X_IND] && 
-		pre_pos.y == pe->coordinates[Y_IND] &&
-		pre_pos.z == pe->coordinates[Z_IND] && 
-		pre_pos.press == pe->pressure)
-	{
-		// skip same point
-		return;
-	}
-
-	pre_pos.x = pe->coordinates[X_IND];
-	pre_pos.y = pe->coordinates[Y_IND];
-	pre_pos.z = pe->coordinates[Z_IND];
-	pre_pos.press = pe->pressure;
-#endif
 
 	input_report_abs(input_if, ABS_X, pe->coordinates[X_IND]);
 	input_report_abs(input_if, ABS_Y, pe->coordinates[Y_IND]);
@@ -597,7 +530,6 @@ static int config_xx(struct usf_xx_type *usf_xx, struct us_xx_info_type *config)
 	return rc;
 }
 
-#ifndef SKY_ULTRASOUNDPEN_FEATURE
 static bool usf_match(uint16_t event_type_ind, struct input_dev *dev)
 {
 	bool rc = false;
@@ -628,7 +560,6 @@ static bool usf_register_conflicting_events(uint16_t event_types)
 
 	return rc;
 }
-#endif
 
 static void usf_unregister_conflicting_events(uint16_t event_types)
 {
@@ -642,26 +573,17 @@ static void usf_unregister_conflicting_events(uint16_t event_types)
 	}
 }
 
-extern void touch_clear_finger(int flag);
-
 static void usf_set_event_filters(struct usf_type *usf, uint16_t event_filters)
 {
-#ifndef SKY_ULTRASOUNDPEN_FEATURE
 	uint16_t ind = 0;
 	uint16_t mask = 1;
-#endif
 
 	if (usf->conflicting_event_filters != event_filters) {
-		
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-		touch_clear_finger(event_filters);
-#else
 		for (ind = 0; ind < MAX_EVENT_TYPE_NUM; ++ind) {
 			if (usf->conflicting_event_types & mask)
 				usfcdev_set_filter(ind, event_filters&mask);
 			mask = mask << 1;
 		}
-#endif
 		usf->conflicting_event_filters = event_filters;
 	}
 }
@@ -670,9 +592,7 @@ static int register_input_device(struct usf_type *usf_info,
 				 struct us_input_info_type *input_info)
 {
 	int rc = 0;
-#ifndef SKY_ULTRASOUNDPEN_FEATURE	
 	bool ret = true;
-#endif
 	uint16_t ind = 0;
 
 	if ((usf_info == NULL) ||
@@ -727,13 +647,11 @@ static int register_input_device(struct usf_type *usf_info,
 		} /* supported event */
 	} /* event types loop */
 
-#ifndef SKY_ULTRASOUNDPEN_FEATURE
 	ret = usf_register_conflicting_events(
 			input_info->conflicting_event_types);
 	if (ret)
 		usf_info->conflicting_event_types =
 			input_info->conflicting_event_types;
-#endif
 
 	return 0;
 }
@@ -1420,18 +1338,15 @@ static long usf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int usf_mmap(struct file *file, struct vm_area_struct *vms)
 {
 	struct usf_type *usf = file->private_data;
-	int dir = OUT, rc;
+	int dir = OUT;
 	struct usf_xx_type *usf_xx = &usf->usf_tx;
-	mutex_lock(&session_lock);
 
 	if (vms->vm_flags & USF_VM_WRITE) { /* RX buf mapping */
 		dir = IN;
 		usf_xx = &usf->usf_rx;
 	}
 
-	rc = q6usm_get_virtual_address(dir, usf_xx->usc, vms);
-	mutex_unlock(&session_lock);
-	return rc;
+	return q6usm_get_virtual_address(dir, usf_xx->usc, vms);
 }
 
 static uint16_t add_opened_dev(int minor)
@@ -1463,17 +1378,14 @@ static int usf_open(struct inode *inode, struct file *file)
 	struct usf_type *usf =  NULL;
 	uint16_t dev_ind = 0;
 	int minor = MINOR(inode->i_rdev);
-	mutex_lock(&session_lock);
+
 	dev_ind = add_opened_dev(minor);
-	if (dev_ind == USF_UNDEF_DEV_ID) {
-		mutex_unlock(&session_lock);
+	if (dev_ind == USF_UNDEF_DEV_ID)
 		return -EBUSY;
-	}
 
 	usf = kzalloc(sizeof(struct usf_type), GFP_KERNEL);
 	if (usf == NULL) {
 		pr_err("%s:usf allocation failed\n", __func__);
-		mutex_unlock(&session_lock);
 		return -ENOMEM;
 	}
 
@@ -1485,19 +1397,14 @@ static int usf_open(struct inode *inode, struct file *file)
 
 	usf->usf_tx.us_detect_type = USF_US_DETECT_UNDEF;
 	usf->usf_rx.us_detect_type = USF_US_DETECT_UNDEF;
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-	touch_clear_finger(0);
-#endif
 
 	pr_debug("%s:usf in open\n", __func__);
-	mutex_unlock(&session_lock);
 	return 0;
 }
 
 static int usf_release(struct inode *inode, struct file *file)
 {
 	struct usf_type *usf = file->private_data;
-	mutex_lock(&session_lock);
 
 	pr_debug("%s: release entry\n", __func__);
 
@@ -1509,11 +1416,7 @@ static int usf_release(struct inode *inode, struct file *file)
 	s_opened_devs[usf->dev_ind] = 0;
 
 	kfree(usf);
-#ifdef SKY_ULTRASOUNDPEN_FEATURE
-	touch_clear_finger(0);
-#endif
 	pr_debug("%s: release exit\n", __func__);
-	mutex_unlock(&session_lock);
 	return 0;
 }
 

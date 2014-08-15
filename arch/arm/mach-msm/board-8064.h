@@ -94,7 +94,6 @@ void apq8064_init_cam(void);
 #define APQ_8064_GSBI3_QUP_I2C_BUS_ID 3
 #define APQ_8064_GSBI4_QUP_I2C_BUS_ID 4
 #define APQ_8064_GSBI5_QUP_I2C_BUS_ID 5
-
 #if defined(CONFIG_PANTECH_MAX17058_FG)
 #define APQ_8064_MAX17058_I2C_BUS_ID	9
 #endif

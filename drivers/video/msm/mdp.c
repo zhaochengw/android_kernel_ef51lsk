@@ -2379,18 +2379,17 @@ static int mdp_fps_level_change(struct platform_device *pdev, u32 fps_level)
 	ret = panel_next_fps_level_change(pdev, fps_level);
 	return ret;
 }
+
+#ifdef CONFIG_PANTECH_LCD_SHARPNESS_CTRL
+extern unsigned int sharpness_count;
+#endif
+
 static int mdp_off(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
 	pr_debug("%s:+\n", __func__);
-
-#ifdef FEATURE_SKYDISP_DISPLAY_FLICKER_SHARP_IPS
-	//printk(KERN_ERR "[SKY_LCD] %s : %d\n", __FUNCTION__, __LINE__);
-	ret = panel_next_off(pdev);
-#endif
-
 	mdp_histogram_ctrl_all(FALSE);
 	atomic_set(&vsync_cntrl.suspend, 1);
 	atomic_set(&vsync_cntrl.vsync_resume, 0);
@@ -2412,14 +2411,15 @@ static int mdp_off(struct platform_device *pdev)
 		mdp4_overlay_writeback_off(pdev);
 
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-#ifndef FEATURE_SKYDISP_DISPLAY_FLICKER_SHARP_IPS	
 	ret = panel_next_off(pdev);
-#endif
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	mdp_clk_ctrl(0);
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(0, 0, 0, 0);
+#endif
+#ifdef CONFIG_PANTECH_LCD_SHARPNESS_CTRL
+	sharpness_count = 0;
 #endif
 	pr_debug("%s:-\n", __func__);
 	return ret;

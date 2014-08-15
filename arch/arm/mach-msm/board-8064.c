@@ -33,9 +33,6 @@
 #include <linux/memblock.h>
 #include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
-#if 0 //!defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-#include <linux/cyttsp-qc.h>
-#endif
 #include <linux/i2c/isa1200.h>
 #include <linux/gpio_keys.h>
 #include <linux/epm_adc.h>
@@ -548,16 +545,6 @@ static struct i2c_board_info __initdata fab2210_i2c_boardinfo[] ={
 #endif
 #endif /* CONFIG_SKY_SND_EXTERNAL_AMP */
 
-
-#ifdef CONFIG_KERNEL_PMEM_EBI_REGION
-static unsigned pmem_kernel_ebi1_size = MSM_PMEM_KERNEL_EBI1_SIZE;
-static int __init pmem_kernel_ebi1_size_setup(char *p)
-{
-	msm_contig_mem_size = memparse(p, NULL);
-	return 0;
-}
-early_param("msm_contig_mem_size", msm_contig_mem_size_setup);
-#endif
 
 #if defined(CONFIG_TOUCHSCREEN_QT602240)
 static struct i2c_board_info __initdata qt602240_i2c_boardinfo[] ={
@@ -1957,7 +1944,7 @@ static struct i2c_board_info mxt_device_info[] __initdata = {
 };
 #define CYTTSP_TS_GPIO_IRQ		6
 #define CYTTSP_TS_GPIO_SLEEP		33
-#define CYTTSP_TS_GPIO_SLEEP_ALT	12
+//#define CYTTSP_TS_GPIO_SLEEP_ALT	12
 
 static ssize_t tma340_vkeys_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
@@ -2926,6 +2913,24 @@ static struct platform_device apq8064_device_ext_mpp8_vreg __devinitdata = {
 	},
 };
 
+//static struct platform_device apq8064_device_ext_3p3v_vreg __devinitdata = {
+//	.name	= GPIO_REGULATOR_DEV_NAME,
+//	.id	= APQ8064_EXT_3P3V_REG_EN_GPIO,
+//	.dev	= {
+//		.platform_data =
+//			&apq8064_gpio_regulator_pdata[GPIO_VREG_ID_EXT_3P3V],
+//	},
+//};
+
+static struct platform_device apq8064_device_ext_ts_sw_vreg __devinitdata = {
+	.name	= GPIO_REGULATOR_DEV_NAME,
+	.id	= PM8921_GPIO_PM_TO_SYS(23),
+	.dev	= {
+		.platform_data
+			= &apq8064_gpio_regulator_pdata[GPIO_VREG_ID_EXT_TS_SW],
+	},
+};
+
 static struct platform_device apq8064_device_rpm_regulator __devinitdata = {
 	.name	= "rpm-regulator",
 	.id	= 0,
@@ -3419,19 +3424,21 @@ static int ethernet_init(void)
 }
 #endif
 
-#define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
-
-#if !defined(CONFIG_MACH_APQ8064_EF48S) && !defined(CONFIG_MACH_APQ8064_EF49K) && !defined(CONFIG_MACH_APQ8064_EF50L) && !defined(CONFIG_MACH_APQ8064_EF51S) && !defined(CONFIG_MACH_APQ8064_EF51K) && !defined(CONFIG_MACH_APQ8064_EF51L) && !defined(CONFIG_MACH_APQ8064_EF52S) && !defined(CONFIG_MACH_APQ8064_EF52K) && !defined(CONFIG_MACH_APQ8064_EF52L)
-#define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
-#define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(38)
-#define GPIO_KEY_CAM_FOCUS		PM8921_GPIO_PM_TO_SYS(3)
-#define GPIO_KEY_CAM_SNAP		PM8921_GPIO_PM_TO_SYS(4)
-
-#else
+#if defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || \
+	defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || \
+	defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
+#define GPIO_KEY_HOME				PM8921_GPIO_PM_TO_SYS(2)
 #define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(9)
 #define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(10)
-#endif
 #define GPIO_KEY_VOLUME_DOWN_PM8917	PM8921_GPIO_PM_TO_SYS(30)
+#else
+#define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
+#define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
+#define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(38)
+#define GPIO_KEY_VOLUME_DOWN_PM8917	PM8921_GPIO_PM_TO_SYS(30)
+#define GPIO_KEY_CAM_FOCUS		PM8921_GPIO_PM_TO_SYS(3)
+#define GPIO_KEY_CAM_SNAP		PM8921_GPIO_PM_TO_SYS(4)
+#endif
 #define GPIO_KEY_ROTATION_PM8921	PM8921_GPIO_PM_TO_SYS(42)
 #define GPIO_KEY_ROTATION_PM8917	PM8921_GPIO_PM_TO_SYS(8)
 
@@ -3524,7 +3531,30 @@ static struct platform_device cdp_kp_pdev = {
 	},
 };
 
-#if !defined(CONFIG_MACH_APQ8064_EF48S) && !defined(CONFIG_MACH_APQ8064_EF49K) && !defined(CONFIG_MACH_APQ8064_EF50L) && !defined(CONFIG_MACH_APQ8064_EF51S) && !defined(CONFIG_MACH_APQ8064_EF51K) && !defined(CONFIG_MACH_APQ8064_EF51L) && !defined(CONFIG_MACH_APQ8064_EF52S) && !defined(CONFIG_MACH_APQ8064_EF52K) && !defined(CONFIG_MACH_APQ8064_EF52L)
+#if defined(CONFIG_MACH_APQ8064_EF48S) || defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || \
+	defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || \
+	defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
+static struct gpio_keys_button mtp_keys[] = {
+	{
+		.code           = KEY_VOLUMEUP,
+		.gpio           = GPIO_KEY_VOLUME_UP,
+		.desc           = "volume_up_key",
+		.active_low     = 0,
+		.type		= EV_KEY,
+		.wakeup		= 1,
+		.debounce_interval = 15,
+	},
+	{
+		.code           = KEY_VOLUMEDOWN,
+		.gpio           = GPIO_KEY_VOLUME_DOWN_PM8921,
+		.desc           = "volume_down_key",
+		.active_low     = 0,
+		.type		= EV_KEY,
+		.wakeup		= 1,
+		.debounce_interval = 15,
+	},
+};
+#else
 static struct gpio_keys_button mtp_keys[] = {
 	{
 		.code           = KEY_CAMERA_FOCUS,
@@ -3559,27 +3589,6 @@ static struct gpio_keys_button mtp_keys[] = {
 		.desc           = "cam_snap_key",
 		.active_low     = 1,
 		.type		= EV_KEY,
-		.debounce_interval = 15,
-	},
-};
-#else
-static struct gpio_keys_button mtp_keys[] = {
-	{
-		.code           = KEY_VOLUMEUP,
-		.gpio           = GPIO_KEY_VOLUME_UP,
-		.desc           = "volume_up_key",
-		.active_low     = 0,
-		.type		= EV_KEY,
-		.wakeup		= 1,
-		.debounce_interval = 15,
-	},
-	{
-		.code           = KEY_VOLUMEDOWN,
-		.gpio           = GPIO_KEY_VOLUME_DOWN_PM8921,
-		.desc           = "volume_down_key",
-		.active_low     = 0,
-		.type		= EV_KEY,
-		.wakeup		= 1,
 		.debounce_interval = 15,
 	},
 };
@@ -3734,6 +3743,29 @@ static struct i2c_registry apq8064_i2c_devices[] __initdata = {
 		ARRAY_SIZE(cyttsp_info),
 	},
 #endif
+#if defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
+    {
+        I2C_SURF | I2C_FFA,
+        APQ_8064_GSBI3_QUP_I2C_BUS_ID,
+        cyttsp4_i2c_info,
+        ARRAY_SIZE(cyttsp4_i2c_info),
+    },
+#elif defined(CONFIG_TOUCHSCREEN_QT602240)
+    {
+        I2C_SURF | I2C_FFA,
+        APQ_8064_GSBI3_QUP_I2C_BUS_ID,
+        qt602240_i2c_boardinfo,
+        ARRAY_SIZE(qt602240_i2c_boardinfo),
+    },
+#endif 
+	#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_PANTECH)
+	{
+		I2C_SURF | I2C_FFA,
+		APQ_8064_GSBI3_QUP_I2C_BUS_ID,
+		synaptics_i2c_info,
+		ARRAY_SIZE(synaptics_i2c_info),		
+	},
+#endif
 #if defined(CONFIG_PN544)
 	{
 		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_RUMI,
@@ -3747,40 +3779,6 @@ static struct i2c_registry apq8064_i2c_devices[] __initdata = {
 		APQ_8064_GSBI1_QUP_I2C_BUS_ID,
 		isa1200_board_info,
 		ARRAY_SIZE(isa1200_board_info),
-	},
-#endif
-#if 0
-#ifdef CONFIG_PIEZO_ECO
-	{
-		I2C_SURF | I2C_FFA,
-		APQ_8064_GSBI5_QUP_I2C_BUS_ID,
-		ts5000_i2c_info,
-		ARRAY_SIZE(ts5000_i2c_info),
-	},
-#endif // CONFIG_PIEZO_ECO
-#endif
-#if defined(CONFIG_TOUCHSCREEN_CYTTSP_GEN4)
-	{
-		I2C_SURF | I2C_FFA,
-		APQ_8064_GSBI3_QUP_I2C_BUS_ID,
-		cyttsp4_i2c_info,
-		ARRAY_SIZE(cyttsp4_i2c_info),
-	},
-#elif defined(CONFIG_TOUCHSCREEN_QT602240)
-	{
-		I2C_SURF | I2C_FFA,
-		APQ_8064_GSBI3_QUP_I2C_BUS_ID,
-		qt602240_i2c_boardinfo,
-		ARRAY_SIZE(qt602240_i2c_boardinfo),
-},
-#endif 
-
-#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_PANTECH)
-	{
-		I2C_SURF | I2C_FFA,
-		APQ_8064_GSBI3_QUP_I2C_BUS_ID,
-		synaptics_i2c_info,
-		ARRAY_SIZE(synaptics_i2c_info),		
 	},
 #endif
 	{
@@ -4061,6 +4059,14 @@ static void __init apq8064_common_init(void)
 	else
 		platform_add_devices(pm8917_common_devices,
 					ARRAY_SIZE(pm8917_common_devices));
+
+	if (!machine_is_apq8064_mtp()
+#if defined(CONFIG_MACH_APQ8064_EF48S) ||defined(CONFIG_MACH_APQ8064_EF49K) || defined(CONFIG_MACH_APQ8064_EF50L) || defined(CONFIG_MACH_APQ8064_EF51S) || defined(CONFIG_MACH_APQ8064_EF51K) || defined(CONFIG_MACH_APQ8064_EF51L) || defined(CONFIG_MACH_APQ8064_EF52S) || defined(CONFIG_MACH_APQ8064_EF52K) || defined(CONFIG_MACH_APQ8064_EF52L)
+	  && !machine_is_apq8064_ef48s() && !machine_is_apq8064_ef49k() && !machine_is_apq8064_ef50l() && !machine_is_apq8064_ef51s() && !machine_is_apq8064_ef51k() && !machine_is_apq8064_ef51l() && !machine_is_apq8064_ef52s() && !machine_is_apq8064_ef52k() && !machine_is_apq8064_ef52l()
+#endif
+	)
+		platform_device_register(&apq8064_device_ext_ts_sw_vreg);
+
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 	if (!(machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
 			machine_is_mpq8064_dtv())) {
@@ -4182,11 +4188,9 @@ static void __init apq8064_cdp_init(void)
 	pr_err("ALRAN:   irq_buf mapped at 0x%08x/size %dKB\n", (unsigned int)temp, ALRANLOGSIZE/4/1024);
 	}
 #endif
-#if 0
-	if (machine_is_apq8064_mtp() &&
-		SOCINFO_VERSION_MINOR(socinfo_get_platform_version()) == 1)
-			cyttsp_pdata.sleep_gpio = CYTTSP_TS_GPIO_SLEEP_ALT;
-#endif
+//	if (machine_is_apq8064_mtp() &&
+//		SOCINFO_VERSION_MINOR(socinfo_get_platform_version()) == 1)
+//			cyttsp_pdata.sleep_gpio = CYTTSP_TS_GPIO_SLEEP_ALT;
 	apq8064_common_init();
 	if (machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
 		machine_is_mpq8064_dtv()) {

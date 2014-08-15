@@ -48,7 +48,6 @@ static int mdm_debug_mask;
 #if defined(CONFIG_PANTECH_SMB347_CHARGER)
 extern unsigned int pantech_charging_status(void);
 #endif
-
 static void mdm_peripheral_connect(struct mdm_modem_drv *mdm_drv)
 {
 	if (!mdm_drv->pdata->peripheral_platform_device)
@@ -103,10 +102,6 @@ static void mdm_atomic_soft_reset(struct mdm_modem_drv *mdm_drv)
 	mdm_toggle_soft_reset(mdm_drv);
 }
 
-#if (0) // TODO: ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	pantech_ram_console_debug_init();
-#endif
-
 static void mdm_power_down_common(struct mdm_modem_drv *mdm_drv)
 {
 	int i;
@@ -118,7 +113,6 @@ static void mdm_power_down_common(struct mdm_modem_drv *mdm_drv)
 	if(pantech_charging_status()) 
 		return;
 #endif
-
 	mdm_peripheral_disconnect(mdm_drv);
 
 	/* Wait for the modem to complete its power down actions. */
@@ -243,7 +237,6 @@ static void mdm_power_on_common(struct mdm_modem_drv *mdm_drv)
 	if(pantech_charging_status()) 
 		return;
 #endif
-
 	mdm_drv->power_on_count++;
 
 	/* this gpio will be used to indicate apq readiness,

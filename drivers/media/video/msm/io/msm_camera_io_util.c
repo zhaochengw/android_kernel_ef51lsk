@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,7 +25,13 @@ static int gpio_ref_count;
 void msm_camera_io_w(u32 data, void __iomem *addr)
 {
 	CDBG("%s: %08x %08x\n", __func__, (int) (addr), (data));
+#if 1//F_PANTECH_CAMERA_ABNORMAL_RESET//SR01558667    
+    wmb(); 
+    writel_relaxed((data), (addr)); 
+    wmb(); 
+#else
 	writel_relaxed((data), (addr));
+#endif
 }
 
 void msm_camera_io_w_mb(u32 data, void __iomem *addr)
@@ -38,7 +44,14 @@ void msm_camera_io_w_mb(u32 data, void __iomem *addr)
 
 u32 msm_camera_io_r(void __iomem *addr)
 {
+#if 1//F_PANTECH_CAMERA_ABNORMAL_RESET//SR01558667
+	uint32_t data; 
+	rmb(); 
+	data = readl_relaxed(addr); 
+	rmb(); 
+#else
 	uint32_t data = readl_relaxed(addr);
+#endif
 	CDBG("%s: %08x %08x\n", __func__, (int) (addr), (data));
 	return data;
 }
@@ -61,7 +74,17 @@ void msm_camera_io_memcpy_toio(void __iomem *dest_addr,
 	u32 *s = (u32 *) src_addr;
 
 	for (i = 0; i < len; i++)
+#if 1//F_PANTECH_CAMERA_ABNORMAL_RESET//SR01558667
+	for (i = 0; i < len; i++)
+	{ 
+        wmb(); 
+        writel_relaxed(*s++, d++); 
+        wmb(); 
+	}
+#else
+    for (i = 0; i < len; i++)
 		writel_relaxed(*s++, d++);
+#endif
 }
 
 void msm_camera_io_dump(void __iomem *addr, int size)
@@ -78,7 +101,13 @@ void msm_camera_io_dump(void __iomem *addr, int size)
 			snprintf(p_str, 12, "%08x: ", (u32) p);
 			p_str += 10;
 		}
+#if 1//F_PANTECH_CAMERA_ABNORMAL_RESET//SR01558667
+        rmb(); 
+        data = readl_relaxed(p++); 
+        rmb(); 
+#else
 		data = readl_relaxed(p++);
+#endif
 		snprintf(p_str, 12, "%08x ", data);
 		p_str += 9;
 		if ((i + 1) % 4 == 0) {
@@ -326,6 +355,11 @@ int msm_camera_enable_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 					continue;
 			} else
 				j = i;
+			if (IS_ERR(reg_ptr[j])) {
+				pr_err("%s: %s null regulator\n",
+					__func__, cam_vreg[j].reg_name);
+				return -EINVAL;
+			}
 			regulator_disable(reg_ptr[j]);
 			if (cam_vreg[j].delay > 20)
 				msleep(cam_vreg[j].delay);
@@ -343,6 +377,11 @@ disable_vreg:
 				continue;
 		} else
 			j = i;
+		if (IS_ERR(reg_ptr[j])) {
+			pr_err("%s: %s null regulator\n",
+				__func__, cam_vreg[j].reg_name);
+			return -EINVAL;
+		}
 		regulator_disable(reg_ptr[j]);
 		if (cam_vreg[j].delay > 20)
 			msleep(cam_vreg[j].delay);

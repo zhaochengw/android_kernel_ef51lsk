@@ -41,6 +41,10 @@
 #include <sound/apr_audio.h>
 #include <sound/q6asm.h>
 
+#ifdef CONFIG_PANTECH_SND_QSOUND
+static void* mqfx_get_rsp_ptr = 0;
+#endif
+
 
 #define TRUE        0x01
 #define FALSE       0x00
@@ -917,7 +921,6 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		case ASM_STREAM_CMD_SET_ENCDEC_PARAM:
 		case ASM_STREAM_CMD_OPEN_WRITE_COMPRESSED:
 		case ASM_STREAM_CMD_OPEN_READ_COMPRESSED:
-#ifdef CONFIG_PANTECH_QCT_PATCH_SR1071471 //20130107 jhsong : qct patch for watchdog lpass after set audio effect
 			if (payload[0] == ASM_STREAM_CMD_CLOSE) {
 				atomic_set(&ac->cmd_close_state, 0);
 				wake_up(&ac->cmd_wait);
@@ -933,19 +936,6 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 					atomic_set(&ac->cmd_response, 0);
 				wake_up(&ac->cmd_wait);
 			}
-#else
-			if (atomic_read(&ac->cmd_state) && wakeup_flag) {
-				atomic_set(&ac->cmd_state, 0);
-				if (payload[1] == ADSP_EUNSUPPORTED) {
-					pr_debug("paload[1]:%d unsupported",
-								payload[1]);
-					atomic_set(&ac->cmd_response, 1);
-				}
-				else
-					atomic_set(&ac->cmd_response, 0);
-				wake_up(&ac->cmd_wait);
-			}
-#endif			
 			if (ac->cb)
 				ac->cb(data->opcode, data->token,
 					(uint32_t *)data->payload, ac->priv);
@@ -1005,6 +995,24 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		break;
 	}
 	case ASM_STREAM_CMDRSP_GET_PP_PARAMS:
+#ifdef CONFIG_PANTECH_SND_QSOUND
+		if (payload[0]==0) {
+			struct asm_pp_param_data_hdr * param_data = (struct asm_pp_param_data_hdr *)(payload+1);
+			pr_err("ASM_STREAM_CMDRSP_GET_PP_PARAMS_V2: module = 0x%x, param = 0x%x, size = %d\n",
+				param_data->module_id, param_data->param_id, param_data->param_size);
+			if ((param_data->module_id&0xfffff000)==0x1000c000) {
+				// is qsound module
+				memcpy(mqfx_get_rsp_ptr, param_data+1, param_data->param_size-sizeof(struct asm_pp_param_data_hdr ));
+				if (atomic_read(&ac->cmd_state)) {
+					atomic_set(&ac->cmd_state, 0);
+					wake_up(&ac->cmd_wait);
+				}
+				break;
+			}
+			else {
+			}
+		}
+#endif
 		rtac_make_asm_callback(ac->session, payload,
 			data->payload_size);
 		break;
@@ -3357,57 +3365,45 @@ fail_cmd:
 	return rc;
 }
 
-#ifdef CONFIG_SKY_SND_QSOUND_OPEN_DSP //20120618 jhsong : audio effect in open dsp //FEATURE_PANTECH_SND_QSOUND_OPEN_DSP
-int q6asm_qsound_module_enable_dsp(int session_id, uint32_t module, uint32_t param_id, uint32_t enable)
+#ifdef CONFIG_PANTECH_SND_QSOUND
+struct asm_set_mqfx_params {
+	struct asm_pp_params_command param;
+	char mqfx_params[256];
+};
+
+int q6asm_set_mqfx_param(int session_id, uint32_t module_id, uint32_t param_id, const void* params, size_t size)
 {
-	void *module_cmd = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_modul_enable_params *module_enable = NULL;
+	struct audio_client *ac;
+	struct asm_set_mqfx_params cmd;
 	int sz = 0;
-	int rc  = 0;
+	int rc = 0;
 
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
+	ac = q6asm_get_audio_client(session_id);
 	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
+		pr_err("%s: Could not get audio client for session\n", __func__);
 		rc = -EINVAL;
-		kfree(module_cmd);
-		return rc;
+		goto fail_cmd;
 	}
 
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_modul_enable_params);
-	module_cmd = kzalloc(sz, GFP_KERNEL);
-	if (module_cmd == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
+	pr_debug("###>>> %s, module_id:0x%08x, param_id:0x%08x, size:%d\n", __func__ ,module_id, param_id, size);
 
-/*	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-	       __func__);*/
+	cmd.param.params.param_size = (size+3)&0xfffffffc;
+	cmd.param.params.module_id = module_id;
+	cmd.param.params.param_id = param_id;
+	cmd.param.params.reserved = 0;
+	memcpy(cmd.mqfx_params, params, size);
+	
+	sz = sizeof(cmd.param) + cmd.param.params.param_size;
 
-	cmd = (struct asm_pp_params_command *)module_cmd;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_modul_enable_params);
-	cmd->params.module_id = module;
-	cmd->params.param_id = param_id;
-	cmd->params.param_size = sizeof(struct asm_modul_enable_params);
-	cmd->params.reserved = 0;
+	q6asm_add_hdr_async(ac, &cmd.param.hdr, sz, TRUE);
+	cmd.param.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
+	cmd.param.payload = NULL;
+	cmd.param.payload_size = sizeof(struct  asm_pp_param_data_hdr) + cmd.param.params.param_size;
 
-	payload = (u8 *)(module_cmd + sizeof(struct asm_pp_params_command));
-	module_enable = (struct asm_modul_enable_params *)payload;
-
-	module_enable->enable_flag = enable;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) module_cmd);
+	rc = apr_send_pkt(ac->apr, (uint32_t *) &cmd);
 	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
+		pr_err("%s: apr_send_pkt failed: module_id = 0x%x, param_id = 0x%x\n", __func__,
+						cmd.param.params.module_id, cmd.param.params.param_id);
 		rc = -EINVAL;
 		goto fail_cmd;
 	}
@@ -3415,641 +3411,74 @@ int q6asm_qsound_module_enable_dsp(int session_id, uint32_t module, uint32_t par
 	rc = wait_event_timeout(ac->cmd_wait,
 			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
 	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
+		pr_err("%s: timeout, set-params: module_id = 0x%x, param_id = 0x%x\n", __func__,
+						cmd.param.params.module_id, cmd.param.params.param_id);
 		rc = -EINVAL;
 		goto fail_cmd;
 	}
 	rc = 0;
 fail_cmd:
-	kfree(module_cmd);
 	return rc;
 }
 
-int q6asm_qsound_eq_band_level_dsp(int session_id, int16_t *level /*uint16_t band, int16_t level*/)
+int q6asm_get_mqfx_param(int session_id, uint32_t module_id, uint32_t param_id, void* params, size_t size)
 {
-	void *eq_band_level = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_band_level_params *band_level = NULL;
-	int sz = 0;
-	int rc  = 0;
-	int i=0;
+    int rc = 0;
+    int sz = 0;
+    struct asm_pp_params_command *cmd;
+	struct audio_client *ac;
+    
+	size = (size+3)&0xfffffffc; // round up
 
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
+    sz = sizeof(struct asm_pp_params_command) + size;
+	cmd = (struct asm_pp_params_command *) kzalloc(sz, GFP_KERNEL);
+	if (cmd == NULL) {
+		pr_err("%s: Mem alloc failed for %d bytes\n", __func__, sz);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
 
+	ac = q6asm_get_audio_client(session_id);
 	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_band_level);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_band_level_params);
-	eq_band_level = kzalloc(sz, GFP_KERNEL);
-	if (eq_band_level == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_band_level;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_band_level_params);
-	cmd->params.module_id = QSOUND_EQ_MODULE_ID;
-	cmd->params.param_id = QSOUND_EQ_BAND_LEVELS_ID;
-	cmd->params.param_size = sizeof(struct asm_eq_band_level_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_band_level + sizeof(struct asm_pp_params_command));
-	band_level = (struct asm_eq_band_level_params *)payload;
-
-//	band_level->band = band;
-	for(i=0;i<7;i++){
-		band_level->level[i] = level[i];
-	}
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_band_level);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
+		pr_err("%s: Could not get audio client for session\n", __func__);
 		rc = -EINVAL;
 		goto fail_cmd;
 	}
 
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
+    q6asm_add_hdr_async(ac, &cmd->hdr, sizeof(cmd), TRUE);
+    cmd->hdr.opcode = ASM_STREAM_CMD_GET_PP_PARAMS;
+	cmd->payload           = 0;
+	cmd->payload_size      = sizeof(cmd->params) + size;
+	cmd->params.module_id  = module_id;
+    cmd->params.param_id   = param_id;
+    cmd->params.param_size = size;
+    cmd->params.reserved   = 0;
+
+	// testing. todo : remove the patch in q6asm_callback().
+    mqfx_get_rsp_ptr = params;
+
+    rc = apr_send_pkt(ac->apr, (uint32_t*)&cmd);
+    if (rc < 0) {
+        pr_err("%s: get_pp_params command failed\n", __func__);
+        rc = -EINVAL;
+        goto fail_cmd;
+    }
+
+    rc = wait_event_timeout(ac->cmd_wait,
+            (atomic_read(&ac->cmd_state) == 0), 5*HZ);
+    if (!rc) {
+        pr_err("%s: timeout in sending get_pp_params command to apr\n", __func__);
+        rc = -EINVAL;
+        goto fail_cmd;
+    }
+	// copy payload to arguments here:
+	memcpy(params, cmd+1, size);
+    rc = 0;
 fail_cmd:
-	kfree(eq_band_level);
-	return rc;
+	kfree(cmd);
+    return rc;
 }
-
-int q6asm_qsound_eq_preset_dsp(int session_id, uint32_t preset_enum)
-{
-	void *eq_preset = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_preset_params *eq = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_preset);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_preset_params);
-	eq_preset = kzalloc(sz, GFP_KERNEL);
-	if (eq_preset == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_preset;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_preset_params);
-	cmd->params.module_id = QSOUND_EQ_MODULE_ID;
-	cmd->params.param_id = QSOUND_EQ_BAND_CUR_PRESET;
-	cmd->params.param_size = sizeof(struct asm_eq_preset_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_preset + sizeof(struct asm_pp_params_command));
-	eq = (struct asm_eq_preset_params *)payload;
-
-	eq->eq_preset_enum = preset_enum;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_preset);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(eq_preset);
-	return rc;
-}
-
-int q6asm_qsound_eq_get_param_value_dsp(int session_id, uint32_t module_id, uint32_t param_id, int param,int *value)
-{
-	void *eq_get_param_value = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_get_param_values_params *get_param_value = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_get_param_value);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_get_param_values_params);
-	eq_get_param_value = kzalloc(sz, GFP_KERNEL);
-	if (eq_get_param_value == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_get_param_value;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_get_param_values_params);
-	cmd->params.module_id = module_id;
-	cmd->params.param_id = param_id;
-	cmd->params.param_size = sizeof(struct asm_eq_get_param_values_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_get_param_value + sizeof(struct asm_pp_params_command));
-	get_param_value = (struct asm_eq_get_param_values_params *)payload;
-
-	get_param_value->param = param;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_get_param_value);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	value = (int *)get_param_value->value;
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(eq_get_param_value);
-	return rc;
-}
-
-int q6asm_qsound_eq_get_value_dsp(int session_id, uint32_t module_id, uint32_t param_id, int *value)
-{
-	void *eq_get_value = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_get_values_params *get_value = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_get_value);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_get_values_params);
-	eq_get_value = kzalloc(sz, GFP_KERNEL);
-	if (eq_get_value == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_get_value;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_get_values_params);
-	cmd->params.module_id = module_id;
-	cmd->params.param_id = param_id;
-	cmd->params.param_size = sizeof(struct asm_eq_get_values_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_get_value + sizeof(struct asm_pp_params_command));
-	get_value = (struct asm_eq_get_values_params *)payload;
-
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_get_value);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	value = (int *)get_value->value;
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(eq_get_value);
-	return rc;
-}
-
-int q6asm_qsound_eq_get_lvl_range_dsp(int session_id, int16_t *min, int16_t *max)
-{
-	void *eq_get_lvl_range_value = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_get_lvl_range_params *get_lvl_range_value = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_get_lvl_range_value);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_get_lvl_range_params);
-	eq_get_lvl_range_value = kzalloc(sz, GFP_KERNEL);
-	if (eq_get_lvl_range_value == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_get_lvl_range_value;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_get_lvl_range_params);
-	cmd->params.module_id = QSOUND_EQ_MODULE_ID;
-	cmd->params.param_id = QSOUND_EQ_GET_LVL_RANGE;
-	cmd->params.param_size = sizeof(struct asm_eq_get_lvl_range_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_get_lvl_range_value + sizeof(struct asm_pp_params_command));
-	get_lvl_range_value = (struct asm_eq_get_lvl_range_params *)payload;
-
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_get_lvl_range_value);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	min = (int16_t *)get_lvl_range_value->min ;
-	max = (int16_t *)get_lvl_range_value->max ;
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(eq_get_lvl_range_value);
-	return rc;
-}
-
-int q6asm_qsound_eq_get_preset_name_dsp(int session_id, uint32_t preset, char *value)
-{
-	void *eq_get_preset_name_value = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_eq_get_preset_name_params *get_preset_name_value = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(eq_get_preset_name_value);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_eq_get_preset_name_params);
-	eq_get_preset_name_value = kzalloc(sz, GFP_KERNEL);
-	if (eq_get_preset_name_value == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)eq_get_preset_name_value;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_eq_get_preset_name_params);
-	cmd->params.module_id = QSOUND_EQ_MODULE_ID;
-	cmd->params.param_id = QSOUND_EQ_GET_PESET_NAME;
-	cmd->params.param_size = sizeof(struct asm_eq_get_preset_name_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(eq_get_preset_name_value + sizeof(struct asm_pp_params_command));
-	get_preset_name_value = (struct asm_eq_get_preset_name_params *)payload;
-
-	get_preset_name_value->preset = preset;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) eq_get_preset_name_value);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	value = (char *)get_preset_name_value->name;
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(eq_get_preset_name_value);
-	return rc;
-}
-
-int q6asm_qsound_virtual_spread_dsp(int session_id, uint32_t spread_value)
-{
-	void *virtual_spread = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_virtual_spread_params *virtual = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(virtual_spread);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_virtual_spread_params);
-	virtual_spread = kzalloc(sz, GFP_KERNEL);
-	if (virtual_spread == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)virtual_spread;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_virtual_spread_params);
-	cmd->params.module_id = QSOUND_VIRTUAL_MODULE_ID;
-	cmd->params.param_id = QSOUND_VIRTUAL_SPREAD_ID;
-	cmd->params.param_size = sizeof(struct asm_virtual_spread_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(virtual_spread + sizeof(struct asm_pp_params_command));
-	virtual = (struct asm_virtual_spread_params *)payload;
-
-	virtual->spread = spread_value;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) virtual_spread);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(virtual_spread);
-	return rc;
-}
-
-int q6asm_qsound_reverb_preset_dsp(int session_id, uint32_t preset_enum)
-{
-	void *reverb_preset = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_reverb_preset_params *reverb = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(reverb_preset);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_reverb_preset_params);
-	reverb_preset = kzalloc(sz, GFP_KERNEL);
-	if (reverb_preset == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)reverb_preset;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_reverb_preset_params);
-	cmd->params.module_id = QSOUND_REVERB_MODULE_ID;
-	cmd->params.param_id = QSOUND_REVERB_PRESET_ID;
-	cmd->params.param_size = sizeof(struct asm_reverb_preset_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(reverb_preset + sizeof(struct asm_pp_params_command));
-	reverb = (struct asm_reverb_preset_params *)payload;
-
-	reverb->preset_enum = preset_enum;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) reverb_preset);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(reverb_preset);
-	return rc;
-}
-
-int q6asm_qsound_bassboost_strength_dsp(int session_id, uint32_t strgth_value)
-{
-	void *bassboost_strength = NULL;
-	void *payload = NULL;
-	struct asm_pp_params_command *cmd = NULL;
-	struct asm_bassboost_strength_params *bassboost = NULL;
-	int sz = 0;
-	int rc  = 0;
-
-	struct audio_client *ac =
-		q6asm_get_audio_client(session_id);
-
-	if (ac == NULL) {
-		pr_err("%s: Could not get audio client for session\n",
-		       __func__);
-		rc = -EINVAL;
-		kfree(bassboost_strength);
-		return rc;
-	}
-
-	sz = sizeof(struct asm_pp_params_command) +
-		+ sizeof(struct asm_bassboost_strength_params);
-	bassboost_strength = kzalloc(sz, GFP_KERNEL);
-	if (bassboost_strength == NULL) {
-		pr_err("%s: Mem alloc failed\n", __func__);
-		rc = -EINVAL;
-		return rc;
-	}
-
-//	pr_err("@#@#@#@#@#%s: get audio client for session\n",
-//	       __func__);
-
-	cmd = (struct asm_pp_params_command *)bassboost_strength;
-	q6asm_add_hdr_async(ac, &cmd->hdr, sz, TRUE);
-	cmd->hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS;
-	cmd->payload = NULL;
-	cmd->payload_size = sizeof(struct  asm_pp_param_data_hdr) +
-				sizeof(struct asm_bassboost_strength_params);
-	cmd->params.module_id = QSOUND_BASSBOOST_MODULE_ID;
-	cmd->params.param_id = QSOUND_BASSBOOST_STRENGTH_ID;
-	cmd->params.param_size = sizeof(struct asm_bassboost_strength_params);
-	cmd->params.reserved = 0;
-
-	payload = (u8 *)(bassboost_strength + sizeof(struct asm_pp_params_command));
-	bassboost = (struct asm_bassboost_strength_params *)payload;
-
-	bassboost->strength = strgth_value;
-	rc = apr_send_pkt(ac->apr, (uint32_t *) bassboost_strength);
-	if (rc < 0) {
-		pr_err("%s: Mute Command failed\n", __func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-
-	rc = wait_event_timeout(ac->cmd_wait,
-			(atomic_read(&ac->cmd_state) == 0), 5*HZ);
-	if (!rc) {
-		pr_err("%s: timeout in sending mute command to apr\n",
-			__func__);
-		rc = -EINVAL;
-		goto fail_cmd;
-	}
-	rc = 0;
-fail_cmd:
-	kfree(bassboost_strength);
-	return rc;
-}
-
-#endif  //SKY_SND_QSOUND_OPEN_DSP
+#endif // CONFIG_PANTECH_SND_QSOUND
 
 int q6asm_equalizer(struct audio_client *ac, void *eq)
 {
@@ -4574,12 +4003,8 @@ int q6asm_cmd(struct audio_client *ac, int cmd)
 	case CMD_CLOSE:
 		pr_debug("%s:CMD_CLOSE\n", __func__);
 		hdr.opcode = ASM_STREAM_CMD_CLOSE;
-#ifdef CONFIG_PANTECH_QCT_PATCH_SR1071471 //20130107 jhsong : qct patch for watchdog lpass after set audio effect
 		atomic_set(&ac->cmd_close_state, 1);
 		state = &ac->cmd_close_state;
-#else
-		state = &ac->cmd_state;
-#endif
 		break;
 	default:
 		pr_err("Invalid format[%d]\n", cmd);

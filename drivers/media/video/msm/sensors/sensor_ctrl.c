@@ -25,10 +25,17 @@
 
 #undef CDBG
 #undef CERR
+#undef F_PANTECH_CAMERA_LOG_PRINTK
+
+#ifdef F_PANTECH_CAMERA_LOG_PRINTK
 #define CDBG(fmt, args...) printk(KERN_DEBUG fmt, ##args)
 #define CINFO(fmt, args...) printk(KERN_INFO fmt, ##args)
 #define CERR(fmt, args...) printk(KERN_ERR fmt, ##args)
-
+#else
+#define CDBG(fmt, args...) do{}while(0) 
+#define CINFO(fmt, args...) do{}while(0) 
+#define CERR(fmt, args...) do{}while(0) 
+#endif
 
 int sgpio_init(sgpio_ctrl_t *gpios, uint32_t sz)
 {
